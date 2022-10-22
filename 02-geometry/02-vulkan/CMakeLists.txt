@@ -71,5 +71,18 @@ endif()
 # 3rd party variant implementation
 add_subdirectory(3rd-party/variant EXCLUDE_FROM_ALL)
 
+find_package(glfw3 REQUIRED)
+find_package(Vulkan REQUIRED)
+#include_directories(${Vulkan_INCLUDE_DIRS})
+
+if (NOT VulkanFOUND)
+    find_library(Vulkan_LIBRARY REQUIRED)
+    if (Vulkan_LIBRARY)
+        set (Vulkan_FOUND ON)
+    endif()
+endif()
+
+set (ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/engine/include)
+
 add_subdirectory(lib)
 add_subdirectory(test)
