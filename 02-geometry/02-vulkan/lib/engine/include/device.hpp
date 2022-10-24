@@ -17,8 +17,8 @@
 namespace throttle {
 namespace graphics {
 
-bool device_support_extensions(const vk::raii::PhysicalDevice  &p_device,
-                               const std::vector<const char *> &p_required_extensions) {
+inline bool device_support_extensions(const vk::raii::PhysicalDevice  &p_device,
+                                      const std::vector<const char *> &p_required_extensions) {
   std::set<std::string> required_extensions{p_required_extensions.begin(), p_required_extensions.end()};
   for (auto &extension : p_device.enumerateDeviceExtensionProperties()) {
     required_extensions.erase(extension.extensionName);
@@ -26,12 +26,12 @@ bool device_support_extensions(const vk::raii::PhysicalDevice  &p_device,
   return required_extensions.empty();
 }
 
-bool is_suitable(const vk::raii::PhysicalDevice &p_device) {
+inline bool is_suitable(const vk::raii::PhysicalDevice &p_device) {
   const std::vector<const char *> required_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
   return device_support_extensions(p_device, required_extensions);
 }
 
-vk::raii::PhysicalDevice pick_physical_device(const vk::raii::Instance &p_instance) {
+inline vk::raii::PhysicalDevice pick_physical_device(const vk::raii::Instance &p_instance) {
   std::vector<vk::raii::PhysicalDevice> available_devices = p_instance.enumeratePhysicalDevices();
   for (auto &device : available_devices) {
     if (is_suitable(device)) return device;

@@ -16,7 +16,7 @@
 
 namespace throttle {
 namespace graphics {
-GLFWwindow *create_window(const uint32_t p_width, const uint32_t p_height) {
+inline GLFWwindow *create_window(const uint32_t p_width, const uint32_t p_height) {
   glfwInit();
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
