@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "device.hpp"
 #include "instance.hpp"
 #include "logging.hpp"
 #include "window.hpp"
@@ -24,7 +25,8 @@ public:
   application()
       : m_window{throttle::graphics::create_window(800, 600)}, m_instance{throttle::graphics::create_instance(
                                                                    "best instance")},
-        m_debug_messenger{throttle::graphics::create_debug_messenger(m_instance)} {}
+        m_debug_messenger{throttle::graphics::create_debug_messenger(m_instance)},
+        m_phys_device{throttle::graphics::pick_physical_device(m_instance)} {}
 
   void run() {}
 
@@ -32,5 +34,6 @@ private:
   GLFWwindow                      *m_window{nullptr};
   vk::raii::Instance               m_instance{nullptr};
   vk::raii::DebugUtilsMessengerEXT m_debug_messenger{nullptr};
+  vk::raii::PhysicalDevice         m_phys_device{nullptr};
 };
 } // namespace triangles
