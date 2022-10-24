@@ -65,14 +65,20 @@ inline bool is_supported(const std::vector<const char *> &extensions, const std:
 }
 
 // interface instance class.
-class i_instance_data {
+struct i_instance_data {
+  virtual vk::raii::Instance &instance() = 0;
+  virtual ~i_instance_data(){};
+};
+
+// concrete instance class with debug messenger.
+class instance_data : public i_instance_data {
 public:
-  i_instance_data() : m_handle{create_instance()} {}
-  vk::raii::Instance &instance() { return m_handle; }
-  virtual ~i_instance_data() {}
+  instance_data() : m_handle{create_instance()}, m_dmessenger{create_debug_messenger(m_handle)} {}
+  vk::raii::Instance &instance() override { return m_handle; }
 
 private:
   vk::raii::Instance create_instance() {
+    glfwInit();
     vk::raii::Context   context;
     auto                version = context.enumerateInstanceVersion();
     vk::ApplicationInfo app_info{"Triangles intersection", version, "Best engine", version, version};
@@ -92,18 +98,7 @@ private:
     return vk::raii::Instance{context, create_info};
   }
 
-protected:
-  vk::raii::Instance m_handle{nullptr};
-}; // namespace graphics
-
-// concrete instance class with debug messenger.
-class instance_data : public i_instance_data {
-public:
-  instance_data() : i_instance_data{}, m_dmessenger{create_debug_messenger(i_instance_data::m_handle)} {}
-
-  virtual ~instance_data() {}
-
-private:
+  vk::raii::Instance               m_handle{nullptr};
   vk::raii::DebugUtilsMessengerEXT m_dmessenger{nullptr};
 };
 } // namespace graphics

@@ -14,6 +14,8 @@
 #include <vector>
 #include <vulkan/vulkan_raii.hpp>
 
+#include <iostream>
+
 namespace throttle {
 namespace graphics {
 
@@ -32,7 +34,7 @@ inline bool is_suitable(const vk::raii::PhysicalDevice &p_device) {
 }
 
 inline vk::raii::PhysicalDevice pick_physical_device(const vk::raii::Instance &p_instance) {
-  std::vector<vk::raii::PhysicalDevice> available_devices = p_instance.enumeratePhysicalDevices();
+  auto available_devices = p_instance.enumeratePhysicalDevices();
   for (auto &device : available_devices) {
     if (is_suitable(device)) return device;
   }

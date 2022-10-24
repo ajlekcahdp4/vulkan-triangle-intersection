@@ -10,13 +10,14 @@
 
 #pragma once
 
+#include <vulkan/vulkan_raii.hpp>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <exception>
 
 namespace throttle {
 namespace graphics {
-class window_data {
+class window_data final {
 public:
   window_data(GLFWwindow *p_window, const std::string &p_name, const vk::Extent2D &p_extent)
       : m_handle{p_window}, m_extent{p_extent}, m_name{p_name} {}
@@ -28,13 +29,15 @@ public:
   }
 
   window_data(const std::string p_name, const vk::Extent2D &p_extent) : m_extent{p_extent}, m_name{p_name} {
-    glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     m_handle = glfwCreateWindow(m_extent.width, m_extent.height, m_name.c_str(), nullptr, nullptr);
     if (!m_handle) throw std::runtime_error("Failed to create a window");
   }
-  virtual ~window_data() { glfwDestroyWindow(m_handle); }
+
+  GLFWwindow *window() { return m_handle; }
+
+  ~window_data() { glfwDestroyWindow(m_handle); }
 
 private:
   GLFWwindow  *m_handle{nullptr};
