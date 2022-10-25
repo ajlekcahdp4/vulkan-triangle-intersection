@@ -24,6 +24,7 @@ namespace graphics {
 struct i_surface_data {
   virtual vk::raii::SurfaceKHR &surface() = 0;
   virtual GLFWwindow           *window() = 0;
+  virtual const vk::Extent2D   &extent() = 0;
   virtual ~i_surface_data() {}
 };
 
@@ -40,6 +41,7 @@ public:
 
   vk::raii::SurfaceKHR &surface() override { return m_handle; }
   GLFWwindow           *window() override { return m_window_data->window(); }
+  const vk::Extent2D   &extent() override { return m_window_data->extent(); }
 
 private:
   std::unique_ptr<i_window_data> m_window_data{nullptr};

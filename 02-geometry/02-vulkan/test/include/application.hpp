@@ -14,6 +14,7 @@
 #include "instance.hpp"
 #include "queue_families.hpp"
 #include "surface.hpp"
+#include "swapchain.hpp"
 
 #include <vulkan/vulkan_raii.hpp>
 #define GLFW_INCLUDE_NONE
@@ -29,8 +30,9 @@ public:
                                                                           vk::Extent2D{800, 600})},
         m_logical_device{throttle::graphics::create_device(m_phys_device, *m_surface_data)}, m_queues{m_phys_device,
                                                                                                       m_logical_device,
-                                                                                                      *m_surface_data} {
-  }
+                                                                                                      *m_surface_data},
+        m_swapchain_data{std::make_unique<throttle::graphics::swapchain_data>(
+            m_phys_device, m_logical_device, *m_surface_data, m_surface_data->extent())} {}
 
   void run() {
     while (!glfwWindowShouldClose(m_surface_data->window()))
@@ -43,5 +45,6 @@ private:
   std::unique_ptr<throttle::graphics::i_surface_data>  m_surface_data{nullptr};
   vk::raii::Device                                     m_logical_device{nullptr};
   throttle::graphics::queues                           m_queues;
+  std::unique_ptr<throttle::graphics::i_swapchain_data> m_swapchain_data{nullptr};
 };
 } // namespace triangles
