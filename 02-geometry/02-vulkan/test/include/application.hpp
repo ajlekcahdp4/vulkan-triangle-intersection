@@ -27,7 +27,10 @@ public:
         m_phys_device{throttle::graphics::pick_physical_device(m_instance_data->instance())},
         m_surface_data{std::make_unique<throttle::graphics::surface_data>(*m_instance_data, "Triangles intersection",
                                                                           vk::Extent2D{800, 600})},
-        m_logical_device{throttle::graphics::create_device(m_phys_device, *m_surface_data)} {}
+        m_logical_device{throttle::graphics::create_device(m_phys_device, *m_surface_data)}, m_queues{m_phys_device,
+                                                                                                      m_logical_device,
+                                                                                                      *m_surface_data} {
+  }
 
   void run() {
     while (!glfwWindowShouldClose(m_surface_data->window()))
@@ -39,5 +42,6 @@ private:
   vk::raii::PhysicalDevice         m_phys_device{nullptr};
   std::unique_ptr<throttle::graphics::i_surface_data>  m_surface_data{nullptr};
   vk::raii::Device                                     m_logical_device{nullptr};
+  throttle::graphics::queues                           m_queues;
 };
 } // namespace triangles

@@ -18,11 +18,6 @@
 namespace throttle {
 namespace graphics {
 
-struct queues {
-  vk::raii::Queue graphics;
-  vk::raii::Queue present;
-};
-
 inline uint32_t find_graphics_family_index(const std::vector<vk::QueueFamilyProperties> &p_queue_family_properties) {
   std::vector<vk::QueueFamilyProperties>::const_iterator graphics_family_property_it =
       std::find_if(p_queue_family_properties.begin(), p_queue_family_properties.end(),
@@ -41,11 +36,16 @@ inline std::pair<uint32_t, uint32_t> find_graphics_and_present_family_indices(co
   throw std::runtime_error("Device does not support all the required queue family indices");
 }
 
-inline queues get_queue(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device,
-                        i_surface_data &p_surface_data) {
-  auto indices = find_graphics_and_present_family_indices(p_device, p_surface_data);
-  return {l_device.getQueue(indices.first, 0), l_device.getQueue(indices.second, 0)};
-}
+struct queues {
+  vk::raii::Queue graphics{nullptr};
+  vk::raii::Queue present{nullptr};
+
+  queues(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device, i_surface_data &p_surface_data) {
+    auto indices = find_graphics_and_present_family_indices(p_device, p_surface_data);
+    graphics = l_device.getQueue(indices.first, 0);
+    present = l_device.getQueue(indices.second, 0);
+  }
+};
 
 } // namespace graphics
 } // namespace throttle
