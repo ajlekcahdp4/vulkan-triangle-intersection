@@ -22,18 +22,19 @@ namespace triangles {
 class application final {
 public:
   application()
-      : m_phys_device{throttle::graphics::pick_physical_device(m_instance_data->instance())},
-        m_surface_data{*m_instance_data, "Triangles intersection", vk::Extent2D{800, 600}} {}
+      : m_instance_data{std::make_unique<throttle::graphics::instance_data>()},
+        m_phys_device{throttle::graphics::pick_physical_device(m_instance_data->instance())},
+        m_surface_data{std::make_unique<throttle::graphics::surface_data>(*m_instance_data, "Triangles intersection",
+                                                                          vk::Extent2D{800, 600})} {}
 
   void run() {
-    while (!glfwWindowShouldClose(m_surface_data.window()))
+    while (!glfwWindowShouldClose(m_surface_data->window()))
       glfwPollEvents();
   }
 
 private:
-  std::unique_ptr<throttle::graphics::i_instance_data> m_instance_data{
-      std::make_unique<throttle::graphics::instance_data>()};
+  std::unique_ptr<throttle::graphics::i_instance_data> m_instance_data{nullptr};
   vk::raii::PhysicalDevice         m_phys_device{nullptr};
-  throttle::graphics::surface_data m_surface_data;
+  std::unique_ptr<throttle::graphics::i_surface_data>  m_surface_data{nullptr};
 };
 } // namespace triangles

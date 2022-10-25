@@ -17,7 +17,12 @@
 
 namespace throttle {
 namespace graphics {
-class window_data final {
+struct i_window_data {
+  virtual GLFWwindow *window() = 0;
+  virtual ~i_window_data() {}
+};
+
+class window_data final : public i_window_data {
 public:
   window_data(GLFWwindow *p_window, const std::string &p_name, const vk::Extent2D &p_extent)
       : m_handle{p_window}, m_extent{p_extent}, m_name{p_name} {}
@@ -36,7 +41,6 @@ public:
   }
 
   GLFWwindow *window() { return m_handle; }
-
   ~window_data() { glfwDestroyWindow(m_handle); }
 
 private:

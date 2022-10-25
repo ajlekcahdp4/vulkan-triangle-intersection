@@ -21,21 +21,28 @@ namespace throttle {
 
 namespace graphics {
 
-class surface_data final {
+struct i_surface_data {
+  virtual vk::raii::SurfaceKHR &surface() = 0;
+  virtual GLFWwindow           *window() = 0;
+  virtual ~i_surface_data() {}
+};
+
+class surface_data final : public i_surface_data {
 public:
   surface_data(throttle::graphics::i_instance_data &p_instance_data, const std::string &p_name,
                const vk::Extent2D &p_extent)
-      : m_window_data{p_name, p_extent}, m_handle{nullptr} {
+      : m_window_data{std::make_unique<window_data>(p_name, p_extent)}, m_handle{nullptr} {
     VkSurfaceKHR c_style_surface;
     auto         res = glfwCreateWindowSurface(*p_instance_data.instance(), window(), nullptr, &c_style_surface);
     if (res != VK_SUCCESS) throw std::runtime_error("Failed to create a surface");
     m_handle = vk::raii::SurfaceKHR(p_instance_data.instance(), c_style_surface);
   }
-  vk::raii::SurfaceKHR &surface() { return m_handle; }
-  GLFWwindow           *window() { return m_window_data.window(); }
+
+  vk::raii::SurfaceKHR &surface() override { return m_handle; }
+  GLFWwindow           *window() override { return m_window_data->window(); }
 
 private:
-  window_data          m_window_data;
+  std::unique_ptr<i_window_data> m_window_data{nullptr};
   vk::raii::SurfaceKHR m_handle{nullptr};
 };
 } // namespace graphics
