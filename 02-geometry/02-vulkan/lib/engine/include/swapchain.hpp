@@ -38,14 +38,15 @@ public:
     uint32_t image_count = std::max(capabilities.maxImageCount, capabilities.minImageCount + 1);
     // clang-format off
     vk::SwapchainCreateInfoKHR create_info{
-        vk::SwapchainCreateFlagsKHR(),
-        *p_surface_data.surface(),
-        image_count,
-        m_format.format,
-        m_format.colorSpace,
-        m_extent,
-        1,
-        vk::ImageUsageFlagBits::eColorAttachment};
+      vk::SwapchainCreateFlagsKHR(),
+      *p_surface_data.surface(),
+      image_count,
+      m_format.format,
+      m_format.colorSpace,
+      m_extent,
+      1,
+      vk::ImageUsageFlagBits::eColorAttachment
+    };
     // clang-format on
     auto     queue_family_indices = find_graphics_and_present_family_indices(p_phys_device, p_surface_data);
     uint32_t arr_indices[2] = {queue_family_indices.first, queue_family_indices.second};
