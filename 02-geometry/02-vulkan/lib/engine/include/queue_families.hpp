@@ -12,32 +12,39 @@
 
 #include <optional>
 #include <vulkan/vulkan_raii.hpp>
+
+#include "surface.hpp"
+
 namespace throttle {
 namespace graphics {
-struct queue_family_indices {
-  std::optional<uint32_t> graphics_family;
-  std::optional<uint32_t> present_family;
-  bool                    complete() { return graphics_family.has_value() && present_family.has_value(); }
+
+struct queues {
+  vk::raii::Queue graphics;
+  vk::raii::Queue present;
 };
 
-inline queue_family_indices find_queue_families(const vk::raii::PhysicalDevice &p_device,
-                                                const vk::raii::SurfaceKHR     &p_surface) {
-  queue_family_indices indices;
-  auto                 queue_families = p_device.getQueueFamilyProperties();
-  int                  i = 0;
-  for (auto &family : queue_families) {
-    if (family.queueFlags & vk::QueueFlagBits::eGraphics) indices.graphics_family = i;
-    if (p_device.getSurfaceSupportKHR(i, *p_surface)) indices.present_family = i;
-    if (indices.complete()) return indices;
-    ++i;
-  }
-  throw std::runtime_error("Not all required queue families are  supported by physical device");
+inline uint32_t find_graphics_family_index(const std::vector<vk::QueueFamilyProperties> &p_queue_family_properties) {
+  std::vector<vk::QueueFamilyProperties>::const_iterator graphics_family_property_it =
+      std::find_if(p_queue_family_properties.begin(), p_queue_family_properties.end(),
+                   [](vk::QueueFamilyProperties const &qfp) { return qfp.queueFlags & vk::QueueFlagBits::eGraphics; });
+  if (graphics_family_property_it == p_queue_family_properties.end())
+    throw std::runtime_error("Device does not support all the required queue family indices");
+  return static_cast<uint32_t>(std::distance(p_queue_family_properties.begin(), graphics_family_property_it));
 }
 
-inline std::vector<vk::raii::Queue> get_queue(const vk::raii::PhysicalDevice &p_device,
-                                              const vk::raii::Device &l_device, vk::raii::SurfaceKHR &surface) {
-  auto inndices = find_queue_families(p_device, surface);
-  return {l_device.getQueue(indices.graphics_family.value(), 0), l_device.getQueue(indices.present_family.value(), 0)};
+inline std::pair<uint32_t, uint32_t> find_graphics_and_present_family_indices(const vk::raii::PhysicalDevice &p_device,
+                                                                              i_surface_data &p_surface_data) {
+  auto queue_family_properties = p_device.getQueueFamilyProperties();
+  auto graphic_family_index = find_graphics_family_index(queue_family_properties);
+  for (uint32_t idx = 0; idx < queue_family_properties.size(); ++idx)
+    if (p_device.getSurfaceSupportKHR(idx, *p_surface_data.surface())) return std::make_pair(graphic_family_index, idx);
+  throw std::runtime_error("Device does not support all the required queue family indices");
+}
+
+inline queues get_queue(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device,
+                        i_surface_data &p_surface_data) {
+  auto indices = find_graphics_and_present_family_indices(p_device, p_surface_data);
+  return {l_device.getQueue(indices.first, 0), l_device.getQueue(indices.second, 0)};
 }
 
 } // namespace graphics

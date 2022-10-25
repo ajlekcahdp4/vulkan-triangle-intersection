@@ -12,6 +12,7 @@
 
 #include "device.hpp"
 #include "instance.hpp"
+#include "queue_families.hpp"
 #include "surface.hpp"
 
 #include <vulkan/vulkan_raii.hpp>
