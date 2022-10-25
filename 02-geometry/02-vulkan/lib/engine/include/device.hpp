@@ -16,6 +16,9 @@
 
 #include <iostream>
 
+#include "queue_families.hpp"
+#include "surface.hpp"
+
 namespace throttle {
 namespace graphics {
 
@@ -39,6 +42,33 @@ inline vk::raii::PhysicalDevice pick_physical_device(const vk::raii::Instance &p
     if (is_suitable(device)) return device;
   }
   return nullptr;
+}
+
+inline vk::raii::Device create_device(const vk::raii::PhysicalDevice &p_device, i_surface_data &p_surface_data) {
+  auto               indices = find_graphics_and_present_family_indices(p_device, p_surface_data);
+  std::set<uint32_t> unique_indices;
+  unique_indices.insert(indices.first);
+  unique_indices.insert(indices.second);
+  float                                  queue_priority = 1.0f;
+  std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
+  for (auto qfi : unique_indices)
+    queue_create_infos.push_back(vk::DeviceQueueCreateInfo{vk::DeviceQueueCreateFlags{}, qfi, 1, &queue_priority});
+  std::vector<const char *>  device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+  vk::PhysicalDeviceFeatures device_features{};
+  std::vector<const char *>  enabled_layers;
+  // clang-format off
+  vk::DeviceCreateInfo device_create_info {
+      vk::DeviceCreateFlags {},
+      static_cast<uint32_t> (queue_create_infos.size ()),                                    
+      queue_create_infos.data (),
+      static_cast<uint32_t> (enabled_layers.size ()),
+      enabled_layers.data (),
+      static_cast<uint32_t>(device_extensions.size()),
+      device_extensions.data(),
+      &device_features
+  };
+  // clang-format on
+  return p_device.createDevice(device_create_info);
 }
 } // namespace graphics
 } // namespace throttle
