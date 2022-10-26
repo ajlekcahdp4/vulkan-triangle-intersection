@@ -13,6 +13,7 @@
 #include "device.hpp"
 #include "instance.hpp"
 #include "queue_families.hpp"
+#include "render_pass.hpp"
 #include "surface.hpp"
 #include "swapchain.hpp"
 
@@ -32,7 +33,8 @@ public:
                                                                                                       m_logical_device,
                                                                                                       *m_surface_data},
         m_swapchain_data{std::make_unique<throttle::graphics::swapchain_data>(
-            m_phys_device, m_logical_device, *m_surface_data, m_surface_data->extent())} {}
+            m_phys_device, m_logical_device, *m_surface_data, m_surface_data->extent())},
+        m_render_pass{throttle::graphics::create_render_pass(m_logical_device)} {}
 
   void run() {
     while (!glfwWindowShouldClose(m_surface_data->window()))
@@ -46,5 +48,6 @@ private:
   vk::raii::Device                                     m_logical_device{nullptr};
   throttle::graphics::queues                           m_queues;
   std::unique_ptr<throttle::graphics::i_swapchain_data> m_swapchain_data{nullptr};
+  vk::raii::RenderPass                                  m_render_pass{nullptr};
 };
 } // namespace triangles

@@ -22,6 +22,7 @@ struct i_swapchain_data {
   virtual vk::raii::SwapchainKHR           &swapchain() = 0;
   virtual std::vector<vk::Image>           &images() = 0;
   virtual std::vector<vk::raii::ImageView> &image_views() = 0;
+  virtual vk::SurfaceFormatKHR             &format() = 0;
   virtual ~i_swapchain_data() {}
 };
 
@@ -84,6 +85,7 @@ public:
   vk::raii::SwapchainKHR           &swapchain() override { return m_handle; }
   std::vector<vk::Image>           &images() override { return m_images; }
   std::vector<vk::raii::ImageView> &image_views() override { return m_image_views; }
+  vk::SurfaceFormatKHR             &format() override { return m_format; }
 
 private:
   static vk::SurfaceFormatKHR choose_swapchain_surface_format(const std::vector<vk::SurfaceFormatKHR> &formats) {
