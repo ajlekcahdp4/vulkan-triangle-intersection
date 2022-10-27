@@ -1,8 +1,9 @@
 #version 460
 
-// from vertex shader
-in vec3 vColor;
+layout(location = 0) in vec3 fragColor;
 
-void main() {  
-	gl_FragColor = vec4(vColor, 1.0);
+layout(location = 0) out vec4 outColor;
+
+void main() {
+  outColor = vec4(fragColor, 1.0);
 }
