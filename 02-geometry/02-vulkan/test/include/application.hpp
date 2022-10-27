@@ -12,6 +12,7 @@
 
 #include "device.hpp"
 #include "instance.hpp"
+#include "memory.hpp"
 #include "pipeline.hpp"
 #include "queue_families.hpp"
 #include "render_pass.hpp"
@@ -35,7 +36,9 @@ public:
                                                                                                       *m_surface_data},
         m_swapchain_data{std::make_unique<throttle::graphics::swapchain_data>(
             m_phys_device, m_logical_device, *m_surface_data, m_surface_data->extent())},
-        m_pipeline_data{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_surface_data->extent()} {}
+        m_pipeline_data{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_surface_data->extent()},
+        m_framebuffers{throttle::graphics::allocate_frame_buffers(m_logical_device, *m_swapchain_data, *m_surface_data,
+                                                                  m_pipeline_data)} {}
 
   void run() {
     while (!glfwWindowShouldClose(m_surface_data->window()))
@@ -50,5 +53,6 @@ private:
   throttle::graphics::queues                           m_queues;
   std::unique_ptr<throttle::graphics::i_swapchain_data> m_swapchain_data{nullptr};
   throttle::graphics::pipeline_data                     m_pipeline_data{nullptr};
+  std::vector<vk::raii::Framebuffer>                    m_framebuffers;
 };
 } // namespace triangles
