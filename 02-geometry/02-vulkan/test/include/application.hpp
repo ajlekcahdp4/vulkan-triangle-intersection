@@ -24,6 +24,13 @@
 #include <GLFW/glfw3.h>
 
 namespace triangles {
+
+const std::vector<throttle::graphics::vertex> Vertices = {{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                                          {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+                                                          {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+                                                          {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+
+const std::vector<unsigned short> Indices = {0, 1, 2, 2, 3, 0};
 class application final {
 public:
   application()
@@ -38,7 +45,12 @@ public:
             m_phys_device, m_logical_device, *m_surface_data, m_surface_data->extent())},
         m_pipeline_data{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_surface_data->extent()},
         m_framebuffers{throttle::graphics::allocate_frame_buffers(m_logical_device, *m_swapchain_data, *m_surface_data,
-                                                                  m_pipeline_data)} {}
+                                                                                  m_pipeline_data)},
+        m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
+        m_vertex_buffer{m_phys_device, m_logical_device, throttle::graphics::sizeof_vector(Vertices),
+                        vk::BufferUsageFlagBits::eVertexBuffer},
+        m_index_buffer{m_phys_device, m_logical_device, throttle::graphics::sizeof_vector(Indices),
+                       vk::BufferUsageFlagBits::eIndexBuffer} {}
 
   void run() {
     while (!glfwWindowShouldClose(m_surface_data->window()))
@@ -54,5 +66,8 @@ private:
   std::unique_ptr<throttle::graphics::i_swapchain_data> m_swapchain_data{nullptr};
   throttle::graphics::pipeline_data                     m_pipeline_data{nullptr};
   std::vector<vk::raii::Framebuffer>                    m_framebuffers;
+  vk::raii::CommandPool                                 m_command_pool{nullptr};
+  throttle::graphics::buffer                            m_vertex_buffer{nullptr};
+  throttle::graphics::buffer                            m_index_buffer{nullptr};
 };
 } // namespace triangles

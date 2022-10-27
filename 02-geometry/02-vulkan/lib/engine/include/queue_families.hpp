@@ -39,9 +39,13 @@ inline std::pair<uint32_t, uint32_t> find_graphics_and_present_family_indices(co
 struct queues {
   vk::raii::Queue graphics{nullptr};
   vk::raii::Queue present{nullptr};
+  uint32_t        graphics_index{};
+  uint32_t        present_index{};
 
   queues(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device, i_surface_data &p_surface_data) {
     auto indices = find_graphics_and_present_family_indices(p_device, p_surface_data);
+    graphics_index = indices.first;
+    present_index = indices.second;
     graphics = l_device.getQueue(indices.first, 0);
     present = l_device.getQueue(indices.second, 0);
   }
