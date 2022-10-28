@@ -24,17 +24,17 @@ namespace throttle {
 namespace graphics {
 
 inline std::vector<vk::raii::Framebuffer> allocate_frame_buffers(const vk::raii::Device &p_device,
-                                                                 i_swapchain_data       &p_swapchain_data,
+                                                                 i_swapchain_data       &m_swapchain_data,
                                                                  i_surface_data         &p_surface_data,
-                                                                 const pipeline_data    &p_pipeline_data) {
+                                                                 const pipeline_data    &m_pipeline_data) {
   std::vector<vk::raii::Framebuffer> framebuffers;
-  auto                              &image_views = p_swapchain_data.image_views();
+  auto                              &image_views = m_swapchain_data.image_views();
   uint32_t                           n_framebuffers = image_views.size();
   framebuffers.reserve(n_framebuffers);
   for (uint32_t i = 0; i < n_framebuffers; i++) {
     vk::ImageView             attachments[] = {*image_views[i]};
     vk::FramebufferCreateInfo framebuffer_info{};
-    framebuffer_info.renderPass = *p_pipeline_data.m_render_pass;
+    framebuffer_info.renderPass = *m_pipeline_data.m_render_pass;
     framebuffer_info.attachmentCount = 1;
     framebuffer_info.pAttachments = attachments;
     framebuffer_info.width = p_surface_data.extent().width;
@@ -88,5 +88,6 @@ struct buffer {
     return vk::raii::DeviceMemory{p_device, mem_allocate_info};
   }
 };
+
 } // namespace graphics
 } // namespace throttle

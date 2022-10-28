@@ -69,5 +69,36 @@ private:
   vk::raii::CommandPool                                 m_command_pool{nullptr};
   throttle::graphics::buffer                            m_vertex_buffer{nullptr};
   throttle::graphics::buffer                            m_index_buffer{nullptr};
+  vk::raii::CommandBuffers                              m_command_buffers{nullptr};
+
+private:
+  void create_command_buffers(const std::vector<unsigned short> &p_indices) {
+                    uint32_t                      n_frame_buffers = m_framebuffers.size();
+                    vk::CommandBufferAllocateInfo alloc_info{};
+                    alloc_info.commandPool = *m_command_pool;
+                    alloc_info.commandBufferCount = n_frame_buffers;
+                    vk::raii::CommandBuffers command_buffers{m_logical_device, alloc_info};
+                    for (uint32_t i = 0; i < command_buffers.size(); i++) {
+                      vk::CommandBufferBeginInfo begin_info{};
+                      command_buffers[i].begin(begin_info);
+                      vk::RenderPassBeginInfo render_pass_info{};
+                      render_pass_info.renderPass = *m_pipeline_data.m_render_pass;
+                      render_pass_info.framebuffer = *m_framebuffers[i];
+                      render_pass_info.renderArea.offset = vk::Offset2D{0, 0};
+                      render_pass_info.renderArea.extent = m_swapchain_data->extent();
+                      vk::ClearValue clear_color = vk::ClearValue{vk::ClearColorValue{std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}}};
+                      render_pass_info.clearValueCount = 1;
+                      render_pass_info.pClearValues = &clear_color;
+                      command_buffers[i].beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
+                      command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
+                      vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.m_buffer};
+                      vk::DeviceSize offsets[] = {0};
+                      command_buffers[i].bindVertexBuffers(0, {vertex_buffers}, {offsets});
+                      command_buffers[i].bindIndexBuffer(*m_index_buffer.m_buffer, 0, vk::IndexType::eUint16);
+                      command_buffers[i].drawIndexed(p_indices.size(), 1, 0, 0, 0);
+                      command_buffers[i].endRenderPass();
+                      command_buffers[i].end();
+    }
+  }
 };
 } // namespace triangles
