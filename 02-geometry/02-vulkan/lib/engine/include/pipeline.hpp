@@ -15,8 +15,51 @@
 
 #include <vulkan/vulkan_raii.hpp>
 
+#include <numeric>
+
 namespace throttle {
 namespace graphics {
+
+struct descriptor_set_data {
+public:
+  vk::raii::DescriptorSetLayout m_layout{nullptr};
+  vk::raii::DescriptorPool      m_pool{nullptr};
+  vk::raii::DescriptorSet       m_descriptor_set{nullptr};
+
+  descriptor_set_data(std::nullptr_t) {}
+  descriptor_set_data(const vk::raii::Device &p_device)
+      : m_layout{create_decriptor_set_layout(
+            p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
+                       {vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}})},
+        m_pool{std::move(create_descriptor_pool(
+            p_device, {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eCombinedImageSampler, 1}}))},
+        m_descriptor_set{std::move((vk::raii::DescriptorSets{p_device, {*m_pool, *m_layout}}).front())} {}
+
+private:
+  static vk::raii::DescriptorSetLayout create_decriptor_set_layout(
+      const vk::raii::Device                                                            &p_device,
+      const std::vector<std::tuple<vk::DescriptorType, uint32_t, vk::ShaderStageFlags>> &p_binding_data,
+      vk::DescriptorSetLayoutCreateFlags                                                 p_flags = {}) {
+    std::cout << "Creating descriptor set layout" << std::endl;
+    std::vector<vk::DescriptorSetLayoutBinding> bindings{static_cast<uint32_t>(p_binding_data.size())};
+    for (uint32_t i = 0; i < p_binding_data.size(); ++i)
+      bindings.push_back(vk::DescriptorSetLayoutBinding{
+          i, std::get<0>(p_binding_data[i]), std::get<1>(p_binding_data[i]), std::get<2>(p_binding_data[i])});
+    vk::DescriptorSetLayoutCreateInfo descriptor_set_info{p_flags, bindings};
+    return vk::raii::DescriptorSetLayout{p_device, descriptor_set_info};
+  }
+
+  static vk::raii::DescriptorPool create_descriptor_pool(const vk::raii::Device                    &p_device,
+                                                         const std::vector<vk::DescriptorPoolSize> &p_pool_sizes) {
+    std::cout << "Creating descriptor set pool" << std::endl;
+    uint32_t max_sets =
+        std::accumulate(p_pool_sizes.begin(), p_pool_sizes.end(), 0,
+                        [](uint32_t sum, vk::DescriptorPoolSize const &dps) { return sum + dps.descriptorCount; });
+    vk::DescriptorPoolCreateInfo descriptor_info{vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, max_sets,
+                                                 p_pool_sizes};
+    return vk::raii::DescriptorPool(p_device, descriptor_info);
+  }
+};
 
 struct pipeline_data {
 public:

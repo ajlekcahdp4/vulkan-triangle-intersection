@@ -72,7 +72,7 @@ struct buffer {
          const vk::DeviceSize p_size, const vk::BufferUsageFlags p_usage,
          vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
                                                     vk::MemoryPropertyFlagBits::eHostCoherent)
-      : m_buffer{p_logical_device, vk::BufferCreateInfo{{}, p_size, p_usage}},
+      : m_buffer{p_logical_device.createBuffer(vk::BufferCreateInfo{{}, p_size, p_usage})},
         m_memory{allocate_device_memory(p_logical_device, p_phys_device.getMemoryProperties(),
                                         m_buffer.getMemoryRequirements(), p_property_flags)} {
     m_buffer.bindMemory(*m_memory, 0);
