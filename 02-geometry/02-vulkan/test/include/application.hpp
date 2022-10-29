@@ -136,7 +136,7 @@ private:
         auto &device = *m_logical_device;
         m_image_availible_semaphores[i] = device.createSemaphore({});
         m_render_finished_semaphores[i] = device.createSemaphore({});
-        m_in_flight_fences[i] = device.createFence({});
+        m_in_flight_fences[i] = device.createFence({vk::FenceCreateFlagBits::eSignaled});
       }
     } catch (vk::SystemError &) {
       throw std::runtime_error("failed to create synchronisation objects for a frame");
@@ -162,13 +162,20 @@ private:
 
   void render_frame() {
     m_logical_device.waitForFences({m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
-    vk::Result result;
     uint32_t   image_index{};
     try {
+      auto           &device = *m_logical_device;
+      vk::ResultValue result = device.acquireNextImageKHR(*m_swapchain_data->swapchain(), UINT64_MAX,
+                                                          m_image_availible_semaphores[m_curr_frame], nullptr);
+      image_index = result.value;
+#if 0
       vk::AcquireNextImageInfoKHR acquire_info{};
       acquire_info.swapchain = *m_swapchain_data->swapchain();
       acquire_info.timeout = UINT64_MAX;
-      std::tie(result, image_index) = m_logical_device.acquireNextImage2KHR(acquire_info);
+      acquire_info.semaphore = m_image_availible_semaphores[m_curr_frame];
+      acquire_info.deviceMask = m_logical_device std::tie(result, image_index) =
+          m_logical_device.acquireNextImage2KHR(acquire_info);
+#endif
     } catch (vk::OutOfDateKHRError &) {
       recreate_swap_chain();
       return;
