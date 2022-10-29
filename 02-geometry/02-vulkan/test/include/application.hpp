@@ -49,7 +49,7 @@ public:
                                                                   m_pipeline_data)},
         m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
         m_vertex_buffer{m_phys_device, m_logical_device, throttle::graphics::sizeof_vector(vertices),
-                        vk::BufferUsageFlagBits::eVertexBuffer} {
+                        vk::BufferUsageFlagBits::eVertexBuffer, vertices} {
     create_command_buffers();
     create_sync_objs();
   }

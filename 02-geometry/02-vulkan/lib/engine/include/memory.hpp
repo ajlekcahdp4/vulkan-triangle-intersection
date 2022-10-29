@@ -78,6 +78,20 @@ struct buffer {
     m_buffer.bindMemory(*m_memory, 0);
   }
 
+  buffer(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
+         const vk::DeviceSize p_size, const vk::BufferUsageFlags p_usage,
+         const std::vector<throttle::graphics::vertex> p_vertices,
+         vk::MemoryPropertyFlags                       p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
+                                                    vk::MemoryPropertyFlagBits::eHostCoherent)
+      : m_buffer{p_logical_device.createBuffer(vk::BufferCreateInfo{{}, p_size, p_usage})},
+        m_memory{allocate_device_memory(p_logical_device, p_phys_device.getMemoryProperties(),
+                                        m_buffer.getMemoryRequirements(), p_property_flags)} {
+    m_buffer.bindMemory(*m_memory, 0);
+    char *memory = static_cast<char *>(m_memory.mapMemory(0, p_size));
+    memcpy(memory, p_vertices.data(), p_size);
+    m_memory.unmapMemory();
+  }
+
   static vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device                  &p_device,
                                                        const vk::PhysicalDeviceMemoryProperties p_mem_properties,
                                                        vk::MemoryRequirements                   p_mem_requirements,
