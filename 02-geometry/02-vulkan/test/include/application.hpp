@@ -85,7 +85,7 @@ private:
   vk::raii::CommandPool                                 m_command_pool{nullptr};
   throttle::graphics::buffer                            m_vertex_buffer{nullptr};
   throttle::graphics::buffer                            m_index_buffer{nullptr};
-  std::vector<vk::raii::CommandBuffer>                  m_command_buffers;
+  vk::raii::CommandBuffers                              m_command_buffers{nullptr};
   std::vector<vk::raii::Semaphore>                      m_image_availible_semaphores;
   std::vector<vk::raii::Semaphore>                      m_render_finished_semaphores;
   std::vector<vk::raii::Fence>                          m_in_flight_fences;
@@ -102,7 +102,7 @@ private:
     alloc_info.level = vk::CommandBufferLevel::ePrimary;
 
     try {
-      m_command_buffers = std::move(m_logical_device.allocateCommandBuffers(alloc_info));
+      m_command_buffers = vk::raii::CommandBuffers(m_logical_device, alloc_info);
     } catch (vk::SystemError &) {
       throw std::runtime_error("failed to allocate command buffers");
     }
