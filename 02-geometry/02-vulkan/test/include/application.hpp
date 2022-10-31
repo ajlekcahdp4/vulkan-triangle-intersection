@@ -29,7 +29,7 @@
 namespace triangles {
 
 const std::vector<throttle::graphics::vertex> vertices{
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}, {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
+    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}, {{-0.5f, 0.5f}, {0.0f, 1.0f, 1.0f}}};
 
 constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
 class application final {
@@ -54,6 +54,16 @@ public:
     create_sync_objs();
   }
 
+#if 0
+  ~application() {
+    m_command_buffers.clear();
+    m_framebuffers.clear();
+    m_image_availible_semaphores.clear();
+    m_render_finished_semaphores.clear();
+    m_in_flight_fences.clear();
+  }
+#endif
+
   void run() {
     while (!glfwWindowShouldClose(m_surface_data->window())) {
       glfwPollEvents();
@@ -76,9 +86,9 @@ private:
   throttle::graphics::buffer                            m_vertex_buffer{nullptr};
   throttle::graphics::buffer                            m_index_buffer{nullptr};
   std::vector<vk::raii::CommandBuffer>                  m_command_buffers;
-  std::vector<vk::Semaphore>                            m_image_availible_semaphores;
-  std::vector<vk::Semaphore>                            m_render_finished_semaphores;
-  std::vector<vk::Fence>                                m_in_flight_fences;
+  std::vector<vk::raii::Semaphore>                      m_image_availible_semaphores;
+  std::vector<vk::raii::Semaphore>                      m_render_finished_semaphores;
+  std::vector<vk::raii::Fence>                          m_in_flight_fences;
   throttle::graphics::descriptor_set_data               m_descriiptor_set{nullptr};
   std::size_t                                           m_curr_frame = 0;
   bool                                                  m_framebuffer_resized = false;
@@ -109,7 +119,7 @@ private:
       render_pass_info.framebuffer = *m_framebuffers[i];
       render_pass_info.renderArea.offset = vk::Offset2D{0, 0};
       render_pass_info.renderArea.extent = m_swapchain_data->extent();
-      vk::ClearValue clear_color = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
+      vk::ClearValue clear_color = {std::array<float, 4>{0.2f, 0.2f, 0.2f, 0.2f}};
       render_pass_info.clearValueCount = 1;
       render_pass_info.pClearValues = &clear_color;
       m_command_buffers[i].beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
@@ -128,15 +138,14 @@ private:
   }
 
   void create_sync_objs() {
-    m_image_availible_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
-    m_in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
+    m_image_availible_semaphores.reserve(MAX_FRAMES_IN_FLIGHT);
+    m_render_finished_semaphores.reserve(MAX_FRAMES_IN_FLIGHT);
+    m_in_flight_fences.reserve(MAX_FRAMES_IN_FLIGHT);
     try {
       for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        auto &device = *m_logical_device;
-        m_image_availible_semaphores[i] = device.createSemaphore({});
-        m_render_finished_semaphores[i] = device.createSemaphore({});
-        m_in_flight_fences[i] = device.createFence({vk::FenceCreateFlagBits::eSignaled});
+        m_image_availible_semaphores.push_back(m_logical_device.createSemaphore({}));
+        m_render_finished_semaphores.push_back(m_logical_device.createSemaphore({}));
+        m_in_flight_fences.push_back(m_logical_device.createFence({vk::FenceCreateFlagBits::eSignaled}));
       }
     } catch (vk::SystemError &) {
       throw std::runtime_error("failed to create synchronisation objects for a frame");
@@ -161,21 +170,17 @@ private:
   }
 
   void render_frame() {
-    m_logical_device.waitForFences({m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
+    m_logical_device.waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
     uint32_t   image_index{};
     try {
-      auto           &device = *m_logical_device;
-      vk::ResultValue result = device.acquireNextImageKHR(*m_swapchain_data->swapchain(), UINT64_MAX,
-                                                          m_image_availible_semaphores[m_curr_frame], nullptr);
-      image_index = result.value;
-#if 0
       vk::AcquireNextImageInfoKHR acquire_info{};
       acquire_info.swapchain = *m_swapchain_data->swapchain();
       acquire_info.timeout = UINT64_MAX;
-      acquire_info.semaphore = m_image_availible_semaphores[m_curr_frame];
-      acquire_info.deviceMask = m_logical_device std::tie(result, image_index) =
-          m_logical_device.acquireNextImage2KHR(acquire_info);
-#endif
+      acquire_info.semaphore = *m_image_availible_semaphores[m_curr_frame];
+      acquire_info.fence = nullptr;
+      acquire_info.deviceMask = 1;
+      auto result = m_logical_device.acquireNextImage2KHR(acquire_info);
+      image_index = result.second;
     } catch (vk::OutOfDateKHRError &) {
       recreate_swap_chain();
       return;
@@ -184,7 +189,7 @@ private:
     }
 
     vk::SubmitInfo         submit_info{};
-    vk::Semaphore          wait_semaphores[] = {m_image_availible_semaphores[m_curr_frame]};
+    vk::Semaphore          wait_semaphores[] = {*m_image_availible_semaphores[m_curr_frame]};
     vk::PipelineStageFlags wait_stages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
     submit_info.waitSemaphoreCount = 1;
     submit_info.pWaitSemaphores = wait_semaphores;
@@ -193,14 +198,14 @@ private:
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &(*m_command_buffers[image_index]);
 
-    vk::Semaphore signal_semaphores[] = {m_render_finished_semaphores[m_curr_frame]};
+    vk::Semaphore signal_semaphores[] = {*m_render_finished_semaphores[m_curr_frame]};
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
 
-    m_logical_device.resetFences({m_in_flight_fences[m_curr_frame]});
+    m_logical_device.resetFences({*m_in_flight_fences[m_curr_frame]});
 
     try {
-      m_queues.graphics.submit(submit_info, m_in_flight_fences[m_curr_frame]);
+      m_queues.graphics.submit(submit_info, *m_in_flight_fences[m_curr_frame]);
     } catch (vk::SystemError &) {
       throw std::runtime_error("failed to submit sraw command buffer");
     }

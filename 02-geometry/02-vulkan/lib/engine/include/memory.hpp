@@ -79,9 +79,8 @@ struct buffer {
   }
 
   buffer(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
-         const vk::DeviceSize p_size, const vk::BufferUsageFlags p_usage,
-         const std::vector<throttle::graphics::vertex> p_vertices,
-         vk::MemoryPropertyFlags                       p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
+         const vk::DeviceSize p_size, const vk::BufferUsageFlags p_usage, const std::vector<vertex> p_vertices,
+         vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
                                                     vk::MemoryPropertyFlagBits::eHostCoherent)
       : m_buffer{p_logical_device.createBuffer(vk::BufferCreateInfo{{}, p_size, p_usage})},
         m_memory{allocate_device_memory(p_logical_device, p_phys_device.getMemoryProperties(),
