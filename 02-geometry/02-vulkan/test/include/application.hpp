@@ -43,12 +43,13 @@ public:
         m_queues{m_phys_device, m_logical_device, m_surface_data->surface()},
         m_swapchain_data{std::make_unique<throttle::graphics::swapchain_data>(
             m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent())},
-        m_pipeline_data{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_surface_data->extent()},
+        m_descriptor_set_data{m_logical_device}, m_pipeline_data{m_logical_device, "shaders/vertex.spv",
+                                                                 "shaders/fragment.spv", m_surface_data->extent(),
+                                                                 m_descriptor_set_data},
         m_framebuffers{m_logical_device, m_swapchain_data->image_views(), m_swapchain_data->extent(),
                        m_pipeline_data.m_render_pass},
         m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
-        m_vertex_buffer{m_phys_device, m_logical_device, throttle::graphics::sizeof_vector(vertices),
-                        vk::BufferUsageFlagBits::eVertexBuffer, vertices} {
+        m_vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices} {
     create_command_buffers();
     create_sync_objs();
   }
@@ -68,6 +69,7 @@ private:
   vk::raii::Device                                     m_logical_device{nullptr};
   throttle::graphics::queues                           m_queues;
   std::unique_ptr<throttle::graphics::i_swapchain_data>               m_swapchain_data{nullptr};
+  throttle::graphics::descriptor_set_data                             m_descriptor_set_data{nullptr};
   throttle::graphics::pipeline_data                     m_pipeline_data{nullptr};
   throttle::graphics::framebuffers                                    m_framebuffers;
   vk::raii::CommandPool                                 m_command_pool{nullptr};
@@ -149,7 +151,7 @@ private:
     m_swapchain_data = std::make_unique<throttle::graphics::swapchain_data>(
         m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent());
     m_pipeline_data = throttle::graphics::pipeline_data{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv",
-                                                        m_swapchain_data->extent()};
+                                                        m_swapchain_data->extent(), m_descriptor_set_data};
     m_framebuffers = throttle::graphics::framebuffers{m_logical_device, m_swapchain_data->image_views(),
                                                       m_swapchain_data->extent(), m_pipeline_data.m_render_pass};
     create_command_buffers();

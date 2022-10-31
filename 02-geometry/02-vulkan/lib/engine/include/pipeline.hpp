@@ -40,7 +40,6 @@ private:
       const vk::raii::Device                                                            &p_device,
       const std::vector<std::tuple<vk::DescriptorType, uint32_t, vk::ShaderStageFlags>> &p_binding_data,
       vk::DescriptorSetLayoutCreateFlags                                                 p_flags = {}) {
-    std::cout << "Creating descriptor set layout" << std::endl;
     std::vector<vk::DescriptorSetLayoutBinding> bindings{static_cast<uint32_t>(p_binding_data.size())};
     for (uint32_t i = 0; i < p_binding_data.size(); ++i)
       bindings.push_back(vk::DescriptorSetLayoutBinding{
@@ -51,7 +50,6 @@ private:
 
   static vk::raii::DescriptorPool create_descriptor_pool(const vk::raii::Device                    &p_device,
                                                          const std::vector<vk::DescriptorPoolSize> &p_pool_sizes) {
-    std::cout << "Creating descriptor set pool" << std::endl;
     uint32_t max_sets =
         std::accumulate(p_pool_sizes.begin(), p_pool_sizes.end(), 0,
                         [](uint32_t sum, vk::DescriptorPoolSize const &dps) { return sum + dps.descriptorCount; });
@@ -70,8 +68,10 @@ public:
   pipeline_data(std::nullptr_t) {}
 
   pipeline_data(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
-                const std::string &p_fragment_file_path, const vk::Extent2D &p_extent)
-      : m_render_pass{create_render_pass(p_device)}, m_layout{create_pipeline_layout(p_device)},
+                const std::string &p_fragment_file_path, const vk::Extent2D &p_extent,
+                const descriptor_set_data &p_descriptor_set_data)
+      : m_render_pass{create_render_pass(p_device)}, m_layout{create_pipeline_layout(p_device,
+                                                                                     p_descriptor_set_data.m_layout)},
         m_pipeline{create_pipeline(p_device, p_vertex_file_path, p_fragment_file_path, p_extent)} {}
 
 private:
@@ -166,10 +166,13 @@ private:
     return p_device.createGraphicsPipeline(nullptr, pipeline_info);
   }
 
-  static vk::raii::PipelineLayout create_pipeline_layout(const vk::raii::Device &device) {
-    vk::PipelineLayoutCreateInfo layout_info;
+  static vk::raii::PipelineLayout create_pipeline_layout(const vk::raii::Device              &device,
+                                                         const vk::raii::DescriptorSetLayout &p_descriptor_set_layout) {
+    vk::PipelineLayoutCreateInfo layout_info{};
     layout_info.flags = vk::PipelineLayoutCreateFlags();
-    layout_info.setLayoutCount = 0;
+    layout_info.setLayoutCount = 1;
+    vk::DescriptorSetLayout set_layouts[] = {*p_descriptor_set_layout};
+    layout_info.pSetLayouts = set_layouts;
     layout_info.pushConstantRangeCount = 0;
     return device.createPipelineLayout(layout_info);
   }
