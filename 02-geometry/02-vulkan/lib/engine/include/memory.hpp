@@ -19,31 +19,30 @@
 #include <vulkan/vulkan_raii.hpp>
 
 #include <array>
+#include <vector>
 
 namespace throttle {
 namespace graphics {
 
-inline std::vector<vk::raii::Framebuffer> allocate_frame_buffers(const vk::raii::Device &p_device,
-                                                                 i_swapchain_data       &m_swapchain_data,
-                                                                 i_surface_data         &p_surface_data,
-                                                                 const pipeline_data    &m_pipeline_data) {
-  std::vector<vk::raii::Framebuffer> framebuffers;
-  auto                              &image_views = m_swapchain_data.image_views();
-  uint32_t                           n_framebuffers = image_views.size();
-  framebuffers.reserve(n_framebuffers);
-  for (uint32_t i = 0; i < n_framebuffers; i++) {
-    vk::ImageView             attachments[] = {*image_views[i]};
-    vk::FramebufferCreateInfo framebuffer_info{};
-    framebuffer_info.renderPass = *m_pipeline_data.m_render_pass;
-    framebuffer_info.attachmentCount = 1;
-    framebuffer_info.pAttachments = attachments;
-    framebuffer_info.width = p_surface_data.extent().width;
-    framebuffer_info.height = p_surface_data.extent().height;
-    framebuffer_info.layers = 1;
-    framebuffers.push_back(p_device.createFramebuffer(framebuffer_info));
+class framebuffers : public std::vector<vk::raii::Framebuffer> {
+public:
+  framebuffers(const vk::raii::Device &p_device, const std::vector<vk::raii::ImageView> &p_image_views,
+               const vk::Extent2D &p_extent, const vk::raii::RenderPass &p_render_pass) {
+    uint32_t n_framebuffers = p_image_views.size();
+    this->reserve(n_framebuffers);
+    for (uint32_t i = 0; i < n_framebuffers; i++) {
+      vk::ImageView             attachments[] = {*p_image_views[i]};
+      vk::FramebufferCreateInfo framebuffer_info{};
+      framebuffer_info.renderPass = *p_render_pass;
+      framebuffer_info.attachmentCount = 1;
+      framebuffer_info.pAttachments = attachments;
+      framebuffer_info.width = p_extent.width;
+      framebuffer_info.height = p_extent.height;
+      framebuffer_info.layers = 1;
+      this->emplace_back(p_device, framebuffer_info);
+    }
   }
-  return framebuffers;
-}
+};
 
 inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &p_device, const queues &p_queues) {
   vk::CommandPoolCreateInfo pool_info{};
