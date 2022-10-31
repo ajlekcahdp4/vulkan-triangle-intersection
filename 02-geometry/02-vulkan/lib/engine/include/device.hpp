@@ -44,8 +44,8 @@ inline vk::raii::PhysicalDevice pick_physical_device(const vk::raii::Instance &p
   return nullptr;
 }
 
-inline vk::raii::Device create_device(const vk::raii::PhysicalDevice &p_device, i_surface_data &p_surface_data) {
-  auto               indices = find_graphics_and_present_family_indices(p_device, p_surface_data);
+inline vk::raii::Device create_device(const vk::raii::PhysicalDevice &p_device, const vk::raii::SurfaceKHR &p_surface) {
+  auto               indices = find_graphics_and_present_family_indices(p_device, p_surface);
   std::set<uint32_t> unique_indices;
   unique_indices.insert(indices.first);
   unique_indices.insert(indices.second);

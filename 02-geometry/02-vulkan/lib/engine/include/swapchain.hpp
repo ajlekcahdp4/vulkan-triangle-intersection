@@ -30,10 +30,10 @@ struct i_swapchain_data {
 class swapchain_data final : public i_swapchain_data {
 public:
   swapchain_data(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
-                 i_surface_data &p_surface_data, const vk::Extent2D &p_extent) {
-    auto capabilities = p_phys_device.getSurfaceCapabilitiesKHR(*p_surface_data.surface());
-    auto formats = p_phys_device.getSurfaceFormatsKHR(*p_surface_data.surface());
-    auto present_modes = p_phys_device.getSurfacePresentModesKHR(*p_surface_data.surface());
+                 const vk::raii::SurfaceKHR &p_surface, const vk::Extent2D &p_extent) {
+    auto capabilities = p_phys_device.getSurfaceCapabilitiesKHR(*p_surface);
+    auto formats = p_phys_device.getSurfaceFormatsKHR(*p_surface);
+    auto present_modes = p_phys_device.getSurfacePresentModesKHR(*p_surface);
     auto present_mode = choose_swapchain_present_mode(present_modes);
     m_extent = choose_swapchain_extent(p_extent, capabilities);
     m_format = choose_swapchain_surface_format(formats);
@@ -41,7 +41,7 @@ public:
     // clang-format off
     vk::SwapchainCreateInfoKHR create_info{
       vk::SwapchainCreateFlagsKHR(),
-      *p_surface_data.surface(),
+      *p_surface,
       image_count,
       m_format.format,
       m_format.colorSpace,
@@ -50,7 +50,7 @@ public:
       vk::ImageUsageFlagBits::eColorAttachment
     };
     // clang-format on
-    auto     queue_family_indices = find_graphics_and_present_family_indices(p_phys_device, p_surface_data);
+    auto     queue_family_indices = find_graphics_and_present_family_indices(p_phys_device, p_surface);
     uint32_t arr_indices[2] = {queue_family_indices.first, queue_family_indices.second};
     if (queue_family_indices.first != queue_family_indices.second) {
       create_info.imageSharingMode = vk::SharingMode::eConcurrent;

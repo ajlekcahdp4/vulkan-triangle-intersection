@@ -37,13 +37,12 @@ public:
   application()
       : m_instance_data{std::make_unique<throttle::graphics::instance_data>()},
         m_phys_device{throttle::graphics::pick_physical_device(m_instance_data->instance())},
-        m_surface_data{std::make_unique<throttle::graphics::surface_data>(*m_instance_data, "Triangles intersection",
-                                                                          vk::Extent2D{800, 600})},
-        m_logical_device{throttle::graphics::create_device(m_phys_device, *m_surface_data)}, m_queues{m_phys_device,
-                                                                                                      m_logical_device,
-                                                                                                      *m_surface_data},
+        m_surface_data{std::make_unique<throttle::graphics::surface_data>(
+            m_instance_data->instance(), "Triangles intersection", vk::Extent2D{800, 600})},
+        m_logical_device{throttle::graphics::create_device(m_phys_device, m_surface_data->surface())},
+        m_queues{m_phys_device, m_logical_device, m_surface_data->surface()},
         m_swapchain_data{std::make_unique<throttle::graphics::swapchain_data>(
-            m_phys_device, m_logical_device, *m_surface_data, m_surface_data->extent())},
+            m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent())},
         m_pipeline_data{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_surface_data->extent()},
         m_framebuffers{m_logical_device, m_swapchain_data->image_views(), m_swapchain_data->extent(),
                        m_pipeline_data.m_render_pass},
@@ -53,16 +52,6 @@ public:
     create_command_buffers();
     create_sync_objs();
   }
-
-#if 0
-  ~application() {
-    m_command_buffers.clear();
-    m_framebuffers.clear();
-    m_image_availible_semaphores.clear();
-    m_render_finished_semaphores.clear();
-    m_in_flight_fences.clear();
-  }
-#endif
 
   void run() {
     while (!glfwWindowShouldClose(m_surface_data->window())) {
@@ -157,10 +146,10 @@ private:
       glfwGetFramebufferSize(m_surface_data->window(), &width, &height);
       glfwWaitEvents();
     }
-    m_swapchain_data = std::make_unique<throttle::graphics::swapchain_data>(m_phys_device, m_logical_device,
-                                                                            *m_surface_data, m_surface_data->extent());
+    m_swapchain_data = std::make_unique<throttle::graphics::swapchain_data>(
+        m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent());
     m_pipeline_data = throttle::graphics::pipeline_data{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv",
-                                                        m_surface_data->extent()};
+                                                        m_swapchain_data->extent()};
     m_framebuffers = throttle::graphics::framebuffers{m_logical_device, m_swapchain_data->image_views(),
                                                       m_swapchain_data->extent(), m_pipeline_data.m_render_pass};
     create_command_buffers();

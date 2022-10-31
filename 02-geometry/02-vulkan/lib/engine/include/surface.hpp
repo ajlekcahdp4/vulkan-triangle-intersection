@@ -30,13 +30,12 @@ struct i_surface_data {
 
 class surface_data final : public i_surface_data {
 public:
-  surface_data(throttle::graphics::i_instance_data &p_instance_data, const std::string &p_name,
-               const vk::Extent2D &p_extent)
+  surface_data(const vk::raii::Instance &p_instance, const std::string &p_name, const vk::Extent2D &p_extent)
       : m_window_data{std::make_unique<window_data>(p_name, p_extent)}, m_handle{nullptr} {
     VkSurfaceKHR c_style_surface;
-    auto         res = glfwCreateWindowSurface(*p_instance_data.instance(), window(), nullptr, &c_style_surface);
+    auto         res = glfwCreateWindowSurface(*p_instance, window(), nullptr, &c_style_surface);
     if (res != VK_SUCCESS) throw std::runtime_error("Failed to create a surface");
-    m_handle = vk::raii::SurfaceKHR(p_instance_data.instance(), c_style_surface);
+    m_handle = vk::raii::SurfaceKHR(p_instance, c_style_surface);
   }
 
   vk::raii::SurfaceKHR &surface() override { return m_handle; }
