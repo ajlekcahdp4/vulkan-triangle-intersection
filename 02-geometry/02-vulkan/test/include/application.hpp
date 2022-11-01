@@ -18,18 +18,27 @@
 #include "render_pass.hpp"
 #include "surface.hpp"
 #include "swapchain.hpp"
+#include "ubo.hpp"
 #include "vertex.hpp"
 
 #include <vulkan/vulkan_raii.hpp>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
 #include <iostream>
 
 namespace triangles {
 
-const std::vector<throttle::graphics::vertex> vertices{
-    {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}}, {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}}, {{-0.5f, 0.5f}, {0.0f, 1.0f, 1.0f}}};
+const std::vector<throttle::graphics::vertex> vertices{{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                                                       {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+                                                       {{0.5f, 0.5f}, {0.0f, .0f, 1.0f}},
+                                                       {{0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}}};
+
+const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
 constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
 class application final {
@@ -49,7 +58,10 @@ public:
         m_framebuffers{m_logical_device, m_swapchain_data->image_views(), m_swapchain_data->extent(),
                        m_pipeline_data.m_render_pass},
         m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
-        m_vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices} {
+        m_vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices},
+        m_index_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eIndexBuffer, indices},
+        m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, m_phys_device, m_logical_device,
+                          vk::BufferUsageFlagBits::eUniformBuffer} {
     create_command_buffers();
     create_sync_objs();
   }
@@ -75,6 +87,7 @@ private:
   vk::raii::CommandPool                                 m_command_pool{nullptr};
   throttle::graphics::buffer                            m_vertex_buffer{nullptr};
   throttle::graphics::buffer                            m_index_buffer{nullptr};
+  throttle::graphics::buffers                                         m_uniform_buffers;
   vk::raii::CommandBuffers                              m_command_buffers{nullptr};
   std::vector<vk::raii::Semaphore>                      m_image_availible_semaphores;
   std::vector<vk::raii::Semaphore>                      m_render_finished_semaphores;
@@ -158,6 +171,20 @@ private:
     create_sync_objs();
   }
 
+  void update_uniform_buffers() {
+    static auto start_time = std::chrono::high_resolution_clock::now();
+    auto        curr_time = std::chrono::high_resolution_clock::now();
+    float       time = std::chrono::duration<float, std::chrono::seconds::period>(curr_time - start_time).count();
+    throttle::graphics::uniform_buffer_object ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(
+        glm::radians(45.0f), m_swapchain_data->extent().width / (float)m_swapchain_data->extent().height, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1; // because in OpenGl y axis is inverted
+    std::vector<throttle::graphics::uniform_buffer_object> ubos{ubo};
+    m_uniform_buffers[m_curr_frame].update(ubos);
+  }
+
   void render_frame() {
     m_logical_device.waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
     uint32_t   image_index{};
@@ -176,6 +203,8 @@ private:
     } catch (vk::SystemError &) {
       throw std::runtime_error("failed to acquire swap chain image");
     }
+
+    update_uniform_buffers();
 
     vk::SubmitInfo         submit_info{};
     vk::Semaphore          wait_semaphores[] = {*m_image_availible_semaphores[m_curr_frame]};

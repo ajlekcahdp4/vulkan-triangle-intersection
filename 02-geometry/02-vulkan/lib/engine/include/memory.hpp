@@ -87,6 +87,14 @@ struct buffer final {
                                         m_buffer.getMemoryRequirements(), p_property_flags)} {
     m_buffer.bindMemory(*m_memory, 0);
     vk::DeviceSize size = sizeof_vector(p_data);
+    auto           memory = static_cast<char *>(m_memory.mapMemory(0, size));
+    memcpy(memory, p_data.data(), size);
+    m_memory.unmapMemory();
+  }
+
+  template <typename T> void update(const std::vector<T> &p_data) {
+    vk::DeviceSize size = sizeof_vector(p_data);
+    auto           memory = static_cast<char *>(m_memory.mapMemory(0, size));
     memcpy(memory, p_data.data(), size);
     m_memory.unmapMemory();
   }
@@ -104,7 +112,15 @@ struct buffer final {
 
 class buffers final : public std::vector<buffer> {
 public:
-  buffers(std::size_t p_size) { this->reserve(p_size); }
+  buffers(const std::size_t p_size, const vk::raii::PhysicalDevice &p_phys_device,
+          const vk::raii::Device &p_logical_device, const vk::BufferUsageFlags p_usage,
+          vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
+                                                     vk::MemoryPropertyFlagBits::eHostCoherent) {
+    std::vector<buffer>::reserve(p_size);
+    for (unsigned i = 0; i < p_size; i++) {
+      this->emplace_back(p_phys_device, p_logical_device, p_size, p_usage, p_property_flags);
+    }
+  }
 };
 } // namespace graphics
 } // namespace throttle
