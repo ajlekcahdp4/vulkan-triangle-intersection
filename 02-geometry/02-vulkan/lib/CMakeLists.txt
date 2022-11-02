@@ -1,2 +1,2 @@
-add_subdirectory (engine)
-add_subdirectory (triangles)
+add_subdirectory(thengine)
+add_subdirectory(triangles)

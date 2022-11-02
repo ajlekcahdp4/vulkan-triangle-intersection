@@ -82,7 +82,5 @@ if (NOT VulkanFOUND)
     endif()
 endif()
 
-set (ENGINE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib/engine/include)
-
 add_subdirectory(lib)
 add_subdirectory(test)

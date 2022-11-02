@@ -10,16 +10,7 @@
 
 #pragma once
 
-#include "device.hpp"
-#include "instance.hpp"
-#include "memory.hpp"
-#include "pipeline.hpp"
-#include "queue_families.hpp"
-#include "render_pass.hpp"
-#include "surface.hpp"
-#include "swapchain.hpp"
-#include "ubo.hpp"
-#include "vertex.hpp"
+#include <engine.hpp>
 
 #include <vulkan/vulkan_raii.hpp>
 #define GLFW_INCLUDE_NONE
@@ -46,7 +37,7 @@ public:
   application()
       : m_instance_data{std::make_unique<throttle::graphics::instance_data>()},
         m_phys_device{throttle::graphics::pick_physical_device(m_instance_data->instance())},
-        m_surface_data{std::make_unique<throttle::graphics::surface_data>(
+        m_surface_data{std::make_unique<throttle::graphics::window_surface>(
             m_instance_data->instance(), "Triangles intersection", vk::Extent2D{800, 600})},
         m_logical_device{throttle::graphics::create_device(m_phys_device, m_surface_data->surface())},
         m_queues{m_phys_device, m_logical_device, m_surface_data->surface()},
@@ -75,23 +66,23 @@ public:
   }
 
 private:
-  std::unique_ptr<throttle::graphics::i_instance_data> m_instance_data{nullptr};
-  vk::raii::PhysicalDevice         m_phys_device{nullptr};
-  std::unique_ptr<throttle::graphics::i_surface_data>  m_surface_data{nullptr};
-  vk::raii::Device                                     m_logical_device{nullptr};
-  throttle::graphics::queues                           m_queues;
-  std::unique_ptr<throttle::graphics::i_swapchain_data>               m_swapchain_data{nullptr};
-  throttle::graphics::descriptor_set_data                             m_descriptor_set_data{nullptr};
+  std::unique_ptr<throttle::graphics::i_instance_data>  m_instance_data{nullptr};
+  vk::raii::PhysicalDevice                              m_phys_device{nullptr};
+  std::unique_ptr<throttle::graphics::window_surface>   m_surface_data{nullptr};
+  vk::raii::Device                                      m_logical_device{nullptr};
+  throttle::graphics::queues                            m_queues;
+  std::unique_ptr<throttle::graphics::i_swapchain_data> m_swapchain_data{nullptr};
+  throttle::graphics::descriptor_set_data               m_descriptor_set_data{nullptr};
   throttle::graphics::pipeline_data                     m_pipeline_data{nullptr};
-  throttle::graphics::framebuffers                                    m_framebuffers;
+  throttle::graphics::framebuffers                      m_framebuffers;
   vk::raii::CommandPool                                 m_command_pool{nullptr};
   throttle::graphics::buffer                            m_vertex_buffer{nullptr};
   throttle::graphics::buffer                            m_index_buffer{nullptr};
-  throttle::graphics::buffers                                         m_uniform_buffers;
+  throttle::graphics::buffers                           m_uniform_buffers;
   vk::raii::CommandBuffers                              m_command_buffers{nullptr};
   std::vector<vk::raii::Semaphore>                      m_image_availible_semaphores;
   std::vector<vk::raii::Semaphore>                      m_render_finished_semaphores;
-  std::vector<vk::raii::Fence>                                        m_in_flight_fences;
+  std::vector<vk::raii::Fence>                          m_in_flight_fences;
   std::size_t                                           m_curr_frame = 0;
   bool                                                  m_framebuffer_resized = false;
 
@@ -187,7 +178,7 @@ private:
 
   void render_frame() {
     m_logical_device.waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
-    uint32_t   image_index{};
+    uint32_t image_index{};
     try {
       vk::AcquireNextImageInfoKHR acquire_info{};
       acquire_info.swapchain = *m_swapchain_data->swapchain();

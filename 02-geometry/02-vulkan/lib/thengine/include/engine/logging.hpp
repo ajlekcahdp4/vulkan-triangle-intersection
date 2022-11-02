@@ -18,9 +18,10 @@
 
 namespace throttle {
 namespace graphics {
-VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT      message_severity,
-                                              VkDebugUtilsMessageTypeFlagsEXT             message_types,
-                                              VkDebugUtilsMessengerCallbackDataEXT const *call_back_data, void *) {
+static inline VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+                                                            VkDebugUtilsMessageTypeFlagsEXT        message_types,
+                                                            VkDebugUtilsMessengerCallbackDataEXT const *call_back_data,
+                                                            void *) {
 
   std::cerr << vk::to_string(static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(message_severity)) << ": "
             << vk::to_string(static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(message_types)) << ":\n";
@@ -54,7 +55,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBit
   return VK_TRUE;
 }
 
-vk::raii::DebugUtilsMessengerEXT create_debug_messenger(const vk::raii::Instance &instance) {
+static inline vk::raii::DebugUtilsMessengerEXT create_debug_messenger(const vk::raii::Instance &instance) {
   vk::DebugUtilsMessengerCreateInfoEXT create_info{
       vk::DebugUtilsMessengerCreateFlagsEXT(),
       vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |

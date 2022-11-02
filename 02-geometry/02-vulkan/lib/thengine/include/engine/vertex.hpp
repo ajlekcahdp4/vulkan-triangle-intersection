@@ -33,6 +33,7 @@ struct vertex {
   static std::array<vk::VertexInputAttributeDescription, 2> get_attribute_description() {
     std::array<vk::VertexInputAttributeDescription, 2> attribute_description{};
 
+    vk::VertexInputAttributeDescription();
     attribute_description[0].binding = 0;
     attribute_description[0].location = 0;
     attribute_description[0].format = vk::Format::eR32G32Sfloat;

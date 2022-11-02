@@ -10,11 +10,11 @@
 
 #pragma once
 
+#include <iostream>
 #include <set>
 #include <vector>
-#include <vulkan/vulkan_raii.hpp>
 
-#include <iostream>
+#include <vulkan/vulkan_raii.hpp>
 
 #include "queue_families.hpp"
 #include "surface.hpp"
