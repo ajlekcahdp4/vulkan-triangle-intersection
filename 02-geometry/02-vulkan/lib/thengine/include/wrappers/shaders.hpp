@@ -10,18 +10,14 @@
 
 #pragma once
 
-#include <glm/glm.hpp>
+#include <fstream>
+#include <iostream>
+#include <string>
+
 #include <vulkan/vulkan_raii.hpp>
 
-#include <array>
+namespace throttle::graphics {
 
-namespace throttle {
-namespace graphics {
+vk::raii::ShaderModule create_module(const std::string &filename, const vk::raii::Device &p_device);
 
-struct uniform_buffer_object {
-  glm::mat4 model;
-  glm::mat4 view;
-  glm::mat4 proj;
-};
-} // namespace graphics
-} // namespace throttle
+} // namespace throttle::graphics

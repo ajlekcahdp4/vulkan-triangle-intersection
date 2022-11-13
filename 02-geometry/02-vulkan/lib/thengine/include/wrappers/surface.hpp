@@ -11,6 +11,7 @@
 #pragma once
 
 #include <vulkan/vulkan_raii.hpp>
+
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -20,16 +21,17 @@
 namespace throttle::graphics {
 
 class window_surface final {
+private:
+  std::unique_ptr<window_wrapper> m_window = nullptr;
+  vk::raii::SurfaceKHR            m_handle = nullptr;
+
 public:
   window_surface(const vk::raii::Instance &, const std::string &, const vk::Extent2D &);
 
   vk::raii::SurfaceKHR &surface() { return m_handle; }
-  GLFWwindow           *window() { return m_window_data->window(); }
-  const vk::Extent2D   &extent() { return m_window_data->extent(); }
+  GLFWwindow           *window() { return m_window->window(); }
 
-private:
-  std::unique_ptr<i_window_data> m_window_data;
-  vk::raii::SurfaceKHR           m_handle;
+  vk::Extent2D extent() { return m_window->extent(); }
 };
 
 } // namespace throttle::graphics

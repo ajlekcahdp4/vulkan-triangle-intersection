@@ -10,13 +10,19 @@
 
 #pragma once
 
+#include <glm/glm.hpp>
 #include <vulkan/vulkan_raii.hpp>
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
 
-#include "instance.hpp"
-#include "window.hpp"
+#include <array>
 
 namespace throttle {
-namespace graphics {} // namespace graphics
+namespace graphics {
+
+struct uniform_buffer_object {
+  glm::mat4 model;
+  glm::mat4 view;
+  glm::mat4 proj;
+};
+
+} // namespace graphics
 } // namespace throttle

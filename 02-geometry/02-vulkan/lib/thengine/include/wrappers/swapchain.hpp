@@ -18,19 +18,10 @@
 namespace throttle {
 namespace graphics {
 
-struct i_swapchain_data {
-  virtual vk::raii::SwapchainKHR           &swapchain() = 0;
-  virtual std::vector<vk::Image>           &images() = 0;
-  virtual std::vector<vk::raii::ImageView> &image_views() = 0;
-  virtual vk::SurfaceFormatKHR             &format() = 0;
-  virtual vk::Extent2D                     &extent() = 0;
-  virtual ~i_swapchain_data() {}
-};
-
-class swapchain_data final : public i_swapchain_data {
+class swapchain_wrapper final {
 public:
-  swapchain_data(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
-                 const vk::raii::SurfaceKHR &p_surface, const vk::Extent2D &p_extent) {
+  swapchain_wrapper(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
+                    const vk::raii::SurfaceKHR &p_surface, const vk::Extent2D &p_extent) {
     auto capabilities = p_phys_device.getSurfaceCapabilitiesKHR(*p_surface);
     auto formats = p_phys_device.getSurfaceFormatsKHR(*p_surface);
     auto present_modes = p_phys_device.getSurfacePresentModesKHR(*p_surface);
@@ -83,11 +74,11 @@ public:
     }
   }
 
-  vk::raii::SwapchainKHR           &swapchain() override { return m_handle; }
-  std::vector<vk::Image>           &images() override { return m_images; }
-  std::vector<vk::raii::ImageView> &image_views() override { return m_image_views; }
-  vk::SurfaceFormatKHR             &format() override { return m_format; }
-  vk::Extent2D                     &extent() override { return m_extent; }
+  vk::raii::SwapchainKHR           &swapchain() { return m_handle; }
+  std::vector<vk::Image>           &images() { return m_images; }
+  std::vector<vk::raii::ImageView> &image_views() { return m_image_views; }
+  vk::SurfaceFormatKHR             &format() { return m_format; }
+  vk::Extent2D                     &extent() { return m_extent; }
 
 private:
   static vk::SurfaceFormatKHR choose_swapchain_surface_format(const std::vector<vk::SurfaceFormatKHR> &formats) {

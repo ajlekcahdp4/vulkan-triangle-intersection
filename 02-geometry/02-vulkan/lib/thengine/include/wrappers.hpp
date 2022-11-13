@@ -10,7 +10,11 @@
 
 #pragma once
 
-#include "wrappers.hpp"
-
-#include "primitives/ubo.hpp"
-#include "primitives/vertex.hpp"
+#include "wrappers/device.hpp"
+#include "wrappers/instance.hpp"
+#include "wrappers/memory.hpp"
+#include "wrappers/pipeline.hpp"
+#include "wrappers/queue_families.hpp"
+#include "wrappers/surface.hpp"
+#include "wrappers/swapchain.hpp"
+#include "wrappers/window.hpp"

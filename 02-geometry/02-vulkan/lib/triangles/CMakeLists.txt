@@ -2,9 +2,9 @@ set(LIBRARY_SOURCES
   src/temp.cc
 )
 
-add_library(throttle ${LIBRARY_SOURCES})
-target_include_directories(throttle PUBLIC include)
-target_link_libraries(throttle mpark_variant)
+add_library(throttle INTERFACE)
+target_include_directories(throttle INTERFACE include)
+target_link_libraries(throttle INTERFACE mpark_variant)
 
 set(UNIT_TEST_SOURCES
   test/main.cc

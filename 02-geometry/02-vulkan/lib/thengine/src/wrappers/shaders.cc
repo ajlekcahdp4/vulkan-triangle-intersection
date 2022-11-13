@@ -8,33 +8,34 @@
  * ----------------------------------------------------------------------------
  */
 
-#pragma once
-
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <vector>
 
+// Use this for designated initializers. Should propogate this to the whole codebase.
+#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan_raii.hpp>
-namespace throttle {
-namespace graphics {
 
-inline std::vector<char> read_file(std::string filename) {
+namespace throttle::graphics {
+
+static std::vector<char> read_file(std::string filename) {
   std::ifstream file;
+
   file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
   file.open(filename, std::ios::binary);
-  if (!file.is_open()) throw std::runtime_error("Failed to load file");
+
   std::istreambuf_iterator<char> start(file), fin;
   return std::vector<char>(start, fin);
 }
 
-inline vk::raii::ShaderModule create_module(const std::string &filename, const vk::raii::Device &p_device) {
-  auto                       source_code = read_file(filename);
-  vk::ShaderModuleCreateInfo module_info{};
-  module_info.flags = vk::ShaderModuleCreateFlags{};
-  module_info.codeSize = source_code.size();
-  module_info.pCode = reinterpret_cast<const uint32_t *>(source_code.data());
-  return vk::raii::ShaderModule(p_device, module_info);
-}
+vk::raii::ShaderModule create_module(const std::string &filename, const vk::raii::Device &p_device) {
+  auto source_code = read_file(filename);
 
-} // namespace graphics
-} // namespace throttle
+  vk::ShaderModuleCreateInfo module_info = {.flags = vk::ShaderModuleCreateFlags{},
+                                            .codeSize = source_code.size(),
+                                            .pCode = reinterpret_cast<const uint32_t *>(source_code.data())};
+
+  return vk::raii::ShaderModule{p_device, module_info};
+}
+}; // namespace throttle::graphics

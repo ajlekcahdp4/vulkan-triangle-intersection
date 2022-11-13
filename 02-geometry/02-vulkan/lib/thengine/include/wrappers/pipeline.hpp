@@ -10,8 +10,9 @@
 
 #pragma once
 
+#include "primitives/vertex.hpp"
+
 #include "shaders.hpp"
-#include "vertex.hpp"
 
 #include <vulkan/vulkan_raii.hpp>
 

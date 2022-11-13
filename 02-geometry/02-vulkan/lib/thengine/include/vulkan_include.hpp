@@ -8,10 +8,8 @@
  * ----------------------------------------------------------------------------
  */
 
-#include <string_view>
+#pragma once
 
+// Use this for designated initializers. Should propogate this to the whole codebase.
+#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan_raii.hpp>
-
-#include "engine/surface.hpp"
-
-namespace throttle::graphics {}; // namespace throttle::graphics

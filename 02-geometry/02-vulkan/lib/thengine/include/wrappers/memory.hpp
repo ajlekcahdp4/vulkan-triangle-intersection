@@ -10,16 +10,16 @@
 
 #pragma once
 
+#include <array>
+#include <vector>
+
 #include "pipeline.hpp"
 #include "queue_families.hpp"
 #include "swapchain.hpp"
-#include "vertex.hpp"
 
-#include <glm/glm.hpp>
+#include "primitives/vertex.hpp"
+
 #include <vulkan/vulkan_raii.hpp>
-
-#include <array>
-#include <vector>
 
 namespace throttle {
 namespace graphics {
