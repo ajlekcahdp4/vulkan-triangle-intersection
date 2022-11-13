@@ -8,10 +8,9 @@
  * ----------------------------------------------------------------------------
  */
 
-#include <string_view>
-#include <vulkan/vulkan_raii.hpp>
-
 #include "wrappers/instance.hpp"
+#include "vulkan_include.hpp"
+#include <string_view>
 
 namespace throttle::graphics {
 
@@ -73,7 +72,11 @@ vk::raii::Instance instance_wrapper::create_instance() {
   Context context;
   auto    version = context.enumerateInstanceVersion();
 
-  vk::ApplicationInfo app_info{"Triangles intersection", version, "Best engine", version, version};
+  vk::ApplicationInfo app_info = {.pApplicationName = "Triangles intersection",
+                                  .applicationVersion = version,
+                                  .pEngineName = "Best engine",
+                                  .engineVersion = version,
+                                  .apiVersion = version};
 
   auto extensions = get_required_extensions();
   auto layers = get_required_layers();
@@ -82,12 +85,11 @@ vk::raii::Instance instance_wrapper::create_instance() {
     throw std::runtime_error{"Not all the requested extensions are supported"};
   }
 
-  vk::InstanceCreateInfo create_info{vk::InstanceCreateFlags{},
-                                     &app_info,
-                                     static_cast<uint32_t>(layers.size()),
-                                     layers.data(),
-                                     static_cast<uint32_t>(extensions.size()),
-                                     extensions.data()};
+  vk::InstanceCreateInfo create_info = {.pApplicationInfo = &app_info,
+                                        .enabledLayerCount = static_cast<uint32_t>(layers.size()),
+                                        .ppEnabledLayerNames = layers.data(),
+                                        .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+                                        .ppEnabledExtensionNames = extensions.data()};
 
   return Instance{context, create_info};
 }

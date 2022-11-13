@@ -11,8 +11,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <vulkan/vulkan_raii.hpp>
-
+#include "vulkan_include.hpp"
 #include "wrappers/surface.hpp"
 
 namespace throttle::graphics {

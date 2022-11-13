@@ -14,7 +14,7 @@
 
 #include "shaders.hpp"
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_include.hpp"
 
 #include <numeric>
 
@@ -23,9 +23,9 @@ namespace graphics {
 
 struct descriptor_set_data {
 public:
-  vk::raii::DescriptorSetLayout m_layout{nullptr};
-  vk::raii::DescriptorPool      m_pool{nullptr};
-  vk::raii::DescriptorSet       m_descriptor_set{nullptr};
+  vk::raii::DescriptorSetLayout m_layout = nullptr;
+  vk::raii::DescriptorPool      m_pool = nullptr;
+  vk::raii::DescriptorSet       m_descriptor_set = nullptr;
 
   descriptor_set_data(std::nullptr_t) {}
   descriptor_set_data(const vk::raii::Device &p_device)
@@ -39,13 +39,17 @@ public:
 private:
   static vk::raii::DescriptorSetLayout create_decriptor_set_layout(
       const vk::raii::Device                                                            &p_device,
-      const std::vector<std::tuple<vk::DescriptorType, uint32_t, vk::ShaderStageFlags>> &p_binding_data,
-      vk::DescriptorSetLayoutCreateFlags                                                 p_flags = {}) {
+      const std::vector<std::tuple<vk::DescriptorType, uint32_t, vk::ShaderStageFlags>> &p_binding_data) {
     std::vector<vk::DescriptorSetLayoutBinding> bindings{static_cast<uint32_t>(p_binding_data.size())};
-    for (uint32_t i = 0; i < p_binding_data.size(); ++i)
+
+    for (uint32_t i = 0; i < p_binding_data.size(); ++i) {
       bindings.push_back(vk::DescriptorSetLayoutBinding{
           i, std::get<0>(p_binding_data[i]), std::get<1>(p_binding_data[i]), std::get<2>(p_binding_data[i])});
-    vk::DescriptorSetLayoutCreateInfo descriptor_set_info{p_flags, bindings};
+    }
+
+    vk::DescriptorSetLayoutCreateInfo descriptor_set_info = {.bindingCount = static_cast<uint32_t>(bindings.size()),
+                                                             .pBindings = bindings.data()};
+
     return vk::raii::DescriptorSetLayout{p_device, descriptor_set_info};
   }
 
@@ -54,8 +58,12 @@ private:
     uint32_t max_sets =
         std::accumulate(p_pool_sizes.begin(), p_pool_sizes.end(), 0,
                         [](uint32_t sum, vk::DescriptorPoolSize const &dps) { return sum + dps.descriptorCount; });
-    vk::DescriptorPoolCreateInfo descriptor_info{vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet, max_sets,
-                                                 p_pool_sizes};
+
+    vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+                                                    .maxSets = max_sets,
+                                                    .poolSizeCount = static_cast<uint32_t>(p_pool_sizes.size()),
+                                                    .pPoolSizes = p_pool_sizes.data()};
+
     return vk::raii::DescriptorPool(p_device, descriptor_info);
   }
 };
@@ -95,75 +103,72 @@ private:
     input_asm_info.flags = vk::PipelineInputAssemblyStateCreateFlags();
     input_asm_info.topology = vk::PrimitiveTopology::eTriangleList;
 
-    // viewport and scissor
+    // Viewport and scissor
     vk::Viewport viewport = {0.0f, 0.0f, static_cast<float>(p_extent.width), static_cast<float>(p_extent.height),
                              0.0f, 1.0f};
     vk::Rect2D   scissor = {vk::Offset2D{0, 0}, p_extent};
-    vk::PipelineViewportStateCreateInfo viewport_info{vk::PipelineViewportStateCreateFlags(), 1, &viewport, 1,
-                                                      &scissor};
 
-    // rasterisation
+    vk::PipelineViewportStateCreateInfo viewport_info = {
+        .viewportCount = 1, .pViewports = &viewport, .scissorCount = 1, .pScissors = &scissor};
+
+    // Rasterisation
     vk::PipelineRasterizationStateCreateInfo rasterization_info = {
-        vk::PipelineRasterizationStateCreateFlags(),
-        VK_FALSE,
-        VK_FALSE,
-        vk::PolygonMode::eFill,
-        vk::CullModeFlagBits::eBack,
-        vk::FrontFace::eClockwise,
-        VK_FALSE,
+        .depthClampEnable = VK_FALSE,
+        .rasterizerDiscardEnable = VK_FALSE,
+        .polygonMode = vk::PolygonMode::eFill,
+        .cullMode = vk::CullModeFlagBits::eBack,
+        .frontFace = vk::FrontFace::eClockwise,
+        .depthBiasEnable = VK_FALSE,
+        .lineWidth = 1.0f,
     };
-    rasterization_info.lineWidth = 1.0f;
 
-    // multisampling
-    vk::PipelineMultisampleStateCreateInfo multisampling = {vk::PipelineMultisampleStateCreateFlags(),
-                                                            vk::SampleCountFlagBits::e1, VK_FALSE};
+    // Multisampling
+    vk::PipelineMultisampleStateCreateInfo multisampling = {.rasterizationSamples = vk::SampleCountFlagBits::e1,
+                                                            .sampleShadingEnable = VK_FALSE};
 
     // color blend
-    vk::PipelineColorBlendAttachmentState color_blend_attachments = {};
-    color_blend_attachments.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-                                             vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
-    color_blend_attachments.blendEnable = VK_FALSE;
+    vk::PipelineColorBlendAttachmentState color_blend_attachments = {
+        .blendEnable = VK_FALSE,
+        .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
+    };
 
-    vk::PipelineColorBlendStateCreateInfo color_blending = {};
-    color_blending.flags = vk::PipelineColorBlendStateCreateFlags();
-    color_blending.logicOpEnable = VK_FALSE;
-    color_blending.logicOp = vk::LogicOp::eCopy;
-    color_blending.attachmentCount = 1;
-    color_blending.pAttachments = &color_blend_attachments;
-    color_blending.blendConstants[0] = 0.0f;
-    color_blending.blendConstants[1] = 0.0f;
-    color_blending.blendConstants[2] = 0.0f;
-    color_blending.blendConstants[3] = 0.0f;
+    vk::PipelineColorBlendStateCreateInfo color_blending = {
+        .logicOpEnable = VK_FALSE,
+        .logicOp = vk::LogicOp::eCopy,
+        .attachmentCount = 1,
+        .pAttachments = &color_blend_attachments,
+        .blendConstants = {},
+    };
 
     // shader stages
     std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
 
     // vertex shader
     auto                              vertex_shader = create_module(p_vertex_file_path, p_device);
-    vk::PipelineShaderStageCreateInfo vertex_shader_info(vk::PipelineShaderStageCreateFlags(),
-                                                         vk::ShaderStageFlagBits::eVertex, *vertex_shader, "main");
+    vk::PipelineShaderStageCreateInfo vertex_shader_info = {
+        .stage = vk::ShaderStageFlagBits::eVertex, .module = *vertex_shader, .pName = "main"};
     shader_stages.push_back(vertex_shader_info);
 
     // fragment shader
     auto                              fragment_shader = create_module(p_fragment_file_path, p_device);
-    vk::PipelineShaderStageCreateInfo fragment_shader_info(
-        vk::PipelineShaderStageCreateFlags(), vk::ShaderStageFlagBits::eFragment, *fragment_shader, "main");
+    vk::PipelineShaderStageCreateInfo fragment_shader_info = {
+        .stage = vk::ShaderStageFlagBits::eFragment, .module = *fragment_shader, .pName = "main"};
     shader_stages.push_back(fragment_shader_info);
 
-    vk::GraphicsPipelineCreateInfo pipeline_info{};
-    pipeline_info.flags = vk::PipelineCreateFlags{};
-    pipeline_info.stageCount = shader_stages.size();
-    pipeline_info.pStages = shader_stages.data();
-    pipeline_info.pVertexInputState = &vertex_input_info;
-    pipeline_info.pInputAssemblyState = &input_asm_info;
-    pipeline_info.pViewportState = &viewport_info;
-    pipeline_info.pRasterizationState = &rasterization_info;
-    pipeline_info.pColorBlendState = &color_blending;
-    pipeline_info.pMultisampleState = &multisampling;
-    pipeline_info.subpass = 0;
-    pipeline_info.basePipelineHandle = nullptr;
-    pipeline_info.renderPass = *m_render_pass;
-    pipeline_info.layout = *m_layout;
+    vk::GraphicsPipelineCreateInfo pipeline_info = {.stageCount = static_cast<uint32_t>(shader_stages.size()),
+                                                    .pStages = shader_stages.data(),
+                                                    .pVertexInputState = &vertex_input_info,
+                                                    .pInputAssemblyState = &input_asm_info,
+                                                    .pViewportState = &viewport_info,
+                                                    .pRasterizationState = &rasterization_info,
+                                                    .pColorBlendState = &color_blending,
+                                                    .pMultisampleState = &multisampling,
+                                                    .subpass = 0,
+                                                    .basePipelineHandle = nullptr,
+                                                    .renderPass = *m_render_pass,
+                                                    .layout = *m_layout};
+
     return p_device.createGraphicsPipeline(nullptr, pipeline_info);
   }
 
@@ -179,36 +184,28 @@ private:
   }
 
   static vk::raii::RenderPass create_render_pass(const vk::raii::Device &p_device) {
-    vk::AttachmentDescription color_attachment = {};
-    color_attachment.flags = vk::AttachmentDescriptionFlags();
-    color_attachment.format = vk::Format::eB8G8R8A8Unorm;
-    color_attachment.samples = vk::SampleCountFlagBits::e1;
-    color_attachment.loadOp = vk::AttachmentLoadOp::eClear;
-    color_attachment.storeOp = vk::AttachmentStoreOp::eStore;
-    color_attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    color_attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    color_attachment.initialLayout = vk::ImageLayout::eUndefined;
-    color_attachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+    vk::AttachmentDescription color_attachment = {.flags = vk::AttachmentDescriptionFlags(),
+                                                  .format = vk::Format::eB8G8R8A8Unorm,
+                                                  .samples = vk::SampleCountFlagBits::e1,
+                                                  .loadOp = vk::AttachmentLoadOp::eClear,
+                                                  .storeOp = vk::AttachmentStoreOp::eStore,
+                                                  .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+                                                  .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+                                                  .initialLayout = vk::ImageLayout::eUndefined,
+                                                  .finalLayout = vk::ImageLayout::ePresentSrcKHR};
 
-    vk::AttachmentReference color_attachment_ref = {};
-    color_attachment_ref.attachment = 0;
-    color_attachment_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+    vk::AttachmentReference color_attachment_ref = {.attachment = 0,
+                                                    .layout = vk::ImageLayout::eColorAttachmentOptimal};
 
-    vk::SubpassDescription subpass = {};
-    subpass.flags = vk::SubpassDescriptionFlags();
-    subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &color_attachment_ref;
+    vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+                                      .colorAttachmentCount = 1,
+                                      .pColorAttachments = &color_attachment_ref};
 
-    vk::RenderPassCreateInfo renderpass_info = {};
-    renderpass_info.flags = vk::RenderPassCreateFlags();
-    renderpass_info.attachmentCount = 1;
-    renderpass_info.pAttachments = &color_attachment;
-    renderpass_info.subpassCount = 1;
-    renderpass_info.pSubpasses = &subpass;
+    vk::RenderPassCreateInfo renderpass_info = {
+        .attachmentCount = 1, .pAttachments = &color_attachment, .subpassCount = 1, .pSubpasses = &subpass};
 
     return p_device.createRenderPass(renderpass_info);
   }
-};
+}; // namespace graphics
 } // namespace graphics
 } // namespace throttle

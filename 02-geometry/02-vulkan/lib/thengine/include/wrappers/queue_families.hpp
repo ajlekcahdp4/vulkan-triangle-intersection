@@ -13,7 +13,7 @@
 #include <optional>
 #include <utility>
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_include.hpp"
 
 #include "surface.hpp"
 

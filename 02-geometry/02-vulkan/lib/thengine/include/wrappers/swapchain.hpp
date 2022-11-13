@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_include.hpp"
 
 #include "queue_families.hpp"
 #include "surface.hpp"
@@ -19,6 +19,13 @@ namespace throttle {
 namespace graphics {
 
 class swapchain_wrapper final {
+private:
+  vk::SurfaceFormatKHR             m_format;
+  vk::Extent2D                     m_extent;
+  vk::raii::SwapchainKHR           m_handle = nullptr;
+  std::vector<vk::Image>           m_images;
+  std::vector<vk::raii::ImageView> m_image_views;
+
 public:
   swapchain_wrapper(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
                     const vk::raii::SurfaceKHR &p_surface, const vk::Extent2D &p_extent) {
@@ -26,50 +33,58 @@ public:
     auto formats = p_phys_device.getSurfaceFormatsKHR(*p_surface);
     auto present_modes = p_phys_device.getSurfacePresentModesKHR(*p_surface);
     auto present_mode = choose_swapchain_present_mode(present_modes);
+
     m_extent = choose_swapchain_extent(p_extent, capabilities);
     m_format = choose_swapchain_surface_format(formats);
+
     uint32_t image_count = std::max(capabilities.maxImageCount, capabilities.minImageCount + 1);
-    // clang-format off
-    vk::SwapchainCreateInfoKHR create_info{
-      vk::SwapchainCreateFlagsKHR(),
-      *p_surface,
-      image_count,
-      m_format.format,
-      m_format.colorSpace,
-      m_extent,
-      1,
-      vk::ImageUsageFlagBits::eColorAttachment
-    };
-    // clang-format on
+
+    vk::SwapchainCreateInfoKHR create_info = {.surface = *p_surface,
+                                              .minImageCount = image_count,
+                                              .imageFormat = m_format.format,
+                                              .imageColorSpace = m_format.colorSpace,
+                                              .imageExtent = m_extent,
+                                              .imageArrayLayers = 1,
+                                              .imageUsage = vk::ImageUsageFlagBits::eColorAttachment};
+
     auto     queue_family_indices = find_graphics_and_present_family_indices(p_phys_device, p_surface);
     uint32_t arr_indices[2] = {queue_family_indices.first, queue_family_indices.second};
+
     if (queue_family_indices.first != queue_family_indices.second) {
       create_info.imageSharingMode = vk::SharingMode::eConcurrent;
       create_info.queueFamilyIndexCount = 2;
       create_info.pQueueFamilyIndices = arr_indices;
-    } else
-      create_info.imageSharingMode = vk::SharingMode::eExclusive;
+    } else {
+      create_info.imageSharingMode = vk::SharingMode::eExclusive; // TODO[Sergei]: Is this right?
+    }
+
     create_info.preTransform = capabilities.currentTransform;
     create_info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
     create_info.presentMode = present_mode;
     create_info.clipped = VK_TRUE;
+
     m_handle = p_logical_device.createSwapchainKHR(create_info);
     m_images = (*p_logical_device).getSwapchainImagesKHR(*m_handle);
     m_image_views.reserve(m_images.size());
+
     for (auto &image : m_images) {
-      vk::ImageViewCreateInfo image_view_create_info = {};
-      image_view_create_info.image = image;
-      image_view_create_info.viewType = vk::ImageViewType::e2D;
-      image_view_create_info.components.r = vk::ComponentSwizzle::eIdentity;
-      image_view_create_info.components.g = vk::ComponentSwizzle::eIdentity;
-      image_view_create_info.components.b = vk::ComponentSwizzle::eIdentity;
-      image_view_create_info.components.a = vk::ComponentSwizzle::eIdentity;
-      image_view_create_info.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-      image_view_create_info.subresourceRange.baseMipLevel = 0;
-      image_view_create_info.subresourceRange.levelCount = 1;
-      image_view_create_info.subresourceRange.baseArrayLayer = 0;
-      image_view_create_info.subresourceRange.layerCount = 1;
-      image_view_create_info.format = create_info.imageFormat;
+      vk::ImageSubresourceRange subrange_info = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
+                                                                          .baseMipLevel = 0,
+                                                                          .levelCount = 1,
+                                                                          .baseArrayLayer = 0,
+                                                                          .layerCount = 1};
+
+      vk::ComponentMapping component_mapping = vk::ComponentMapping{.r = vk::ComponentSwizzle::eIdentity,
+                                                                    .g = vk::ComponentSwizzle::eIdentity,
+                                                                    .b = vk::ComponentSwizzle::eIdentity,
+                                                                    .a = vk::ComponentSwizzle::eIdentity};
+
+      vk::ImageViewCreateInfo image_view_create_info = {.image = image,
+                                                        .viewType = vk::ImageViewType::e2D,
+                                                        .format = create_info.imageFormat,
+                                                        .components = component_mapping,
+                                                        .subresourceRange = subrange_info};
+
       m_image_views.push_back(p_logical_device.createImageView(image_view_create_info));
     }
   }
@@ -82,41 +97,32 @@ public:
 
 private:
   static vk::SurfaceFormatKHR choose_swapchain_surface_format(const std::vector<vk::SurfaceFormatKHR> &formats) {
-    for (auto &format : formats)
+    for (const auto &format : formats) {
       if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
         return format;
+    }
     return formats[0];
   }
 
   static vk::PresentModeKHR choose_swapchain_present_mode(const std::vector<vk::PresentModeKHR> &present_modes) {
-    for (auto &mode : present_modes)
+    for (const auto &mode : present_modes) {
       if (mode == vk::PresentModeKHR::eMailbox) // The fastest one
         return mode;
+    }
+
     return vk::PresentModeKHR::eFifo;
   }
 
-  static vk::Extent2D choose_swapchain_extent(const vk::Extent2D               &p_extent,
-                                              const vk::SurfaceCapabilitiesKHR &capabilities) {
+  static vk::Extent2D choose_swapchain_extent(const vk::Extent2D &p_extent, const vk::SurfaceCapabilitiesKHR &p_cap) {
     // In some systems UINT32_MAX is a flag to say that the size has not been specified
-    if (capabilities.currentExtent.width != UINT32_MAX)
-      return capabilities.currentExtent;
-    else {
-      vk::Extent2D extent;
+    if (p_cap.currentExtent.width != UINT32_MAX) return p_cap.currentExtent;
 
-      extent.width =
-          std::min(capabilities.maxImageExtent.width, std::max(capabilities.minImageExtent.width, p_extent.width));
+    vk::Extent2D extent = {
+        std::min(p_cap.maxImageExtent.width, std::max(p_cap.minImageExtent.width, p_extent.width)),
+        std::min(p_cap.maxImageExtent.height, std::max(p_cap.minImageExtent.height, p_extent.height))};
 
-      extent.height =
-          std::min(capabilities.maxImageExtent.height, std::max(capabilities.minImageExtent.height, p_extent.height));
-      return extent;
-    }
+    return extent;
   }
-
-  vk::SurfaceFormatKHR             m_format;
-  vk::Extent2D                     m_extent;
-  vk::raii::SwapchainKHR           m_handle{nullptr};
-  std::vector<vk::Image>           m_images;
-  std::vector<vk::raii::ImageView> m_image_views;
 };
 } // namespace graphics
 } // namespace throttle

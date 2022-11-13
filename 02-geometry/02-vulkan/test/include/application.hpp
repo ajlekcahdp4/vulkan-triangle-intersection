@@ -12,7 +12,7 @@
 
 #include <engine.hpp>
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_include.hpp"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 

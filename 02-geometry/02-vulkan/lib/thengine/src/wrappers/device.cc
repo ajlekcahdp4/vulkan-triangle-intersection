@@ -10,7 +10,7 @@
 
 #include <string_view>
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_include.hpp"
 
 #include "wrappers/device.hpp"
 #include "wrappers/queue_families.hpp"
@@ -58,17 +58,22 @@ vk::raii::Device create_device(const vk::raii::PhysicalDevice &p_device, const v
   std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
 
   for (auto qfi : unique_indices) {
-    queue_create_infos.push_back(vk::DeviceQueueCreateInfo{vk::DeviceQueueCreateFlags{}, qfi, 1, &queue_priority});
+    vk::DeviceQueueCreateInfo queue_create_info = {
+        .queueFamilyIndex = qfi, .queueCount = 1, .pQueuePriorities = &queue_priority};
+    queue_create_infos.push_back(queue_create_info);
   }
 
   std::vector<const char *>  device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
   vk::PhysicalDeviceFeatures device_features;
   std::vector<const char *>  enabled_layers;
 
-  vk::DeviceCreateInfo device_create_info{vk::DeviceCreateFlags{},   static_cast<uint32_t>(queue_create_infos.size()),
-                                          queue_create_infos.data(), static_cast<uint32_t>(enabled_layers.size()),
-                                          enabled_layers.data(),     static_cast<uint32_t>(device_extensions.size()),
-                                          device_extensions.data(),  &device_features};
+  vk::DeviceCreateInfo device_create_info = {.queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size()),
+                                             .pQueueCreateInfos = queue_create_infos.data(),
+                                             .enabledLayerCount = static_cast<uint32_t>(enabled_layers.size()),
+                                             .ppEnabledLayerNames = enabled_layers.data(),
+                                             .enabledExtensionCount = static_cast<uint32_t>(device_extensions.size()),
+                                             .ppEnabledExtensionNames = device_extensions.data(),
+                                             .pEnabledFeatures = &device_features};
 
   return p_device.createDevice(device_create_info);
 }

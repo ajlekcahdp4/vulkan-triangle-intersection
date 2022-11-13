@@ -13,9 +13,7 @@
 #include <string>
 #include <vector>
 
-// Use this for designated initializers. Should propogate this to the whole codebase.
-#define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_include.hpp"
 
 namespace throttle::graphics {
 

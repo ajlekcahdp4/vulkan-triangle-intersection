@@ -8,8 +8,8 @@
  * ----------------------------------------------------------------------------
  */
 
+#include "vulkan_include.hpp"
 #include <string_view>
-#include <vulkan/vulkan_raii.hpp>
 
 namespace throttle::graphics {
 

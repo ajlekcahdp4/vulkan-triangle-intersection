@@ -14,7 +14,7 @@
 #include <set>
 #include <vector>
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_include.hpp"
 
 namespace throttle {
 namespace graphics {

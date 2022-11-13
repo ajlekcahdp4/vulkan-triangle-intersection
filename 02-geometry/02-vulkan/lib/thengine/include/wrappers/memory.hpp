@@ -19,7 +19,7 @@
 
 #include "primitives/vertex.hpp"
 
-#include <vulkan/vulkan_raii.hpp>
+#include "vulkan_include.hpp"
 
 namespace throttle {
 namespace graphics {
@@ -71,7 +71,7 @@ struct buffer final {
          const vk::DeviceSize p_size, const vk::BufferUsageFlags p_usage,
          vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
                                                     vk::MemoryPropertyFlagBits::eHostCoherent)
-      : m_buffer{p_logical_device.createBuffer(vk::BufferCreateInfo{{}, p_size, p_usage})},
+      : m_buffer{p_logical_device.createBuffer(vk::BufferCreateInfo{.size = p_size, .usage = p_usage})},
         m_memory{allocate_device_memory(p_logical_device, p_phys_device.getMemoryProperties(),
                                         m_buffer.getMemoryRequirements(), p_property_flags)} {
     m_buffer.bindMemory(*m_memory, 0);
@@ -82,7 +82,7 @@ struct buffer final {
          const vk::BufferUsageFlags p_usage, const std::vector<T> p_data,
          vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
                                                     vk::MemoryPropertyFlagBits::eHostCoherent)
-      : m_buffer{p_logical_device.createBuffer(vk::BufferCreateInfo{{}, sizeof_vector(p_data), p_usage})},
+      : m_buffer{p_logical_device.createBuffer(vk::BufferCreateInfo{.size = sizeof_vector(p_data), .usage = p_usage})},
         m_memory{allocate_device_memory(p_logical_device, p_phys_device.getMemoryProperties(),
                                         m_buffer.getMemoryRequirements(), p_property_flags)} {
     m_buffer.bindMemory(*m_memory, 0);
@@ -105,7 +105,10 @@ struct buffer final {
                                                        const vk::MemoryPropertyFlags            p_mem_property_flags) {
     uint32_t mem_type_index =
         find_memory_type(p_mem_properties, p_mem_requirements.memoryTypeBits, p_mem_property_flags);
-    vk::MemoryAllocateInfo mem_allocate_info{p_mem_requirements.size, mem_type_index};
+
+    vk::MemoryAllocateInfo mem_allocate_info{.allocationSize = p_mem_requirements.size,
+                                             .memoryTypeIndex = mem_type_index};
+
     return vk::raii::DeviceMemory{p_device, mem_allocate_info};
   }
 };
