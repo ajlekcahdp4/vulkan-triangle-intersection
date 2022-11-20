@@ -68,27 +68,20 @@ inline bool is_supported(const std::vector<const char *> &extensions, const std:
   return extensions_supported(extensions, context) && layers_supported(layers);
 }
 
-// interface instance class.
-struct i_instance_data {
-  virtual vk::raii::Instance &instance() = 0;
-  virtual ~i_instance_data(){};
-};
-
-// concrete instance class with debug messenger.
-class instance_data : public i_instance_data {
+// instance class with debug messenger.
+class instance_data final {
 public:
-  instance_data() : m_handle{create_instance()}, m_dmessenger{create_debug_messenger(m_handle)} {}
-  vk::raii::Instance &instance() override { return m_handle; }
+  instance_data() : m_handle{m_context, create_info(m_context)}, m_dmessenger{create_debug_messenger(m_handle)} {}
+  vk::raii::Instance &instance() { return m_handle; }
 
 private:
-  vk::raii::Instance create_instance() {
+  static vk::InstanceCreateInfo create_info(vk::raii::Context &p_context) {
     glfwInit();
-    vk::raii::Context   context;
-    auto                version = context.enumerateInstanceVersion();
+    auto                version = p_context.enumerateInstanceVersion();
     vk::ApplicationInfo app_info{"Triangles intersection", version, "Best engine", version, version};
     auto                extensions = get_required_extensions();
     auto                layers = get_required_layers();
-    if (!is_supported(extensions, layers, context))
+    if (!is_supported(extensions, layers, p_context))
       throw std::runtime_error("Not all the requested extensions are supported");
     // clang-format off
     vk::InstanceCreateInfo create_info {
@@ -99,9 +92,10 @@ private:
       extensions.data()
     };
     // clang-format on
-    return vk::raii::Instance{context, create_info};
+    return create_info;
   }
 
+  vk::raii::Context                m_context;
   vk::raii::Instance               m_handle{nullptr};
   vk::raii::DebugUtilsMessengerEXT m_dmessenger{nullptr};
 };
