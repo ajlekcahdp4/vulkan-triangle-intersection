@@ -14,7 +14,6 @@
 #define GLFW_INCLUDE_NONE
 #include "logging.hpp"
 #include <GLFW/glfw3.h>
-#include <iostream>
 
 namespace throttle::graphics {
 
@@ -22,7 +21,6 @@ std::vector<const char *> get_required_extensions();
 
 inline std::vector<const char *> get_required_layers() {
 #if defined(ENABLE_VALIDATION_LAYERS)
-  std::cout << "layers enabled\n";
   return std::vector<const char *>{"VK_LAYER_KHRONOS_validation"};
 #else
   return {};
