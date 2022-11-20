@@ -5,6 +5,7 @@ set(ENGINE_SOURCES
   src/wrappers/instance.cc
   src/wrappers/device.cc
   src/wrappers/queue_families.cc
+  src/wrappers/pipeline.cc
 )
 
 add_library(thengine ${ENGINE_SOURCES})
