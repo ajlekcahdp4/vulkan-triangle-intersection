@@ -84,7 +84,5 @@ endif()
 
 set (VALIDATION_LAYERS ON CACHE BOOL "Enables Vulkan validation layers" )
 
-option (VALIDATION_LAYERS "Enable vulkan validation layers" OFF)
-
 add_subdirectory(lib)
 add_subdirectory(test)
