@@ -7,6 +7,7 @@ set(ENGINE_SOURCES
   src/wrappers/queue_families.cc
   src/wrappers/pipeline.cc
   src/wrappers/swapchain.cc
+  src/wrappers/logging.cc
 )
 
 add_library(thengine ${ENGINE_SOURCES})
