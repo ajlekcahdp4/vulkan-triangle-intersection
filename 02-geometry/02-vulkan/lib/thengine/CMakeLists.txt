@@ -8,4 +8,8 @@ set(ENGINE_SOURCES
 )
 
 add_library(thengine ${ENGINE_SOURCES})
+if (VALIDATION_LAYERS)
+    message("Vulkan validation layers enabled " ${VALIDATION_LAYERS})
+    target_compile_definitions(thengine PUBLIC ENABLE_VALIDATION_LAYERS)
+endif()
 target_include_directories(thengine PUBLIC include)

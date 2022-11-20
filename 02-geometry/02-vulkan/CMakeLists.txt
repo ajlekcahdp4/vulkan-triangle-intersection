@@ -82,5 +82,7 @@ if (NOT VulkanFOUND)
     endif()
 endif()
 
+set (VALIDATION_LAYERS ON CACHE BOOL "Enables Vulkan validation layers" )
+
 add_subdirectory(lib)
 add_subdirectory(test)

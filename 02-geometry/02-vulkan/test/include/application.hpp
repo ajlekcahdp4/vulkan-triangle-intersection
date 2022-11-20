@@ -66,25 +66,25 @@ public:
   }
 
 private:
-  std::unique_ptr<throttle::graphics::instance_wrapper>  m_instance_data{nullptr};
-  vk::raii::PhysicalDevice                               m_phys_device{nullptr};
-  std::unique_ptr<throttle::graphics::window_surface>    m_surface_data{nullptr};
-  vk::raii::Device                                       m_logical_device{nullptr};
-  throttle::graphics::queues                             m_queues;
-  std::unique_ptr<throttle::graphics::swapchain_wrapper> m_swapchain_data{nullptr};
-  throttle::graphics::descriptor_set_data                m_descriptor_set_data{nullptr};
-  throttle::graphics::pipeline_data                      m_pipeline_data{nullptr};
-  throttle::graphics::framebuffers                       m_framebuffers;
-  vk::raii::CommandPool                                  m_command_pool{nullptr};
-  throttle::graphics::buffer                             m_vertex_buffer{nullptr};
-  throttle::graphics::buffer                             m_index_buffer{nullptr};
-  throttle::graphics::buffers                            m_uniform_buffers;
-  vk::raii::CommandBuffers                               m_command_buffers{nullptr};
-  std::vector<vk::raii::Semaphore>                       m_image_availible_semaphores;
-  std::vector<vk::raii::Semaphore>                       m_render_finished_semaphores;
-  std::vector<vk::raii::Fence>                           m_in_flight_fences;
-  std::size_t                                            m_curr_frame = 0;
-  bool                                                   m_framebuffer_resized = false;
+  std::unique_ptr<throttle::graphics::instance_wrapper>         m_instance_data{nullptr};
+  vk::raii::PhysicalDevice                                      m_phys_device{nullptr};
+  std::unique_ptr<throttle::graphics::window_surface>           m_surface_data{nullptr};
+  vk::raii::Device                                              m_logical_device{nullptr};
+  throttle::graphics::queues                                    m_queues;
+  std::unique_ptr<throttle::graphics::swapchain_wrapper>        m_swapchain_data{nullptr};
+  throttle::graphics::descriptor_set_data                       m_descriptor_set_data{nullptr};
+  throttle::graphics::pipeline_data<throttle::graphics::vertex> m_pipeline_data{nullptr};
+  throttle::graphics::framebuffers                              m_framebuffers;
+  vk::raii::CommandPool                                         m_command_pool{nullptr};
+  throttle::graphics::buffer                                    m_vertex_buffer{nullptr};
+  throttle::graphics::buffer                                    m_index_buffer{nullptr};
+  throttle::graphics::buffers                                   m_uniform_buffers;
+  vk::raii::CommandBuffers                                      m_command_buffers{nullptr};
+  std::vector<vk::raii::Semaphore>                              m_image_availible_semaphores;
+  std::vector<vk::raii::Semaphore>                              m_render_finished_semaphores;
+  std::vector<vk::raii::Fence>                                  m_in_flight_fences;
+  std::size_t                                                   m_curr_frame = 0;
+  bool                                                          m_framebuffer_resized = false;
 
 private:
   void create_command_buffers() {
@@ -138,7 +138,8 @@ private:
       for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         m_image_availible_semaphores.push_back(m_logical_device.createSemaphore({}));
         m_render_finished_semaphores.push_back(m_logical_device.createSemaphore({}));
-        m_in_flight_fences.push_back(m_logical_device.createFence({vk::FenceCreateFlagBits::eSignaled}));
+        m_in_flight_fences.push_back(
+            m_logical_device.createFence(vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}));
       }
     } catch (vk::SystemError &) {
       throw std::runtime_error("failed to create synchronisation objects for a frame");
@@ -154,8 +155,9 @@ private:
     }
     m_swapchain_data = std::make_unique<throttle::graphics::swapchain_wrapper>(
         m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent());
-    m_pipeline_data = throttle::graphics::pipeline_data{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv",
-                                                        m_swapchain_data->extent(), m_descriptor_set_data};
+    m_pipeline_data = throttle::graphics::pipeline_data<throttle::graphics::vertex>{
+        m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_swapchain_data->extent(),
+        m_descriptor_set_data};
     m_framebuffers = throttle::graphics::framebuffers{m_logical_device, m_swapchain_data->image_views(),
                                                       m_swapchain_data->extent(), m_pipeline_data.m_render_pass};
     create_command_buffers();

@@ -10,8 +10,6 @@
 
 #pragma once
 
-#include "primitives/vertex.hpp"
-
 #include "shaders.hpp"
 
 #include "vulkan_include.hpp"
@@ -34,7 +32,11 @@ public:
                        {vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}})},
         m_pool{std::move(create_descriptor_pool(
             p_device, {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eCombinedImageSampler, 1}}))},
-        m_descriptor_set{std::move((vk::raii::DescriptorSets{p_device, {*m_pool, *m_layout}}).front())} {}
+        m_descriptor_set{
+            std::move((vk::raii::DescriptorSets{p_device, vk::DescriptorSetAllocateInfo{.descriptorPool = *m_pool,
+                                                                                        .descriptorSetCount = 1,
+                                                                                        .pSetLayouts = &(*m_layout)}})
+                          .front())} {}
 
 private:
   static vk::raii::DescriptorSetLayout create_decriptor_set_layout(
@@ -68,7 +70,7 @@ private:
   }
 };
 
-struct pipeline_data {
+template <class vertex_t> struct pipeline_data {
 public:
   vk::raii::RenderPass     m_render_pass{nullptr};
   vk::raii::PipelineLayout m_layout{nullptr};
@@ -91,8 +93,8 @@ private:
     vertex_input_info.flags = vk::PipelineVertexInputStateCreateFlags();
     vertex_input_info.vertexBindingDescriptionCount = 0;
     vertex_input_info.vertexAttributeDescriptionCount = 0;
-    auto binding_description = vertex::get_binding_description();
-    auto attribute_description = vertex::get_attribute_description();
+    auto binding_description = vertex_t::get_binding_description();
+    auto attribute_description = vertex_t::get_attribute_description();
     vertex_input_info.vertexBindingDescriptionCount = 1;
     vertex_input_info.vertexAttributeDescriptionCount = attribute_description.size();
     vertex_input_info.pVertexBindingDescriptions = &binding_description;
@@ -162,12 +164,12 @@ private:
                                                     .pInputAssemblyState = &input_asm_info,
                                                     .pViewportState = &viewport_info,
                                                     .pRasterizationState = &rasterization_info,
-                                                    .pColorBlendState = &color_blending,
                                                     .pMultisampleState = &multisampling,
-                                                    .subpass = 0,
-                                                    .basePipelineHandle = nullptr,
+                                                    .pColorBlendState = &color_blending,
+                                                    .layout = *m_layout,
                                                     .renderPass = *m_render_pass,
-                                                    .layout = *m_layout};
+                                                    .subpass = 0,
+                                                    .basePipelineHandle = nullptr};
 
     return p_device.createGraphicsPipeline(nullptr, pipeline_info);
   }
