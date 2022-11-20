@@ -33,12 +33,9 @@ public:
     auto formats = p_phys_device.getSurfaceFormatsKHR(*p_surface);
     auto present_modes = p_phys_device.getSurfacePresentModesKHR(*p_surface);
     auto present_mode = choose_swapchain_present_mode(present_modes);
-
     m_extent = choose_swapchain_extent(p_extent, capabilities);
     m_format = choose_swapchain_surface_format(formats);
-
-    uint32_t image_count = std::max(capabilities.maxImageCount, capabilities.minImageCount + 1);
-
+    uint32_t                   image_count = std::max(capabilities.maxImageCount, capabilities.minImageCount + 1);
     vk::SwapchainCreateInfoKHR create_info = {.surface = *p_surface,
                                               .minImageCount = image_count,
                                               .imageFormat = m_format.format,
@@ -46,10 +43,8 @@ public:
                                               .imageExtent = m_extent,
                                               .imageArrayLayers = 1,
                                               .imageUsage = vk::ImageUsageFlagBits::eColorAttachment};
-
     auto     queue_family_indices = find_graphics_and_present_family_indices(p_phys_device, p_surface);
-    uint32_t arr_indices[2] = {queue_family_indices.first, queue_family_indices.second};
-
+    uint32_t                   arr_indices[2] = {queue_family_indices.first, queue_family_indices.second};
     if (queue_family_indices.first != queue_family_indices.second) {
       create_info.imageSharingMode = vk::SharingMode::eConcurrent;
       create_info.queueFamilyIndexCount = 2;
@@ -57,12 +52,10 @@ public:
     } else {
       create_info.imageSharingMode = vk::SharingMode::eExclusive; // TODO[Sergei]: Is this right?
     }
-
     create_info.preTransform = capabilities.currentTransform;
     create_info.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
     create_info.presentMode = present_mode;
     create_info.clipped = VK_TRUE;
-
     m_handle = p_logical_device.createSwapchainKHR(create_info);
     m_images = (*p_logical_device).getSwapchainImagesKHR(*m_handle);
     m_image_views.reserve(m_images.size());
@@ -96,33 +89,11 @@ public:
   vk::Extent2D                     &extent() { return m_extent; }
 
 private:
-  static vk::SurfaceFormatKHR choose_swapchain_surface_format(const std::vector<vk::SurfaceFormatKHR> &formats) {
-    for (const auto &format : formats) {
-      if (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
-        return format;
-    }
-    return formats[0];
-  }
+  static vk::SurfaceFormatKHR choose_swapchain_surface_format(const std::vector<vk::SurfaceFormatKHR> &formats);
 
-  static vk::PresentModeKHR choose_swapchain_present_mode(const std::vector<vk::PresentModeKHR> &present_modes) {
-    for (const auto &mode : present_modes) {
-      if (mode == vk::PresentModeKHR::eMailbox) // The fastest one
-        return mode;
-    }
+  static vk::PresentModeKHR choose_swapchain_present_mode(const std::vector<vk::PresentModeKHR> &present_modes);
 
-    return vk::PresentModeKHR::eFifo;
-  }
-
-  static vk::Extent2D choose_swapchain_extent(const vk::Extent2D &p_extent, const vk::SurfaceCapabilitiesKHR &p_cap) {
-    // In some systems UINT32_MAX is a flag to say that the size has not been specified
-    if (p_cap.currentExtent.width != UINT32_MAX) return p_cap.currentExtent;
-
-    vk::Extent2D extent = {
-        std::min(p_cap.maxImageExtent.width, std::max(p_cap.minImageExtent.width, p_extent.width)),
-        std::min(p_cap.maxImageExtent.height, std::max(p_cap.minImageExtent.height, p_extent.height))};
-
-    return extent;
-  }
+  static vk::Extent2D choose_swapchain_extent(const vk::Extent2D &p_extent, const vk::SurfaceCapabilitiesKHR &p_cap);
 };
 } // namespace graphics
 } // namespace throttle
