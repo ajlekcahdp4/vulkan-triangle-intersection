@@ -9,7 +9,6 @@
  */
 
 #include <fstream>
-#include <iostream>
 #include <string>
 #include <vector>
 
@@ -27,7 +26,6 @@ vk::raii::DescriptorSetLayout descriptor_set_data::create_decriptor_set_layout(
   std::transform(p_binding_data.begin(), p_binding_data.end(), std::back_inserter(bindings), [&counter](auto &elem) {
     return vk::DescriptorSetLayoutBinding{counter++, std::get<0>(elem), std::get<1>(elem), std::get<2>(elem)};
   });
-  std::cout << counter << std::endl;
   vk::DescriptorSetLayoutCreateInfo descriptor_set_info = {.bindingCount = static_cast<uint32_t>(bindings.size()),
                                                            .pBindings = bindings.data()};
   return vk::raii::DescriptorSetLayout{p_device, descriptor_set_info};
