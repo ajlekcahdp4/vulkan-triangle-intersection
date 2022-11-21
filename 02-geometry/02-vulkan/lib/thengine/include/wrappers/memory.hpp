@@ -69,7 +69,7 @@ struct buffer final {
 
   template <typename T>
   buffer(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
-         const vk::BufferUsageFlags p_usage, const std::vector<T> p_data,
+         const vk::BufferUsageFlags p_usage, const std::vector<T> &p_data,
          vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
                                                     vk::MemoryPropertyFlagBits::eHostCoherent)
       : m_buffer{p_logical_device.createBuffer(vk::BufferCreateInfo{.size = sizeof_vector(p_data), .usage = p_usage})},
@@ -83,7 +83,7 @@ struct buffer final {
   }
 
   template <typename T> void update(const std::vector<T> &p_data) {
-    vk::DeviceSize size = sizeof_vector(p_data);
+    vk::DeviceSize size = p_data.size();
     auto           memory = static_cast<char *>(m_memory.mapMemory(0, size));
     memcpy(memory, p_data.data(), size);
     m_memory.unmapMemory();
