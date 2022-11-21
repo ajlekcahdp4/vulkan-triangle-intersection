@@ -44,20 +44,10 @@ public:
   }
 };
 
-inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &p_device, const queues &p_queues) {
-  vk::CommandPoolCreateInfo pool_info{};
-  pool_info.queueFamilyIndex = p_queues.graphics_index;
-  return p_device.createCommandPool(pool_info);
-}
+vk::raii::CommandPool create_command_pool(const vk::raii::Device &p_device, const queues &p_queues);
 
-inline uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties &p_mem_properties, uint32_t &p_type_filter,
-                                 const vk::MemoryPropertyFlags &p_property_flags) {
-  for (uint32_t i = 0; i < p_mem_properties.memoryTypeCount; ++i)
-    if ((p_type_filter & (1 << i)) &&
-        ((p_mem_properties.memoryTypes[i].propertyFlags & p_property_flags) == p_property_flags))
-      return i;
-  throw std::runtime_error("failed to find suitable memory type!");
-}
+uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties &p_mem_properties, uint32_t &p_type_filter,
+                          const vk::MemoryPropertyFlags &p_property_flags);
 
 template <typename T> std::size_t sizeof_vector(const std::vector<T> &vec) { return sizeof(T) * vec.size(); }
 
@@ -102,15 +92,7 @@ struct buffer final {
   static vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device                  &p_device,
                                                        const vk::PhysicalDeviceMemoryProperties p_mem_properties,
                                                        vk::MemoryRequirements                   p_mem_requirements,
-                                                       const vk::MemoryPropertyFlags            p_mem_property_flags) {
-    uint32_t mem_type_index =
-        find_memory_type(p_mem_properties, p_mem_requirements.memoryTypeBits, p_mem_property_flags);
-
-    vk::MemoryAllocateInfo mem_allocate_info{.allocationSize = p_mem_requirements.size,
-                                             .memoryTypeIndex = mem_type_index};
-
-    return vk::raii::DeviceMemory{p_device, mem_allocate_info};
-  }
+                                                       const vk::MemoryPropertyFlags            p_mem_property_flags);
 };
 
 class buffers final : public std::vector<buffer> {

@@ -8,6 +8,7 @@ set(ENGINE_SOURCES
   src/wrappers/pipeline.cc
   src/wrappers/swapchain.cc
   src/wrappers/logging.cc
+  src/wrappers/memory.cc
 )
 
 add_library(thengine ${ENGINE_SOURCES})
