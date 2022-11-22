@@ -134,7 +134,7 @@ pipeline_data<vertex_t>::create_pipeline(const vk::raii::Device &p_device, const
 
 template <class vertex_t>
 vk::raii::PipelineLayout
-pipeline_data<vertex_t>::create_pipeline_layout(const vk::raii::Device              &device,
+pipeline_data<vertex_t>::create_pipeline_layout(const vk::raii::Device              &p_device,
                                                 const vk::raii::DescriptorSetLayout &p_descriptor_set_layout) {
   vk::PipelineLayoutCreateInfo layout_info{};
   layout_info.flags = vk::PipelineLayoutCreateFlags();
@@ -142,7 +142,7 @@ pipeline_data<vertex_t>::create_pipeline_layout(const vk::raii::Device          
   vk::DescriptorSetLayout set_layouts[] = {*p_descriptor_set_layout};
   layout_info.pSetLayouts = set_layouts;
   layout_info.pushConstantRangeCount = 0;
-  return device.createPipelineLayout(layout_info);
+  return vk::raii::PipelineLayout(p_device, layout_info);
 }
 
 template <class vertex_t>
