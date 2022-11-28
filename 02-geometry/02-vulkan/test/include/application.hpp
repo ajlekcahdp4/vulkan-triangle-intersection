@@ -117,6 +117,8 @@ private:
       render_pass_info.pClearValues = &clear_color;
       m_command_buffers[i].beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
       m_command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
+      m_command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
+                                              {*m_descriptor_set_data.m_descriptor_set}, nullptr);
       vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.m_buffer};
       vk::DeviceSize offsets[] = {0};
       m_command_buffers[i].bindVertexBuffers(0, vertex_buffers, offsets);

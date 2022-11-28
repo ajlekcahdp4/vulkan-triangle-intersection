@@ -10,19 +10,10 @@
 
 #pragma once
 
-#include <array>
+#include "vulkan_include.hpp"
 #include <vector>
 
-#include "pipeline.hpp"
-#include "queue_families.hpp"
-#include "swapchain.hpp"
-
-#include "primitives/vertex.hpp"
-
-#include "vulkan_include.hpp"
-
-namespace throttle {
-namespace graphics {
+namespace throttle::graphics {
 
 class framebuffers final : public std::vector<vk::raii::Framebuffer> {
 public:
@@ -44,10 +35,13 @@ public:
   }
 };
 
-vk::raii::CommandPool create_command_pool(const vk::raii::Device &p_device, const queues &p_queues);
-
 uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties &p_mem_properties, uint32_t &p_type_filter,
                           const vk::MemoryPropertyFlags &p_property_flags);
+
+vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device                  &p_device,
+                                              const vk::PhysicalDeviceMemoryProperties p_mem_properties,
+                                              vk::MemoryRequirements                   p_mem_requirements,
+                                              const vk::MemoryPropertyFlags            p_mem_property_flags);
 
 template <typename T> std::size_t sizeof_vector(const std::vector<T> &vec) { return sizeof(T) * vec.size(); }
 
@@ -88,11 +82,6 @@ struct buffer final {
     memcpy(memory, p_data.data(), size);
     m_memory.unmapMemory();
   }
-
-  static vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device                  &p_device,
-                                                       const vk::PhysicalDeviceMemoryProperties p_mem_properties,
-                                                       vk::MemoryRequirements                   p_mem_requirements,
-                                                       const vk::MemoryPropertyFlags            p_mem_property_flags);
 };
 
 class buffers final : public std::vector<buffer> {
@@ -107,5 +96,5 @@ public:
     }
   }
 };
-} // namespace graphics
-} // namespace throttle
+
+} // namespace throttle::graphics

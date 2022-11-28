@@ -15,8 +15,7 @@
 
 #include <array>
 
-namespace throttle {
-namespace graphics {
+namespace throttle::graphics {
 
 struct vertex {
   glm::vec2 pos;
@@ -48,5 +47,4 @@ struct vertex {
   }
 };
 
-} // namespace graphics
-} // namespace throttle
+} // namespace throttle::graphics

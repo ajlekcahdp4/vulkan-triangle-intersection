@@ -8,21 +8,9 @@
  * ----------------------------------------------------------------------------
  */
 
-#include <fstream>
-#include <iostream>
-#include <string>
-#include <vector>
-
-#include "vulkan_include.hpp"
-
 #include "wrappers/memory.hpp"
 
 namespace throttle::graphics {
-vk::raii::CommandPool create_command_pool(const vk::raii::Device &p_device, const queues &p_queues) {
-  vk::CommandPoolCreateInfo pool_info{};
-  pool_info.queueFamilyIndex = p_queues.graphics_index;
-  return p_device.createCommandPool(pool_info);
-}
 
 uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties &p_mem_properties, uint32_t &p_type_filter,
                           const vk::MemoryPropertyFlags &p_property_flags) {
@@ -33,10 +21,10 @@ uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties &p_mem_proper
   throw std::runtime_error("failed to find suitable memory type!");
 }
 
-vk::raii::DeviceMemory buffer::allocate_device_memory(const vk::raii::Device                  &p_device,
-                                                      const vk::PhysicalDeviceMemoryProperties p_mem_properties,
-                                                      vk::MemoryRequirements                   p_mem_requirements,
-                                                      const vk::MemoryPropertyFlags            p_mem_property_flags) {
+vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device                  &p_device,
+                                              const vk::PhysicalDeviceMemoryProperties p_mem_properties,
+                                              vk::MemoryRequirements                   p_mem_requirements,
+                                              const vk::MemoryPropertyFlags            p_mem_property_flags) {
   uint32_t mem_type_index = find_memory_type(p_mem_properties, p_mem_requirements.memoryTypeBits, p_mem_property_flags);
 
   vk::MemoryAllocateInfo mem_allocate_info{.allocationSize = p_mem_requirements.size,

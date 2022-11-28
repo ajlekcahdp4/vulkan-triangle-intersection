@@ -10,14 +10,16 @@
 
 #pragma once
 
-#include "shaders.hpp"
-
 #include "vulkan_include.hpp"
 
 #include <numeric>
+#include <tuple>
+#include <vector>
 
-namespace throttle {
-namespace graphics {
+#include "shaders.hpp"
+#include "texture.hpp"
+
+namespace throttle::graphics {
 
 struct descriptor_set_data {
 public:
@@ -30,13 +32,56 @@ public:
       : m_layout{create_decriptor_set_layout(
             p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
                        {vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}})},
-        m_pool{std::move(create_descriptor_pool(
-            p_device, {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eCombinedImageSampler, 1}}))},
+        m_pool{create_descriptor_pool(
+            p_device, {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eCombinedImageSampler, 1}})},
         m_descriptor_set{
             std::move((vk::raii::DescriptorSets{p_device, vk::DescriptorSetAllocateInfo{.descriptorPool = *m_pool,
                                                                                         .descriptorSetCount = 1,
                                                                                         .pSetLayouts = &(*m_layout)}})
                           .front())} {}
+
+  void update(const vk::raii::Device                                       p_device,
+              const std::vector<std::tuple<vk::DescriptorType, const vk::raii::Buffer &, vk::DeviceSize,
+                                           const vk::raii::BufferView *>> &p_buffer_data,
+              const texture_data &p_texture, uint32_t p_binding_offset = 0) {
+    std::vector<vk::DescriptorBufferInfo> buffer_infos;
+    buffer_infos.reserve(p_buffer_data.size());
+
+    std::vector<vk::WriteDescriptorSet> write_descriptor_sets;
+    write_descriptor_sets.reserve(p_buffer_data.size() + 1);
+    auto dst_binding = p_binding_offset;
+    for (auto &bd : p_buffer_data) {
+      buffer_infos.push_back(
+          vk::DescriptorBufferInfo{.buffer = *std::get<1>(bd), .offset = 0, .range = std::get<2>(bd)});
+      vk::BufferView buffer_view;
+      if (std::get<3>(bd)) {
+        buffer_view = **std::get<3>(bd);
+      }
+      write_descriptor_sets.push_back(
+          vk::WriteDescriptorSet{.dstSet = *m_descriptor_set,
+                                 .dstBinding = dst_binding++,
+                                 .dstArrayElement = 0,
+                                 .descriptorCount = 1,
+                                 .descriptorType = std::get<0>(bd),
+                                 .pImageInfo = nullptr,
+                                 .pBufferInfo = &buffer_infos.back(),
+                                 .pTexelBufferView = (std::get<3>(bd) ? &buffer_view : nullptr)});
+    }
+
+    vk::DescriptorImageInfo image_info{.sampler = *p_texture.m_sampler,
+                                       .imageView = *p_texture.m_image_data.m_image_view,
+                                       .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
+    write_descriptor_sets.push_back(vk::WriteDescriptorSet{.dstSet = *m_descriptor_set,
+                                                           .dstBinding = dst_binding,
+                                                           .dstArrayElement = 0,
+                                                           .descriptorCount = 0,
+                                                           .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+                                                           .pImageInfo = &image_info,
+                                                           .pBufferInfo = nullptr,
+                                                           .pTexelBufferView = nullptr});
+
+    p_device.updateDescriptorSets(write_descriptor_sets, nullptr);
+  }
 
 private:
   static vk::raii::DescriptorSetLayout create_decriptor_set_layout(
@@ -142,28 +187,28 @@ pipeline_data<vertex_t>::create_pipeline_layout(const vk::raii::Device          
   vk::DescriptorSetLayout set_layouts[] = {*p_descriptor_set_layout};
   layout_info.pSetLayouts = set_layouts;
   layout_info.pushConstantRangeCount = 0;
-  return vk::raii::PipelineLayout(p_device, layout_info);
+  return vk::raii::PipelineLayout{p_device, layout_info};
 }
 
 template <class vertex_t>
 vk::raii::RenderPass pipeline_data<vertex_t>::create_render_pass(const vk::raii::Device &p_device) {
-  vk::AttachmentDescription color_attachment = {.flags = vk::AttachmentDescriptionFlags(),
-                                                .format = vk::Format::eB8G8R8A8Unorm,
-                                                .samples = vk::SampleCountFlagBits::e1,
-                                                .loadOp = vk::AttachmentLoadOp::eClear,
-                                                .storeOp = vk::AttachmentStoreOp::eStore,
-                                                .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-                                                .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-                                                .initialLayout = vk::ImageLayout::eUndefined,
-                                                .finalLayout = vk::ImageLayout::ePresentSrcKHR};
+  vk::AttachmentDescription color_attachment{.flags = vk::AttachmentDescriptionFlags(),
+                                             .format = vk::Format::eB8G8R8A8Unorm,
+                                             .samples = vk::SampleCountFlagBits::e1,
+                                             .loadOp = vk::AttachmentLoadOp::eClear,
+                                             .storeOp = vk::AttachmentStoreOp::eStore,
+                                             .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+                                             .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+                                             .initialLayout = vk::ImageLayout::eUndefined,
+                                             .finalLayout = vk::ImageLayout::ePresentSrcKHR};
 
-  vk::AttachmentReference color_attachment_ref = {.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
+  vk::AttachmentReference color_attachment_ref{.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
 
   vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
                                     .colorAttachmentCount = 1,
                                     .pColorAttachments = &color_attachment_ref};
 
-  vk::RenderPassCreateInfo renderpass_info = {
+  vk::RenderPassCreateInfo renderpass_info{
       .attachmentCount = 1, .pAttachments = &color_attachment, .subpassCount = 1, .pSubpasses = &subpass};
 
   return p_device.createRenderPass(renderpass_info);
@@ -176,7 +221,8 @@ vk::PipelineVertexInputStateCreateInfo pipeline_data<vertex_t>::vertex_input_sta
   return vk::PipelineVertexInputStateCreateInfo{.flags = vk::PipelineVertexInputStateCreateFlags(),
                                                 .vertexBindingDescriptionCount = 1,
                                                 .pVertexBindingDescriptions = &binding_description,
-                                                .vertexAttributeDescriptionCount = attribute_description.size(),
+                                                .vertexAttributeDescriptionCount =
+                                                    static_cast<uint32_t>(attribute_description.size()),
                                                 .pVertexAttributeDescriptions = attribute_description.data()
 
   };
@@ -215,5 +261,4 @@ pipeline_data<vertex_t>::color_blend_state_create_info(vk::PipelineColorBlendAtt
   };
 }
 
-} // namespace graphics
-} // namespace throttle
+} // namespace throttle::graphics

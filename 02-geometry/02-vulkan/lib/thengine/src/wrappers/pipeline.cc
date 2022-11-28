@@ -8,15 +8,10 @@
  * ----------------------------------------------------------------------------
  */
 
-#include <fstream>
-#include <string>
-#include <vector>
-
-#include "vulkan_include.hpp"
-
 #include "wrappers/pipeline.hpp"
 
 namespace throttle::graphics {
+
 vk::raii::DescriptorSetLayout descriptor_set_data::create_decriptor_set_layout(
     const vk::raii::Device                                                            &p_device,
     const std::vector<std::tuple<vk::DescriptorType, uint32_t, vk::ShaderStageFlags>> &p_binding_data) {

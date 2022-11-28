@@ -8,8 +8,7 @@
  * ----------------------------------------------------------------------------
  */
 
-#include "vulkan_include.hpp"
-#include <string_view>
+#include "wrappers/queue_families.hpp"
 
 namespace throttle::graphics {
 
@@ -35,6 +34,12 @@ std::pair<uint32_t, uint32_t> find_graphics_and_present_family_indices(const vk:
   }
 
   throw std::runtime_error{"Device does not support all the required queue family indices"};
+}
+
+vk::raii::CommandPool create_command_pool(const vk::raii::Device &p_device, const queues &p_queues) {
+  vk::CommandPoolCreateInfo pool_info{};
+  pool_info.queueFamilyIndex = p_queues.graphics_index;
+  return p_device.createCommandPool(pool_info);
 }
 
 }; // namespace throttle::graphics

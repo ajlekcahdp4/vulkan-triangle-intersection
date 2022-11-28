@@ -15,8 +15,7 @@
 #include "queue_families.hpp"
 #include "surface.hpp"
 
-namespace throttle {
-namespace graphics {
+namespace throttle::graphics {
 
 class swapchain_wrapper final {
 private:
@@ -44,7 +43,7 @@ public:
                                               .imageArrayLayers = 1,
                                               .imageUsage = vk::ImageUsageFlagBits::eColorAttachment};
     auto     queue_family_indices = find_graphics_and_present_family_indices(p_phys_device, p_surface);
-    uint32_t                   arr_indices[2] = {queue_family_indices.first, queue_family_indices.second};
+    uint32_t arr_indices[2] = {queue_family_indices.first, queue_family_indices.second};
     if (queue_family_indices.first != queue_family_indices.second) {
       create_info.imageSharingMode = vk::SharingMode::eConcurrent;
       create_info.queueFamilyIndexCount = 2;
@@ -95,5 +94,5 @@ private:
 
   static vk::Extent2D choose_swapchain_extent(const vk::Extent2D &p_extent, const vk::SurfaceCapabilitiesKHR &p_cap);
 };
-} // namespace graphics
-} // namespace throttle
+
+} // namespace throttle::graphics

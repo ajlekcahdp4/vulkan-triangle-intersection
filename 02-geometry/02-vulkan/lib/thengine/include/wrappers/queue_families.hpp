@@ -20,6 +20,7 @@
 namespace throttle::graphics {
 
 uint32_t                      find_graphics_family_index(const std::vector<vk::QueueFamilyProperties> &);
+
 std::pair<uint32_t, uint32_t> find_graphics_and_present_family_indices(const vk::raii::PhysicalDevice &p_device,
                                                                        const vk::raii::SurfaceKHR     &p_surface);
 
@@ -39,5 +40,7 @@ struct queues {
     present = l_device.getQueue(indices.second, 0);
   }
 };
+
+vk::raii::CommandPool create_command_pool(const vk::raii::Device &p_device, const queues &p_queues);
 
 } // namespace throttle::graphics
