@@ -80,5 +80,33 @@ endif()
 
 set (VALIDATION_LAYERS OFF CACHE BOOL "Enables Vulkan validation layers" )
 
-add_subdirectory(lib)
-add_subdirectory(test)
+set(ENGINE_SOURCES
+  src/surface.cc
+  src/window.cc
+  src/shaders.cc
+  src/instance.cc
+  src/device.cc
+  src/queue_families.cc
+  src/pipeline.cc
+  src/swapchain.cc
+  src/logging.cc
+  src/memory.cc
+)
+
+add_library(vulkan-helper ${ENGINE_SOURCES})
+if (VALIDATION_LAYERS)
+  message("Vulkan validation layers enabled")
+  target_compile_definitions(vulkan-helper PUBLIC ENABLE_VALIDATION_LAYERS)
+endif()
+
+target_include_directories(vulkan-helper PUBLIC include)
+
+set(APPLICATION_SOURCES
+  app/main.cc
+)
+
+add_executable(triangles ${APPLICATION_SOURCES})
+target_include_directories(triangles PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(triangles PRIVATE glfw Vulkan::Vulkan vulkan-helper)
+
+install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
