@@ -1,2 +1,0 @@
-add_subdirectory(thengine)
-add_subdirectory(triangles)
