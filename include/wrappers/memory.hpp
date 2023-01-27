@@ -15,30 +15,11 @@
 
 namespace throttle::graphics {
 
-template <class T> class vector_wrapper {
-protected:
-  using vector_type = typename std::vector<T>;
-  vector_type m_vector;
+class framebuffers final {
+private:
+  std::vector<vk::raii::Framebuffer> m_vector;
 
 public:
-  virtual ~vector_wrapper() {}
-
-  using value_type = typename vector_type::value_type;
-  using reference = typename vector_type::value_type &;
-  using size_type = typename vector_type::size_type;
-  using iterator = typename vector_type::iterator;
-
-  reference operator[](size_type pos) { return m_vector[pos]; }
-
-  size_type size() { return m_vector.size(); }
-
-  iterator begin() { return m_vector.begin(); }
-
-  iterator end() { return m_vector.end(); }
-};
-
-struct framebuffers final : public vector_wrapper<vk::raii::Framebuffer> {
-
   framebuffers(const framebuffers &) = delete;
 
   framebuffers &operator=(const framebuffers &) = delete;
@@ -66,6 +47,14 @@ struct framebuffers final : public vector_wrapper<vk::raii::Framebuffer> {
       m_vector.emplace_back(p_device, framebuffer_info);
     }
   }
+
+  auto &operator[](std::size_t pos) { return m_vector[pos]; }
+
+  auto size() { return m_vector.size(); }
+
+  auto begin() { return m_vector.begin(); }
+
+  auto end() { return m_vector.end(); }
 };
 
 uint32_t find_memory_type(const vk::PhysicalDeviceMemoryProperties &p_mem_properties, uint32_t &p_type_filter,
@@ -117,7 +106,12 @@ struct buffer final {
   }
 };
 
-struct buffers final : public vector_wrapper<buffer> {
+class buffers final {
+
+private:
+  std::vector<buffer> m_vector;
+
+public:
   buffers(const std::size_t p_size, const vk::raii::PhysicalDevice &p_phys_device,
           const vk::raii::Device &p_logical_device, const vk::BufferUsageFlags p_usage,
           vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
@@ -127,6 +121,14 @@ struct buffers final : public vector_wrapper<buffer> {
       m_vector.emplace_back(p_phys_device, p_logical_device, p_size, p_usage, p_property_flags);
     }
   }
+
+  auto &operator[](std::size_t pos) { return m_vector[pos]; }
+
+  auto size() { return m_vector.size(); }
+
+  auto begin() { return m_vector.begin(); }
+
+  auto end() { return m_vector.end(); }
 };
 
 } // namespace throttle::graphics
