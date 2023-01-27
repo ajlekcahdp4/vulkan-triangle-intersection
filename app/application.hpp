@@ -48,6 +48,9 @@ public:
                                                                  m_descriptor_set_data},
         m_framebuffers{m_logical_device, m_swapchain_data->image_views(), m_swapchain_data->extent(),
                        m_pipeline_data.m_render_pass},
+        m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
+        m_vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices},
+        m_index_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eIndexBuffer, indices},
         m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, m_phys_device, m_logical_device,
                           vk::BufferUsageFlagBits::eUniformBuffer} {
     create_command_buffers();
@@ -72,6 +75,8 @@ private:
   throttle::graphics::descriptor_set_data                       m_descriptor_set_data{nullptr};
   throttle::graphics::pipeline_data<throttle::graphics::vertex> m_pipeline_data{nullptr};
   throttle::graphics::framebuffers                              m_framebuffers;
+  vk::raii::CommandPool                                         m_command_pool{nullptr};
+  throttle::graphics::buffer                                    m_vertex_buffer{nullptr};
   throttle::graphics::buffer                                    m_index_buffer{nullptr};
   throttle::graphics::buffers                                   m_uniform_buffers;
   vk::raii::CommandBuffers                                      m_command_buffers{nullptr};
@@ -85,14 +90,9 @@ private:
   void create_command_buffers() {
     uint32_t                      n_frame_buffers = m_framebuffers.size();
     vk::CommandBufferAllocateInfo alloc_info{};
-    alloc_info.commandPool = *throttle::graphics::create_command_pool(m_logical_device, m_queues);
+    alloc_info.commandPool = *m_command_pool;
     alloc_info.commandBufferCount = n_frame_buffers;
     alloc_info.level = vk::CommandBufferLevel::ePrimary;
-
-    throttle::graphics::buffer vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer,
-                                             vertices};
-    throttle::graphics::buffer index_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eIndexBuffer,
-                                            indices};
 
     try {
       m_command_buffers = vk::raii::CommandBuffers(m_logical_device, alloc_info);
@@ -119,7 +119,7 @@ private:
       m_command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
       m_command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
                                               {*m_descriptor_set_data.m_descriptor_set}, nullptr);
-      vk::Buffer     vertex_buffers[] = {*vertex_buffer.m_buffer};
+      vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.m_buffer};
       vk::DeviceSize offsets[] = {0};
       m_command_buffers[i].bindVertexBuffers(0, vertex_buffers, offsets);
       m_command_buffers[i].draw(static_cast<uint32_t>(vertices.size()), 1, 0, 0);
