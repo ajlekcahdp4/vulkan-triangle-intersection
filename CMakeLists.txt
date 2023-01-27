@@ -91,6 +91,7 @@ set(ENGINE_SOURCES
   src/swapchain.cc
   src/logging.cc
   src/memory.cc
+  src/ezvk/window.cc
 )
 
 add_library(vulkan-helper ${ENGINE_SOURCES})
