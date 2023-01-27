@@ -111,3 +111,7 @@ target_include_directories(triangles PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
 target_link_libraries(triangles PRIVATE glfw Vulkan::Vulkan vulkan-helper)
 
 install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+
+add_executable(ezvk_test app/ezvk_test.cc)
+target_include_directories(ezvk_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(ezvk_test PRIVATE glfw Vulkan::Vulkan vulkan-helper)

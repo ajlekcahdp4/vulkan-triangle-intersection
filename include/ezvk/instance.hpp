@@ -24,11 +24,13 @@
 
 namespace ezvk {
 
-class unsupported_error : ezvk::error {
+class unsupported_error : public ezvk::error {
   std::vector<std::string> m_missing;
 
 public:
   unsupported_error(std::string msg, auto start, auto finish) : ezvk::error{msg}, m_missing{start, finish} {}
+
+  const auto &missing() const { return m_missing; }
 };
 
 class instance {
@@ -46,7 +48,13 @@ public:
                               missing_ext.end()};
     }
 
-    std::vector<const char *> extensions{ext_start, ext_finish}, layers{layers_start, layers_finish};
+    std::vector<const char *> extensions, layers;
+    for (; ext_start != ext_finish; ++ext_start) {
+      extensions.push_back(ext_start->c_str());
+    }
+    for (; layers_start != layers_finish; ++layers_start) {
+      layers.push_back(layers_start->c_str());
+    }
 
     vk::InstanceCreateInfo create_info = {.pApplicationInfo = &app_info,
                                           .enabledLayerCount = static_cast<uint32_t>(layers.size()),
@@ -71,7 +79,7 @@ public:
       missing_extensions.push_back(ext);
     }
 
-    return std::make_pair(!missing_extensions.empty(), missing_extensions);
+    return std::make_pair(missing_extensions.empty(), missing_extensions);
   }
 
   [[nodiscard]] static supports_result supports_layers(auto start, auto finish, const vk::raii::Context &ctx) {
@@ -81,12 +89,12 @@ public:
     for (; start != finish; ++start) {
       const auto &ext = *start;
       if (std::find_if(supported_layers.begin(), supported_layers.end(),
-                       [ext](auto a) { return a.extensionName == ext; }) != supported_layers.end())
+                       [ext](auto a) { return a.layerName == ext; }) != supported_layers.end())
         continue;
       missing_layers.push_back(ext);
     }
 
-    return std::make_pair(!missing_layers.empty(), missing_layers);
+    return std::make_pair(missing_layers.empty(), missing_layers);
   }
 
   auto       &operator()() { return m_instance; }

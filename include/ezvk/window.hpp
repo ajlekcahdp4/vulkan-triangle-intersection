@@ -12,6 +12,7 @@
 
 #include "error.hpp"
 #include "vulkan_include.hpp"
+#include <iterator>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -63,6 +64,17 @@ public:
 
   GLFWwindow *operator()() const { return m_handle.get(); }
 };
+
+inline std::vector<std::string> glfw_required_vk_extensions() {
+  uint32_t size;
+  auto     arr = glfwGetRequiredInstanceExtensions(&size);
+  if (!arr) check_glfw_error();
+
+  assert(arr);
+  std::vector<std::string> extensions{arr, arr + size};
+
+  return extensions;
+}
 
 class surface {
 private:
