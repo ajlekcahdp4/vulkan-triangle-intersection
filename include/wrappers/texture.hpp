@@ -63,7 +63,7 @@ struct texture_data {
   bool              needs_staging{};
   buffer            m_staging_buffer{nullptr};
   image_data        m_image_data{nullptr};
-  vk::raii::Sampler m_sampler;
+  vk::raii::Sampler m_sampler{nullptr};
 };
 
 } // namespace throttle::graphics

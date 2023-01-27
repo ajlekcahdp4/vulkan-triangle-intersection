@@ -43,16 +43,18 @@ public:
         m_queues{m_phys_device, m_logical_device, m_surface_data->surface()},
         m_swapchain_data{std::make_unique<throttle::graphics::swapchain_wrapper>(
             m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent())},
-        m_descriptor_set_data{m_logical_device}, m_pipeline_data{m_logical_device, "shaders/vertex.spv",
-                                                                 "shaders/fragment.spv", m_surface_data->extent(),
-                                                                 m_descriptor_set_data},
+        m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, m_phys_device, m_logical_device,
+                          vk::BufferUsageFlagBits::eUniformBuffer},
+        m_descriptor_set_data{m_logical_device, m_uniform_buffers}, m_pipeline_data{m_logical_device,
+                                                                                    "shaders/vertex.spv",
+                                                                                    "shaders/fragment.spv",
+                                                                                    m_surface_data->extent(),
+                                                                                    m_descriptor_set_data},
         m_framebuffers{m_logical_device, m_swapchain_data->image_views(), m_swapchain_data->extent(),
                        m_pipeline_data.m_render_pass},
         m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
         m_vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices},
-        m_index_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eIndexBuffer, indices},
-        m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, m_phys_device, m_logical_device,
-                          vk::BufferUsageFlagBits::eUniformBuffer} {
+        m_index_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eIndexBuffer, indices} {
     create_command_buffers();
     create_sync_objs();
   }
@@ -72,13 +74,13 @@ private:
   vk::raii::Device                                              m_logical_device{nullptr};
   throttle::graphics::queues                                    m_queues;
   std::unique_ptr<throttle::graphics::swapchain_wrapper>        m_swapchain_data{nullptr};
+  throttle::graphics::buffers                                   m_uniform_buffers;
   throttle::graphics::descriptor_set_data                       m_descriptor_set_data{nullptr};
   throttle::graphics::pipeline_data<throttle::graphics::vertex> m_pipeline_data{nullptr};
   throttle::graphics::framebuffers                              m_framebuffers;
   vk::raii::CommandPool                                         m_command_pool{nullptr};
   throttle::graphics::buffer                                    m_vertex_buffer{nullptr};
   throttle::graphics::buffer                                    m_index_buffer{nullptr};
-  throttle::graphics::buffers                                   m_uniform_buffers;
   vk::raii::CommandBuffers                                      m_command_buffers{nullptr};
   std::vector<vk::raii::Semaphore>                              m_image_availible_semaphores;
   std::vector<vk::raii::Semaphore>                              m_render_finished_semaphores;

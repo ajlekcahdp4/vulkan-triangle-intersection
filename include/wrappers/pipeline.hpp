@@ -28,7 +28,7 @@ public:
   vk::raii::DescriptorSet       m_descriptor_set = nullptr;
 
   descriptor_set_data(std::nullptr_t) {}
-  descriptor_set_data(const vk::raii::Device &p_device)
+  descriptor_set_data(const vk::raii::Device &p_device, buffers &p_uniform_buffers)
       : m_layout{create_decriptor_set_layout(
             p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
                        {vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}})},
@@ -38,19 +38,21 @@ public:
             std::move((vk::raii::DescriptorSets{p_device, vk::DescriptorSetAllocateInfo{.descriptorPool = *m_pool,
                                                                                         .descriptorSetCount = 1,
                                                                                         .pSetLayouts = &(*m_layout)}})
-                          .front())} {}
+                          .front())} {
+    update(p_device, {{vk::DescriptorType::eUniformBuffer, p_uniform_buffers[0].m_buffer, VK_WHOLE_SIZE, nullptr}}, {});
+  }
 
-  void update(const vk::raii::Device                                       p_device,
-              const std::vector<std::tuple<vk::DescriptorType, const vk::raii::Buffer &, vk::DeviceSize,
+  void update(const vk::raii::Device                                      &p_device,
+              const std::vector<std::tuple<vk::DescriptorType, vk::raii::Buffer &, vk::DeviceSize,
                                            const vk::raii::BufferView *>> &p_buffer_data,
-              const texture_data &p_texture, uint32_t p_binding_offset = 0) {
+              const std::vector<texture_data> &p_texture, uint32_t p_binding_offset = 0) {
     std::vector<vk::DescriptorBufferInfo> buffer_infos;
     buffer_infos.reserve(p_buffer_data.size());
 
     std::vector<vk::WriteDescriptorSet> write_descriptor_sets;
-    write_descriptor_sets.reserve(p_buffer_data.size() + 1);
+    write_descriptor_sets.reserve(p_buffer_data.size() + (p_texture.empty() ? 0 : 1));
     auto dst_binding = p_binding_offset;
-    for (auto &bd : p_buffer_data) {
+    for (const auto &bd : p_buffer_data) {
       buffer_infos.push_back(
           vk::DescriptorBufferInfo{.buffer = *std::get<1>(bd), .offset = 0, .range = std::get<2>(bd)});
       vk::BufferView buffer_view;
@@ -68,17 +70,23 @@ public:
                                  .pTexelBufferView = (std::get<3>(bd) ? &buffer_view : nullptr)});
     }
 
-    vk::DescriptorImageInfo image_info{.sampler = *p_texture.m_sampler,
-                                       .imageView = *p_texture.m_image_data.m_image_view,
-                                       .imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal};
-    write_descriptor_sets.push_back(vk::WriteDescriptorSet{.dstSet = *m_descriptor_set,
-                                                           .dstBinding = dst_binding,
-                                                           .dstArrayElement = 0,
-                                                           .descriptorCount = 0,
-                                                           .descriptorType = vk::DescriptorType::eCombinedImageSampler,
-                                                           .pImageInfo = &image_info,
-                                                           .pBufferInfo = nullptr,
-                                                           .pTexelBufferView = nullptr});
+    std::vector<vk::DescriptorImageInfo> image_infos;
+    if (!p_texture.empty()) {
+      image_infos.reserve(p_texture.size());
+      for (const auto &thd : p_texture) {
+        image_infos.push_back(vk::DescriptorImageInfo{*thd.m_sampler, *thd.m_image_data.m_image_view,
+                                                      vk::ImageLayout::eShaderReadOnlyOptimal});
+      }
+      write_descriptor_sets.push_back(
+          vk::WriteDescriptorSet{.dstSet = *m_descriptor_set,
+                                 .dstBinding = dst_binding,
+                                 .dstArrayElement = 0,
+                                 .descriptorCount = static_cast<uint32_t>(image_infos.size()),
+                                 .descriptorType = vk::DescriptorType::eCombinedImageSampler,
+                                 .pImageInfo = image_infos.data(),
+                                 .pBufferInfo = nullptr,
+                                 .pTexelBufferView = nullptr});
+    }
 
     p_device.updateDescriptorSets(write_descriptor_sets, nullptr);
   }
