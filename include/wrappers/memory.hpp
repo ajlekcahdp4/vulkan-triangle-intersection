@@ -15,12 +15,45 @@
 
 namespace throttle::graphics {
 
-class framebuffers final : public std::vector<vk::raii::Framebuffer> {
+template <class T> class vector_wrapper {
+protected:
+  using vector_type = typename std::vector<T>;
+  vector_type m_vector;
+
 public:
+  virtual ~vector_wrapper() {}
+
+  using value_type = typename vector_type::value_type;
+  using reference = typename vector_type::value_type &;
+  using size_type = typename vector_type::size_type;
+  using iterator = typename vector_type::iterator;
+
+  reference operator[](size_type pos) { return m_vector[pos]; }
+
+  size_type size() { return m_vector.size(); }
+
+  iterator begin() { return m_vector.begin(); }
+
+  iterator end() { return m_vector.end(); }
+};
+
+struct framebuffers final : public vector_wrapper<vk::raii::Framebuffer> {
+
+  framebuffers(const framebuffers &) = delete;
+
+  framebuffers &operator=(const framebuffers &) = delete;
+
+  framebuffers(framebuffers &&other) { std::swap(m_vector, other.m_vector); }
+
+  framebuffers &operator=(framebuffers &&other) {
+    std::swap(m_vector, other.m_vector);
+    return *this;
+  }
+
   framebuffers(const vk::raii::Device &p_device, const std::vector<vk::raii::ImageView> &p_image_views,
                const vk::Extent2D &p_extent, const vk::raii::RenderPass &p_render_pass) {
     uint32_t n_framebuffers = p_image_views.size();
-    this->reserve(n_framebuffers);
+    m_vector.reserve(n_framebuffers);
     for (uint32_t i = 0; i < n_framebuffers; i++) {
       vk::ImageView             attachments[] = {*p_image_views[i]};
       vk::FramebufferCreateInfo framebuffer_info{};
@@ -30,7 +63,7 @@ public:
       framebuffer_info.width = p_extent.width;
       framebuffer_info.height = p_extent.height;
       framebuffer_info.layers = 1;
-      this->emplace_back(p_device, framebuffer_info);
+      m_vector.emplace_back(p_device, framebuffer_info);
     }
   }
 };
@@ -84,15 +117,14 @@ struct buffer final {
   }
 };
 
-class buffers final : public std::vector<buffer> {
-public:
+struct buffers final : public vector_wrapper<buffer> {
   buffers(const std::size_t p_size, const vk::raii::PhysicalDevice &p_phys_device,
           const vk::raii::Device &p_logical_device, const vk::BufferUsageFlags p_usage,
           vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
                                                      vk::MemoryPropertyFlagBits::eHostCoherent) {
-    std::vector<buffer>::reserve(p_size);
+    m_vector.reserve(p_size);
     for (unsigned i = 0; i < p_size; i++) {
-      this->emplace_back(p_phys_device, p_logical_device, p_size, p_usage, p_property_flags);
+      m_vector.emplace_back(p_phys_device, p_logical_device, p_size, p_usage, p_property_flags);
     }
   }
 };
