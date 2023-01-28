@@ -35,22 +35,21 @@ constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
 class application final {
 public:
   application()
-      : m_instance_data{std::make_unique<throttle::graphics::instance_wrapper>()},
-        m_phys_device{throttle::graphics::pick_physical_device(m_instance_data->instance())},
-        m_surface_data{std::make_unique<throttle::graphics::window_surface>(
-            m_instance_data->instance(), "Triangles intersection", vk::Extent2D{800, 600})},
-        m_logical_device{throttle::graphics::create_device(m_phys_device, m_surface_data->surface())},
-        m_queues{m_phys_device, m_logical_device, m_surface_data->surface()},
-        m_swapchain_data{std::make_unique<throttle::graphics::swapchain_wrapper>(
-            m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent())},
+      : m_instance_data{}, m_phys_device{throttle::graphics::pick_physical_device(m_instance_data.instance())},
+        m_surface_data{m_instance_data.instance(), "Triangles intersection", vk::Extent2D{800, 600}},
+        m_logical_device{throttle::graphics::create_device(m_phys_device, m_surface_data.surface())},
+        m_queues{m_phys_device, m_logical_device, m_surface_data.surface()}, m_swapchain_data{m_phys_device,
+                                                                                              m_logical_device,
+                                                                                              m_surface_data.surface(),
+                                                                                              m_surface_data.extent()},
         m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_phys_device,
                           m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer},
         m_descriptor_set_data{m_logical_device, m_uniform_buffers}, m_pipeline_data{m_logical_device,
                                                                                     "shaders/vertex.spv",
                                                                                     "shaders/fragment.spv",
-                                                                                    m_surface_data->extent(),
+                                                                                    m_surface_data.extent(),
                                                                                     m_descriptor_set_data},
-        m_framebuffers{m_logical_device, m_swapchain_data->image_views(), m_swapchain_data->extent(),
+        m_framebuffers{m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
                        m_pipeline_data.m_render_pass},
         m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
         m_vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices},
@@ -60,7 +59,7 @@ public:
   }
 
   void run() {
-    while (!glfwWindowShouldClose(m_surface_data->window())) {
+    while (!glfwWindowShouldClose(m_surface_data.window())) {
       glfwPollEvents();
       render_frame();
     }
@@ -68,12 +67,12 @@ public:
   }
 
 private:
-  std::unique_ptr<throttle::graphics::instance_wrapper>         m_instance_data{nullptr};
+  throttle::graphics::instance_wrapper                          m_instance_data{};
   vk::raii::PhysicalDevice                                      m_phys_device{nullptr};
-  std::unique_ptr<throttle::graphics::window_surface>           m_surface_data{nullptr};
+  throttle::graphics::window_surface                            m_surface_data;
   vk::raii::Device                                              m_logical_device{nullptr};
   throttle::graphics::queues                                    m_queues;
-  std::unique_ptr<throttle::graphics::swapchain_wrapper>        m_swapchain_data{nullptr};
+  throttle::graphics::swapchain_wrapper                         m_swapchain_data;
   throttle::graphics::buffers                                   m_uniform_buffers;
   throttle::graphics::descriptor_set_data                       m_descriptor_set_data{nullptr};
   throttle::graphics::pipeline_data<throttle::graphics::vertex> m_pipeline_data{nullptr};
@@ -113,7 +112,7 @@ private:
       render_pass_info.renderPass = *m_pipeline_data.m_render_pass;
       render_pass_info.framebuffer = *m_framebuffers[i];
       render_pass_info.renderArea.offset = vk::Offset2D{0, 0};
-      render_pass_info.renderArea.extent = m_swapchain_data->extent();
+      render_pass_info.renderArea.extent = m_swapchain_data.extent();
       vk::ClearValue clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
       render_pass_info.clearValueCount = 1;
       render_pass_info.pClearValues = &clear_color;
@@ -155,19 +154,19 @@ private:
   void recreate_swap_chain() {
     int width = 0;
     int height = 0;
-    glfwGetFramebufferSize(m_surface_data->window(), &width, &height);
+    glfwGetFramebufferSize(m_surface_data.window(), &width, &height);
     while (width == 0 || height == 0) {
-      glfwGetFramebufferSize(m_surface_data->window(), &width, &height);
+      glfwGetFramebufferSize(m_surface_data.window(), &width, &height);
       glfwWaitEvents();
     }
     m_logical_device.waitIdle();
-    m_swapchain_data = std::make_unique<throttle::graphics::swapchain_wrapper>(
-        m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent());
+    m_swapchain_data = throttle::graphics::swapchain_wrapper(m_phys_device, m_logical_device, m_surface_data.surface(),
+                                                             m_surface_data.extent());
     m_pipeline_data = throttle::graphics::pipeline_data<throttle::graphics::vertex>{
-        m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_swapchain_data->extent(),
+        m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_swapchain_data.extent(),
         m_descriptor_set_data};
-    m_framebuffers = throttle::graphics::framebuffers{m_logical_device, m_swapchain_data->image_views(),
-                                                      m_swapchain_data->extent(), m_pipeline_data.m_render_pass};
+    m_framebuffers = throttle::graphics::framebuffers{m_logical_device, m_swapchain_data.image_views(),
+                                                      m_swapchain_data.extent(), m_pipeline_data.m_render_pass};
     create_command_buffers();
     create_sync_objs();
   }
@@ -200,8 +199,8 @@ private:
     throttle::graphics::uniform_buffer_object ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(
-        glm::radians(45.0f), m_swapchain_data->extent().width / (float)m_swapchain_data->extent().height, 0.1f, 10.0f);
+    ubo.proj = glm::perspective(glm::radians(45.0f),
+                                m_swapchain_data.extent().width / (float)m_swapchain_data.extent().height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1; // because in OpenGl y axis is inverted
     m_uniform_buffers[m_curr_frame].copy_to_device(ubo);
   }
@@ -211,7 +210,7 @@ private:
     m_logical_device.waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
     uint32_t image_index{};
     try {
-      vk::AcquireNextImageInfoKHR acquire_info{.swapchain = *m_swapchain_data->swapchain(),
+      vk::AcquireNextImageInfoKHR acquire_info{.swapchain = *m_swapchain_data.swapchain(),
                                                .timeout = UINT64_MAX,
                                                .semaphore = *m_image_availible_semaphores[m_curr_frame],
                                                .fence = nullptr,
@@ -226,7 +225,7 @@ private:
       throw std::runtime_error("failed to acquire swap chain image");
     }
 
-    auto mvpc = create_mvpc_matrix(m_swapchain_data->extent());
+    auto mvpc = create_mvpc_matrix(m_swapchain_data.extent());
     m_uniform_buffers[m_curr_frame].copy_to_device(mvpc);
 
     vk::SubmitInfo         submit_info{};
@@ -255,7 +254,7 @@ private:
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = signal_semaphores;
 
-    vk::SwapchainKHR swap_chains[] = {*m_swapchain_data->swapchain()};
+    vk::SwapchainKHR swap_chains[] = {*m_swapchain_data.swapchain()};
     present_info.swapchainCount = 1;
     present_info.pSwapchains = swap_chains;
     present_info.pImageIndices = &image_index;
