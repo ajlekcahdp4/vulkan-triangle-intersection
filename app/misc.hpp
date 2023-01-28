@@ -15,7 +15,7 @@ namespace triangles {
 
 inline auto required_vk_extensions() {
   auto glfw_extensions = ezvk::glfw_required_vk_extensions();
-  glfw_extensions.push_back("VK_EXT_debug_utils");
+  glfw_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
   return glfw_extensions;
 }
 
