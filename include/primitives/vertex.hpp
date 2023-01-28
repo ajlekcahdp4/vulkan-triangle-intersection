@@ -18,7 +18,7 @@
 namespace throttle::graphics {
 
 struct vertex {
-  glm::vec2 pos;
+  glm::vec3 pos;
   glm::vec3 color;
 
   static vk::VertexInputBindingDescription get_binding_description() {

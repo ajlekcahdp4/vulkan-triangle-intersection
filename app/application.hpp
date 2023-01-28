@@ -24,10 +24,10 @@
 
 namespace triangles {
 
-const std::vector<throttle::graphics::vertex> vertices{{{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                                                       {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-                                                       {{0.5f, 0.5f}, {0.0f, .0f, 1.0f}},
-                                                       {{0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}}};
+const std::vector<throttle::graphics::vertex> vertices{{{-0.5f, -0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}},
+                                                       {{0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}},
+                                                       {{0.5f, 0.5f, 0.0f}, {0.0f, .0f, 1.0f}},
+                                                       {{0.5f, -0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}}};
 
 const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
@@ -114,7 +114,7 @@ private:
       render_pass_info.framebuffer = *m_framebuffers[i];
       render_pass_info.renderArea.offset = vk::Offset2D{0, 0};
       render_pass_info.renderArea.extent = m_swapchain_data->extent();
-      vk::ClearValue clear_color = {std::array<float, 4>{0.2f, 0.2f, 0.2f, 0.2f}};
+      vk::ClearValue clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
       render_pass_info.clearValueCount = 1;
       render_pass_info.pClearValues = &clear_color;
       m_command_buffers[i].beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
@@ -124,7 +124,9 @@ private:
       vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.m_buffer};
       vk::DeviceSize offsets[] = {0};
       m_command_buffers[i].bindVertexBuffers(0, vertex_buffers, offsets);
-      m_command_buffers[i].draw(static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+      vk::Buffer index_buffer = *m_index_buffer.m_buffer;
+      m_command_buffers[i].bindIndexBuffer(index_buffer, 0, vk::IndexType::eUint16);
+      m_command_buffers[i].drawIndexed(indices.size(), 1, 0, 0, 0);
       m_command_buffers[i].endRenderPass();
       try {
         m_command_buffers[i].end();
@@ -250,6 +252,8 @@ private:
       recreate_swap_chain();
       return;
     }
+
+    m_curr_frame = (m_curr_frame + 1) % MAX_FRAMES_IN_FLIGHT;
   }
 };
 } // namespace triangles
