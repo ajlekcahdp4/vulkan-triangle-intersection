@@ -68,6 +68,8 @@ if (SANITIZE)
   add_link_options(-fsanitize=address -fno-omit-frame-pointer)
 endif()
 
+add_subdirectory(spdlog EXCLUDE_FROM_ALL)
+
 find_package(glfw3 REQUIRED)
 find_package(Vulkan REQUIRED)
 
@@ -80,7 +82,7 @@ endif()
 
 set (VALIDATION_LAYERS OFF CACHE BOOL "Enables Vulkan validation layers" )
 
-set(ENGINE_SOURCES
+set(EZVK_SOURCES
   src/surface.cc
   src/window.cc
   src/shaders.cc
@@ -94,24 +96,23 @@ set(ENGINE_SOURCES
   src/ezvk/window.cc
 )
 
-add_library(vulkan-helper ${ENGINE_SOURCES})
+add_library(ezvk ${EZVK_SOURCES})
 if (VALIDATION_LAYERS)
   message("Vulkan validation layers enabled")
-  target_compile_definitions(vulkan-helper PUBLIC ENABLE_VALIDATION_LAYERS)
+  target_compile_definitions(ezvk PUBLIC ENABLE_VALIDATION_LAYERS)
 endif()
 
-target_include_directories(vulkan-helper PUBLIC include)
+target_include_directories(ezvk PUBLIC include)
+target_link_libraries(ezvk INTERFACE spdlog_header_only)
 
 set(APPLICATION_SOURCES
   app/main.cc
 )
 
 add_executable(triangles ${APPLICATION_SOURCES})
-target_include_directories(triangles PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(triangles PRIVATE glfw Vulkan::Vulkan vulkan-helper)
-
-install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+target_link_libraries(triangles PRIVATE glfw Vulkan::Vulkan ezvk)
 
 add_executable(ezvk_test app/ezvk_test.cc)
-target_include_directories(ezvk_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(ezvk_test PRIVATE glfw Vulkan::Vulkan vulkan-helper)
+target_link_libraries(ezvk_test PRIVATE glfw Vulkan::Vulkan ezvk)
+
+install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
