@@ -31,15 +31,24 @@ public:
   descriptor_set_data(const vk::raii::Device &p_device, buffers &p_uniform_buffers)
       : m_layout{create_decriptor_set_layout(
             p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
-                       {vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment}})},
+                       {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}})},
         m_pool{create_descriptor_pool(
-            p_device, {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eCombinedImageSampler, 1}})},
+            p_device, {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eUniformBuffer, 1}})},
         m_descriptor_set{
             std::move((vk::raii::DescriptorSets{p_device, vk::DescriptorSetAllocateInfo{.descriptorPool = *m_pool,
                                                                                         .descriptorSetCount = 1,
                                                                                         .pSetLayouts = &(*m_layout)}})
                           .front())} {
-    update(p_device, {{vk::DescriptorType::eUniformBuffer, p_uniform_buffers[0].m_buffer, VK_WHOLE_SIZE, nullptr}}, {});
+
+    std::vector<std::tuple<vk::DescriptorType, vk::raii::Buffer &, vk::DeviceSize, const vk::raii::BufferView *>>
+        buffer_data;
+    buffer_data.reserve(p_uniform_buffers.size());
+    for (unsigned i = 0; i < p_uniform_buffers.size(); ++i) {
+      buffer_data.push_back(
+          {vk::DescriptorType::eUniformBuffer, p_uniform_buffers[i].m_buffer, VK_WHOLE_SIZE, nullptr});
+    }
+
+    update(p_device, buffer_data, {});
   }
 
   void update(const vk::raii::Device                                      &p_device,
