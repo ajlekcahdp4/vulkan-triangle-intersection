@@ -172,6 +172,27 @@ private:
     create_sync_objs();
   }
 
+  // TEMPORARY
+  glm::mat4x4 create_mvpc_matrix(const vk::Extent2D &extent) {
+    float fov = glm::radians(45.0f);
+    if (extent.width > extent.height) fov *= static_cast<float>(extent.height) / static_cast<float>(extent.width);
+
+    glm::mat4x4 model = glm::mat4x4(1.0f);
+    glm::mat4x4 view =
+        glm::lookAt(glm::vec3(-5.0f, 3.0f, -10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    glm::mat4x4 proj = glm::perspective(fov, 1.0f, 0.1f, 100.0f);
+    // clang-format off
+    glm::mat4x4 clip = glm::mat4x4{ // Vulkan clip space has inverted Y and half Z
+      1.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, -1.0f, 0.0f, 0.0f,
+      0.0f,  0.0f, 0.5f, 0.0f,
+      0.0f,  0.0f, 0.5f, 1.0f
+    };
+    // clang-format on
+    return clip * proj * view * model;
+  }
+
+  // NOTE: uniform buffers should be updated before the descriptors set's creation
   void update_uniform_buffers() {
     static auto start_time = std::chrono::high_resolution_clock::now();
     auto        curr_time = std::chrono::high_resolution_clock::now();
@@ -182,10 +203,10 @@ private:
     ubo.proj = glm::perspective(
         glm::radians(45.0f), m_swapchain_data->extent().width / (float)m_swapchain_data->extent().height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1; // because in OpenGl y axis is inverted
-    std::vector<throttle::graphics::uniform_buffer_object> ubos{ubo};
-    m_uniform_buffers[m_curr_frame].update(ubos);
+    m_uniform_buffers[m_curr_frame].copy_to_device(ubo);
   }
 
+  // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
   void render_frame() {
     m_logical_device.waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
     uint32_t image_index{};

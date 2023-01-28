@@ -97,13 +97,18 @@ struct buffer final {
     memcpy(memory, p_data.data(), size);
     m_memory.unmapMemory();
   }
-
-  template <typename T> void update(const std::vector<T> &p_data) {
-    vk::DeviceSize size = p_data.size();
-    auto           memory = static_cast<char *>(m_memory.mapMemory(0, size));
-    memcpy(memory, p_data.data(), size);
+  template <typename T> void copy_to_device(const T *data, const std::size_t count, vk::DeviceSize stride = sizeof(T)) {
+    assert(sizeof(T) <= stride);
+    auto memory = static_cast<uint8_t *>(m_memory.mapMemory(0, count * stride));
+    if (stride == sizeof(T))
+      memcpy(memory, data, count * sizeof(T));
+    else
+      for (unsigned i = 0; i < count; ++i)
+        memcpy(memory + stride * i, &data[i], sizeof(T));
     m_memory.unmapMemory();
   }
+
+  template <typename T> void copy_to_device(const T &data) { copy_to_device<T>(&data, 1); }
 };
 
 class buffers final {
