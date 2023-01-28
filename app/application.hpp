@@ -43,8 +43,8 @@ public:
         m_queues{m_phys_device, m_logical_device, m_surface_data->surface()},
         m_swapchain_data{std::make_unique<throttle::graphics::swapchain_wrapper>(
             m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent())},
-        m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, m_phys_device, m_logical_device,
-                          vk::BufferUsageFlagBits::eUniformBuffer},
+        m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_phys_device,
+                          m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer},
         m_descriptor_set_data{m_logical_device, m_uniform_buffers}, m_pipeline_data{m_logical_device,
                                                                                     "shaders/vertex.spv",
                                                                                     "shaders/fragment.spv",
@@ -226,7 +226,8 @@ private:
       throw std::runtime_error("failed to acquire swap chain image");
     }
 
-    update_uniform_buffers();
+    auto mvpc = create_mvpc_matrix(m_swapchain_data->extent());
+    m_uniform_buffers[m_curr_frame].copy_to_device(mvpc);
 
     vk::SubmitInfo         submit_info{};
     vk::Semaphore          wait_semaphores[] = {*m_image_availible_semaphores[m_curr_frame]};

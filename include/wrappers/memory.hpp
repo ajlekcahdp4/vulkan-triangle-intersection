@@ -117,13 +117,13 @@ private:
   std::vector<buffer> m_vector;
 
 public:
-  buffers(const std::size_t p_size, const vk::raii::PhysicalDevice &p_phys_device,
+  buffers(const std::size_t count, const std::size_t max_size, const vk::raii::PhysicalDevice &p_phys_device,
           const vk::raii::Device &p_logical_device, const vk::BufferUsageFlags p_usage,
           vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |
                                                      vk::MemoryPropertyFlagBits::eHostCoherent) {
-    m_vector.reserve(p_size);
-    for (unsigned i = 0; i < p_size; i++) {
-      m_vector.emplace_back(p_phys_device, p_logical_device, p_size, p_usage, p_property_flags);
+    m_vector.reserve(count);
+    for (unsigned i = 0; i < count; i++) {
+      m_vector.emplace_back(p_phys_device, p_logical_device, max_size, p_usage, p_property_flags);
     }
   }
 
