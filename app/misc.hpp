@@ -19,12 +19,9 @@ inline auto required_vk_extensions() {
   return glfw_extensions;
 }
 
-inline std::vector<std::string> required_vk_layers() {
-#if defined(ENABLE_VALIDATION_LAYERS)
-  return {"VK_LAYER_KHRONOS_validation"};
-#else
+inline std::vector<std::string> required_vk_layers(bool validation = false) {
+  if (validation) return {"VK_LAYER_KHRONOS_validation"};
   return {};
-#endif
 }
 
 }; // namespace triangles

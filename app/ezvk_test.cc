@@ -1,3 +1,4 @@
+#include "ezvk/debug.hpp"
 #include "ezvk/instance.hpp"
 
 #include "misc.hpp"
@@ -19,6 +20,8 @@ int main() try {
                               .engineVersion = VK_MAKE_VERSION(1, 0, 0)};
 
   ezvk::instance i = {ctx, info, ext.begin(), ext.end(), layers.begin(), layers.end()};
+
+  ezvk::debug_messenger debug_msger{i()};
 } catch (ezvk::unsupported_error &e) {
   std::cout << e.what() << "\n";
   for (const auto &v : e.missing()) {
