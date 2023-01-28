@@ -16,9 +16,9 @@ int main() try {
   vk::raii::Context   ctx;
   vk::ApplicationInfo info = {.pApplicationName = "Hello, World!",
                               .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-                              .apiVersion = VK_MAKE_VERSION(1, 0, 0),
                               .pEngineName = "Junk Inc.",
-                              .engineVersion = VK_MAKE_VERSION(1, 0, 0)};
+                              .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+                              .apiVersion = VK_MAKE_VERSION(1, 0, 0)};
 
   ezvk::instance           i = {ctx, info, ext.begin(), ext.end(), layers.begin(), layers.end()};
   ezvk::debug_messenger    debug_msger{i()};
