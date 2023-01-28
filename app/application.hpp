@@ -153,10 +153,12 @@ private:
   void recreate_swap_chain() {
     int width = 0;
     int height = 0;
+    glfwGetFramebufferSize(m_surface_data->window(), &width, &height);
     while (width == 0 || height == 0) {
       glfwGetFramebufferSize(m_surface_data->window(), &width, &height);
       glfwWaitEvents();
     }
+    m_logical_device.waitIdle();
     m_swapchain_data = std::make_unique<throttle::graphics::swapchain_wrapper>(
         m_phys_device, m_logical_device, m_surface_data->surface(), m_surface_data->extent());
     m_pipeline_data = throttle::graphics::pipeline_data<throttle::graphics::vertex>{
@@ -186,12 +188,12 @@ private:
     m_logical_device.waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
     uint32_t image_index{};
     try {
-      vk::AcquireNextImageInfoKHR acquire_info{};
-      acquire_info.swapchain = *m_swapchain_data->swapchain();
-      acquire_info.timeout = UINT64_MAX;
-      acquire_info.semaphore = *m_image_availible_semaphores[m_curr_frame];
-      acquire_info.fence = nullptr;
-      acquire_info.deviceMask = 1;
+      vk::AcquireNextImageInfoKHR acquire_info{.swapchain = *m_swapchain_data->swapchain(),
+                                               .timeout = UINT64_MAX,
+                                               .semaphore = *m_image_availible_semaphores[m_curr_frame],
+                                               .fence = nullptr,
+                                               .deviceMask = 1};
+
       auto result = m_logical_device.acquireNextImage2KHR(acquire_info);
       image_index = result.second;
     } catch (vk::OutOfDateKHRError &) {
