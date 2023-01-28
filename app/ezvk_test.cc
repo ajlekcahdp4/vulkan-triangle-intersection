@@ -1,9 +1,8 @@
 #include "ezvk/debug.hpp"
 #include "ezvk/instance.hpp"
-
 #include "ezvk/window.hpp"
+
 #include "misc.hpp"
-#include <GLFW/glfw3.h>
 #include <exception>
 #include <iostream>
 #include <stdexcept>

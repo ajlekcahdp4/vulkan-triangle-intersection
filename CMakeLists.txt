@@ -70,6 +70,7 @@ endif()
 
 add_subdirectory(spdlog EXCLUDE_FROM_ALL)
 add_subdirectory(glm EXCLUDE_FROM_ALL)
+add_subdirectory(hw3d)
 
 find_package(glfw3 REQUIRED)
 find_package(Vulkan REQUIRED)
@@ -111,9 +112,9 @@ set(APPLICATION_SOURCES
 )
 
 add_executable(triangles ${APPLICATION_SOURCES})
-target_link_libraries(triangles PRIVATE glfw Vulkan::Vulkan ezvk glm)
+target_link_libraries(triangles PRIVATE glfw Vulkan::Vulkan ezvk glm throttle)
 
 add_executable(ezvk_test app/ezvk_test.cc)
-target_link_libraries(ezvk_test PRIVATE glfw Vulkan::Vulkan ezvk glm)
+target_link_libraries(ezvk_test PRIVATE glfw Vulkan::Vulkan ezvk glm throttle)
 
 install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
