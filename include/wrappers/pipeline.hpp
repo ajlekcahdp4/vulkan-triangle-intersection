@@ -31,7 +31,7 @@ public:
   descriptor_set_data(const vk::raii::Device &p_device, buffers &p_uniform_buffers)
       : m_layout{create_decriptor_set_layout(
             p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
-                       {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex}})},
+                       {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment}})},
         m_pool{create_descriptor_pool(
             p_device, {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eUniformBuffer, 1}})},
         m_descriptor_set{
