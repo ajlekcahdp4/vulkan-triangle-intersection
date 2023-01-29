@@ -10,7 +10,9 @@
 
 #pragma once
 
+#include "ezvk/utils.hpp"
 #include "instance.hpp"
+#include "utils.hpp"
 #include "vulkan_hpp_include.hpp"
 
 #include <spdlog/spdlog.h>
@@ -30,22 +32,23 @@ inline std::string assemble_debug_message(vk::DebugUtilsMessageTypeFlagsEXT     
                                           cmdbufs = {data.pCmdBufLabels, data.cmdBufLabelCount};
   std::span<const vk::DebugUtilsObjectNameInfoEXT> objects = {data.pObjects, data.objectCount};
 
-  ss << "Message [id_name = <" << data.pMessageIdName << ">, id_num = " << data.messageIdNumber << "types = <"
-     << vk::to_string(message_types) << "]: " << data.pMessage << "\n";
+  ss << "Message [id_name = <" << data.pMessageIdName << ">, id_num = " << data.messageIdNumber
+     << ", types = " << vk::to_string(message_types) << "]: " << utils::trim_leading_trailing_spaces(data.pMessage)
+     << "\n";
 
-  ss << "Associated Queues:\n";
+  if (!queues.empty()) ss << " -- Associated Queues: --\n";
   for (uint32_t i = 0; const auto &v : queues) {
-    ss << i++ << ". name = <" << v.pLabelName << ">\n";
+    ss << "[" << i++ << "]. name = <" << v.pLabelName << ">\n";
   }
 
-  ss << "Associated Command Buffers:\n";
+  if (!cmdbufs.empty()) ss << " -- Associated Command Buffers: --\n";
   for (uint32_t i = 0; const auto &v : cmdbufs) {
-    ss << i++ << ". name = <" << v.pLabelName << ">\n";
+    ss << "[" << i++ << "]. name = <" << v.pLabelName << ">\n";
   }
 
-  ss << "Associated Vulkan Objects:\n";
+  if (!objects.empty()) ss << " -- Associated Vulkan Objects: --\n";
   for (uint32_t i = 0; const auto &v : objects) {
-    ss << i++ << ". type = <" << vk::to_string(v.objectType) << ">, handle = " << v.objectHandle;
+    ss << "[" << i++ << "]. type = <" << vk::to_string(v.objectType) << ">, handle = " << v.objectHandle;
     if (v.pObjectName) ss << ", name = <" << v.pObjectName << ">";
     ss << "\n";
   }
@@ -59,7 +62,6 @@ inline bool default_debug_callback(vk::DebugUtilsMessageSeverityFlagBitsEXT     
   using msg_sev = vk::DebugUtilsMessageSeverityFlagBitsEXT;
 
   auto msg_str = assemble_debug_message(message_types, callback_data);
-
   if (message_severity == msg_sev::eInfo) {
     spdlog::info(msg_str);
   } else if (message_severity == msg_sev::eWarning) {
@@ -114,8 +116,11 @@ public:
                   vk::DebugUtilsMessageSeverityFlagsEXT severity_flags = default_severity_flags,
                   vk::DebugUtilsMessageTypeFlagsEXT     type_flags = default_type_flags)
       : m_callback{callback} {
-    vk::DebugUtilsMessengerCreateInfoEXT create_info = {
-        .messageSeverity = severity_flags, .messageType = type_flags, .pfnUserCallback = debug_callback};
+    vk::DebugUtilsMessengerCreateInfoEXT create_info = {.messageSeverity = severity_flags,
+                                                        .messageType = type_flags,
+                                                        .pfnUserCallback = debug_callback,
+                                                        .pUserData = this};
+
     m_messenger = instance.createDebugUtilsMessengerEXT(create_info);
   }
 };

@@ -13,6 +13,7 @@
 #include <concepts>
 #include <functional>
 #include <iostream>
+#include <string>
 #include <vector>
 
 namespace ezvk::utils {
@@ -29,6 +30,13 @@ auto find_all_missing(auto all_start, auto all_finish, auto find_start, auto fin
   }
 
   return missing;
+}
+
+inline std::string trim_leading_trailing_spaces(std::string input) {
+  if (input.empty()) return {};
+  auto pos_first = input.find_first_not_of(" \t\n");
+  auto pos_last = input.find_last_not_of(" \t\n");
+  return input.substr(pos_first != std::string::npos ? pos_first : 0, (pos_last - pos_first) + 1);
 }
 
 }; // namespace ezvk::utils

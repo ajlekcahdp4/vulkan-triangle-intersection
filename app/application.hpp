@@ -12,6 +12,10 @@
 
 #include <engine.hpp>
 
+#include "misc.hpp"
+
+#include "ezvk/debug.hpp"
+#include "ezvk/instance.hpp"
 #include "ezvk/window.hpp"
 
 #include "vulkan_include.hpp"
@@ -33,11 +37,29 @@ const std::vector<throttle::graphics::vertex> vertices{{{-0.5f, -0.5f, 0.0f}, {1
 
 const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
+struct vk_requirements {
+  std::vector<std::string> extensions, layers;
+
+  vk_requirements() {
+    extensions = required_vk_extensions();
+    layers = required_vk_layers(true);
+  }
+};
+
 constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
 class application final {
-private:
-  throttle::graphics::instance_wrapper m_instance_data{};
-  vk::raii::PhysicalDevice             m_phys_device{nullptr};
+  static constexpr auto c_info = vk::ApplicationInfo{.pApplicationName = "Hello, World!",
+                                                     .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+                                                     .pEngineName = "Junk Inc.",
+                                                     .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+                                                     .apiVersion = VK_MAKE_VERSION(1, 0, 0)};
+
+  vk::raii::Context     m_ctx;
+  vk_requirements       m_requirements;
+  ezvk::instance        m_instance;
+  ezvk::debug_messenger m_dmes;
+
+  vk::raii::PhysicalDevice m_phys_device{nullptr};
 
   ezvk::unique_glfw_window m_window;
   ezvk::surface            m_surface;
@@ -62,9 +84,14 @@ private:
 
 public:
   application()
-      : m_instance_data{}, m_phys_device{throttle::graphics::pick_physical_device(m_instance_data.instance())},
-        m_window{"Triangles intersection", vk::Extent2D{800, 600}, true}, m_surface{m_instance_data.instance(),
-                                                                                    m_window},
+      : m_requirements{}, m_instance{m_ctx,
+                                     c_info,
+                                     m_requirements.extensions.begin(),
+                                     m_requirements.extensions.end(),
+                                     m_requirements.layers.begin(),
+                                     m_requirements.layers.end()},
+        m_dmes{m_instance()}, m_phys_device{throttle::graphics::pick_physical_device(m_instance())},
+        m_window{"Triangles intersection", vk::Extent2D{800, 600}, true}, m_surface{m_instance(), m_window},
         m_logical_device{throttle::graphics::create_device(m_phys_device, m_surface())}, m_queues{m_phys_device,
                                                                                                   m_logical_device,
                                                                                                   m_surface()},
@@ -189,7 +216,7 @@ private:
     glm::mat4x4 model = glm::mat4x4(1.0f);
     glm::mat4x4 view =
         glm::lookAt(glm::vec3(-5.0f, 3.0f, -10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    glm::mat4x4 proj = glm::perspective(fov, 1.0f, 0.1f, 100.0f);
+    glm::mat4x4 proj = glm::perspective(fov, static_cast<float>(extent.width) / extent.height, 0.1f, 100.0f);
     // clang-format off
     glm::mat4x4 clip = glm::mat4x4{ // Vulkan clip space has inverted Y and half Z
       1.0f, 0.0f, 0.0f, 0.0f,
