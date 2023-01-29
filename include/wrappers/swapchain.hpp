@@ -13,7 +13,6 @@
 #include "vulkan_include.hpp"
 
 #include "queue_families.hpp"
-#include "surface.hpp"
 #include <cstddef>
 
 namespace throttle::graphics {

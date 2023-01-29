@@ -97,15 +97,11 @@ endif()
 set(VK_VALIDATION_LAYER OFF CACHE BOOL "Enables Vulkan validation layer")
 
 set(EZVK_SOURCES
-  src/surface.cc
-  src/window.cc
   src/shaders.cc
-  src/instance.cc
   src/device.cc
   src/queue_families.cc
   src/pipeline.cc
   src/swapchain.cc
-  src/logging.cc
   src/memory.cc
   src/ezvk/window.cc
 )

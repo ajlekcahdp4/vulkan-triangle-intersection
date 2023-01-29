@@ -14,7 +14,6 @@
 
 #include "wrappers/device.hpp"
 #include "wrappers/queue_families.hpp"
-#include "wrappers/surface.hpp"
 
 namespace throttle::graphics {
 

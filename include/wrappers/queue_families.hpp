@@ -15,8 +15,6 @@
 
 #include "vulkan_include.hpp"
 
-#include "surface.hpp"
-
 namespace throttle::graphics {
 
 uint32_t find_graphics_family_index(const std::vector<vk::QueueFamilyProperties> &);
