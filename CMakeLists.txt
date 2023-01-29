@@ -74,6 +74,18 @@ add_subdirectory(hw3d)
 
 find_package(glfw3 REQUIRED)
 find_package(Vulkan REQUIRED)
+find_program(glslc NAMES glslc HINTS Vulkan::glslc)
+
+function(add_spirv_shader TARGET_NAME OUTPUT_FILE INPUT_FILE)
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shaders/${OUTPUT_FILE}
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/shaders"
+    COMMAND ${glslc} -c ${INPUT_FILE} -o ${CMAKE_CURRENT_BINARY_DIR}/shaders/${OUTPUT_FILE}
+    MAIN_DEPENDENCY ${INPUT_FILE}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+  add_custom_target(${TARGET_NAME} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/shaders/${OUTPUT_FILE})
+endfunction()
 
 if (NOT VulkanFOUND)
   find_library(Vulkan_LIBRARY REQUIRED)
@@ -111,10 +123,16 @@ set(APPLICATION_SOURCES
   app/main.cc
 )
 
+add_spirv_shader(vertex vertex.spv shaders/shader.vert)
+add_spirv_shader(fragment fragment.spv shaders/shader.frag)
+add_custom_target(shaders ALL DEPENDS vertex fragment)
+
 add_executable(triangles ${APPLICATION_SOURCES})
 target_link_libraries(triangles PRIVATE glfw Vulkan::Vulkan ezvk glm throttle)
+add_dependencies(triangles shaders)
 
 add_executable(ezvk_test app/ezvk_test.cc)
 target_link_libraries(ezvk_test PRIVATE glfw Vulkan::Vulkan ezvk glm throttle)
 
 install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
