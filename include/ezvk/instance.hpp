@@ -11,6 +11,7 @@
 #pragma once
 
 #include "error.hpp"
+#include "utils.hpp"
 #include "vulkan_hpp_include.hpp"
 
 #include <algorithm>
@@ -68,32 +69,16 @@ public:
   using supports_result = std::pair<bool, std::vector<std::string>>;
 
   [[nodiscard]] static supports_result supports_extensions(auto start, auto finish, const vk::raii::Context &ctx) {
-    auto supported_extension = ctx.enumerateInstanceExtensionProperties();
-
-    std::vector<std::string> missing_extensions;
-    for (; start != finish; ++start) {
-      const auto &ext = *start;
-      if (std::find_if(supported_extension.begin(), supported_extension.end(),
-                       [ext](auto a) { return a.extensionName == ext; }) != supported_extension.end())
-        continue;
-      missing_extensions.push_back(ext);
-    }
-
+    auto supported_extensions = ctx.enumerateInstanceExtensionProperties();
+    auto missing_extensions = utils::find_all_missing(supported_extensions.begin(), supported_extensions.end(), start,
+                                                      finish, [](auto a) { return a.extensionName; });
     return std::make_pair(missing_extensions.empty(), missing_extensions);
   }
 
   [[nodiscard]] static supports_result supports_layers(auto start, auto finish, const vk::raii::Context &ctx) {
     auto supported_layers = ctx.enumerateInstanceLayerProperties();
-
-    std::vector<std::string> missing_layers;
-    for (; start != finish; ++start) {
-      const auto &ext = *start;
-      if (std::find_if(supported_layers.begin(), supported_layers.end(),
-                       [ext](auto a) { return a.layerName == ext; }) != supported_layers.end())
-        continue;
-      missing_layers.push_back(ext);
-    }
-
+    auto missing_layers = utils::find_all_missing(supported_layers.begin(), supported_layers.end(), start, finish,
+                                                  [](auto a) { return a.layerName; });
     return std::make_pair(missing_layers.empty(), missing_layers);
   }
 
