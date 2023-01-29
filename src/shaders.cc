@@ -8,27 +8,18 @@
  * ----------------------------------------------------------------------------
  */
 
+#include "utils.hpp"
+#include "vulkan_include.hpp"
+
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include "vulkan_include.hpp"
-
 namespace throttle::graphics {
 
-static std::vector<char> read_file(std::string filename) {
-  std::ifstream file;
-
-  file.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-  file.open(filename, std::ios::binary);
-
-  std::istreambuf_iterator<char> start(file), fin;
-  return std::vector<char>(start, fin);
-}
-
 vk::raii::ShaderModule create_module(const std::string &filename, const vk::raii::Device &p_device) {
-  auto source_code = read_file(filename);
+  auto source_code = ezvk::utils::read_file(filename);
 
   vk::ShaderModuleCreateInfo module_info = {.flags = vk::ShaderModuleCreateFlags{},
                                             .codeSize = source_code.size(),

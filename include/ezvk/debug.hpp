@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "ezvk/utils.hpp"
 #include "instance.hpp"
 #include "utils.hpp"
 #include "vulkan_hpp_include.hpp"

@@ -16,6 +16,8 @@
 
 #include "ezvk/debug.hpp"
 #include "ezvk/instance.hpp"
+#include "ezvk/queues.hpp"
+#include "ezvk/shaders.hpp"
 #include "ezvk/window.hpp"
 
 #include "glfw_include.hpp"

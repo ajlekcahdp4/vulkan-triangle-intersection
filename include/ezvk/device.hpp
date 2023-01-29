@@ -15,12 +15,46 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <iterator>
-#include <span>
-#include <string_view>
 
 namespace ezvk {
 
-class physical_device {};
+namespace physical_device_selector {
+
+using supports_result = std::pair<bool, std::vector<std::string>>;
+
+[[nodiscard]] supports_result supports_extensions(const PhysicalDevice &device, auto ext_start, auto ext_finish) {
+  const auto supported_extensions = device.enumerateDeviceExtensionProperties();
+  auto missing_extensions = utils::find_all_missing(supported_extensions.begin(), supported_extensions.end(), ext_start,
+                                                    ext_finish, [](auto a) { return a.extensionName; });
+  return std::make_pair(missing_extensions.empty(), missing_extensions);
+}
+
+std::vector<vk::raii::PhysicalDevice> enumerate_suitable_physical_devices(const vk::raii::Instance &instance,
+                                                                          auto ext_start, auto ext_finish) {
+  auto                                  available_devices = p_inst.enumeratePhysicalDevices();
+  std::vector<vk::raii::PhysicalDevice> suitable_devices;
+
+  for (const auto &device : available_devices) {
+    if (supports_extensions(device, ext_start, ext_finish)) suitable_devices.push_back(std::move(device));
+  }
+
+  return suitable_devices;
+}
+
+}; // namespace physical_device_selector
+
+class logical_device {
+  vk::raii::Device m_device = nullptr;
+
+public:
+  logical_device() = default;
+
+  logical_device(const vk::raii::PhysicalDevice &p_device, const vk::raii::SurfaceKHR &surface) {
+    // TODO[Sergei]: finish refactoring this
+  }
+
+  auto       &operator() { return m_device; }
+  const auto &operator() const { return m_device; }
+};
 
 } // namespace ezvk

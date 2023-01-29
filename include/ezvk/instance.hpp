@@ -68,16 +68,16 @@ public:
   using supports_result = std::pair<bool, std::vector<std::string>>;
 
   [[nodiscard]] static supports_result supports_extensions(auto start, auto finish, const vk::raii::Context &ctx) {
-    auto supported_extensions = ctx.enumerateInstanceExtensionProperties();
+    const auto supported_extensions = ctx.enumerateInstanceExtensionProperties();
     auto missing_extensions = utils::find_all_missing(supported_extensions.begin(), supported_extensions.end(), start,
                                                       finish, [](auto a) { return a.extensionName; });
     return std::make_pair(missing_extensions.empty(), missing_extensions);
   }
 
   [[nodiscard]] static supports_result supports_layers(auto start, auto finish, const vk::raii::Context &ctx) {
-    auto supported_layers = ctx.enumerateInstanceLayerProperties();
-    auto missing_layers = utils::find_all_missing(supported_layers.begin(), supported_layers.end(), start, finish,
-                                                  [](auto a) { return a.layerName; });
+    const auto supported_layers = ctx.enumerateInstanceLayerProperties();
+    auto       missing_layers = utils::find_all_missing(supported_layers.begin(), supported_layers.end(), start, finish,
+                                                        [](auto a) { return a.layerName; });
     return std::make_pair(missing_layers.empty(), missing_layers);
   }
 
