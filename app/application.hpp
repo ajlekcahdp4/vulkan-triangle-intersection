@@ -24,10 +24,10 @@
 
 namespace triangles {
 
-const std::vector<throttle::graphics::vertex> vertices{{{-0.5f, -0.5f, -1.0f}, {1.0f, 0.0f, 0.0f}},
-                                                       {{0.5f, -0.5f, 1.0f}, {0.0f, 1.0f, 0.0f}},
-                                                       {{0.5f, 0.5f, 0.0f}, {0.0f, .0f, 1.0f}},
-                                                       {{0.5f, -0.5f, -1.0f}, {1.0f, 1.0f, 1.0f}}};
+const std::vector<throttle::graphics::vertex> vertices{{{-5.0f, -5.0f, -1.0f}, {0.8f, 0.0f, 0.0f}},
+                                                       {{5.0f, -5.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+                                                       {{0.5f, 0.5f, 5.0f}, {0.0f, 0.0f, 1.0f}},
+                                                       {{-0.5f, 0.5f, 1.0f}, {1.0f, 1.0f, 1.0f}}};
 
 const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
@@ -84,6 +84,7 @@ private:
   std::vector<vk::raii::Semaphore>                              m_image_availible_semaphores;
   std::vector<vk::raii::Semaphore>                              m_render_finished_semaphores;
   std::vector<vk::raii::Fence>                                  m_in_flight_fences;
+  std::vector<vk::raii::Fence>                                  m_images_in_flight;
   std::size_t                                                   m_curr_frame = 0;
   bool                                                          m_framebuffer_resized = false;
 
@@ -139,6 +140,7 @@ private:
     m_image_availible_semaphores.reserve(MAX_FRAMES_IN_FLIGHT);
     m_render_finished_semaphores.reserve(MAX_FRAMES_IN_FLIGHT);
     m_in_flight_fences.reserve(MAX_FRAMES_IN_FLIGHT);
+    m_images_in_flight.reserve(m_swapchain_data.images().size());
     try {
       for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
         m_image_availible_semaphores.push_back(m_logical_device.createSemaphore({}));
@@ -225,6 +227,9 @@ private:
       throw std::runtime_error("failed to acquire swap chain image");
     }
 
+    if (m_images_in_flight.size() > image_index)
+      m_logical_device.waitForFences({*m_images_in_flight[image_index]}, VK_TRUE, UINT64_MAX);
+    m_images_in_flight[image_index] = std::move(m_in_flight_fences[m_curr_frame]);
     auto mvpc = create_mvpc_matrix(m_swapchain_data.extent());
     m_uniform_buffers[m_curr_frame].copy_to_device(mvpc);
 
