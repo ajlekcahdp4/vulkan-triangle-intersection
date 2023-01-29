@@ -11,11 +11,10 @@
 #pragma once
 
 #include "error.hpp"
+#include "glfw_include.hpp"
 #include "vulkan_hpp_include.hpp"
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-
+#include <cstddef>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -47,7 +46,9 @@ inline void enable_glfw_exceptions() {
 class unique_glfw_window {
 private:
   struct glfw_window_deleter {
-    void operator()(GLFWwindow *ptr) { glfwDestroyWindow(ptr); }
+    void operator()(GLFWwindow *ptr) {
+      if (ptr) glfwDestroyWindow(ptr);
+    }
   };
 
 private:
@@ -82,6 +83,7 @@ private:
   vk::raii::SurfaceKHR m_surface = nullptr;
 
 public:
+  surface() = default;
   surface(const vk::raii::Instance &instance, const unique_glfw_window &window);
 
   auto       &operator()() { return m_surface; }

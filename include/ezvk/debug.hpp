@@ -15,6 +15,7 @@
 #include "utils.hpp"
 #include "vulkan_hpp_include.hpp"
 
+#include <cstddef>
 #include <spdlog/spdlog.h>
 
 #include <functional>
@@ -77,21 +78,28 @@ inline bool default_debug_callback(vk::DebugUtilsMessageSeverityFlagBitsEXT     
   return false;
 };
 
+using msg_sev = vk::DebugUtilsMessageSeverityFlagBitsEXT;
+using msg_type = vk::DebugUtilsMessageTypeFlagBitsEXT;
+
+static constexpr auto default_severity_flags = msg_sev::eVerbose | msg_sev::eWarning | msg_sev::eError | msg_sev::eInfo;
+static constexpr auto default_type_flags = msg_type::eGeneral | msg_type::eValidation | msg_type::ePerformance;
+
 class debug_messenger {
 public:
   using callback_type = bool(vk::DebugUtilsMessageSeverityFlagBitsEXT, vk::DebugUtilsMessageTypeFlagsEXT,
                              const vk::DebugUtilsMessengerCallbackDataEXT &);
 
 private:
-  vk::raii::DebugUtilsMessengerEXT m_messenger = nullptr;
-  std::function<callback_type>     m_callback;
+  vk::raii::DebugUtilsMessengerEXT              m_messenger = nullptr;
+  std::unique_ptr<std::function<callback_type>> m_callback; // Here unqiue ptr is needed so that if the object is moved
+                                                            // from, then user_data pointer does not change.
 
 private:
   static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT      message_severity,
                                                        VkDebugUtilsMessageTypeFlagsEXT             message_types,
                                                        const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
                                                        void                                       *user_data) {
-    debug_messenger *ptr = static_cast<debug_messenger *>(user_data);
+    auto *ptr = static_cast<std::function<callback_type> *>(user_data);
 
     // NOTE[Sergei]: I'm not sure if callback_data ptr can be nullptr. Look here
     // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/PFN_vkDebugUtilsMessengerCallbackEXT.html
@@ -99,30 +107,45 @@ private:
     auto severity = static_cast<vk::DebugUtilsMessageSeverityFlagBitsEXT>(message_severity);
     auto types = static_cast<vk::DebugUtilsMessageTypeFlagsEXT>(message_types);
     auto data = *reinterpret_cast<const vk::DebugUtilsMessengerCallbackDataEXT *>(callback_data);
-    auto result = ptr->m_callback(severity, types, data);
+    auto result = (*ptr)(severity, types, data);
 
     return (result ? VK_TRUE : VK_FALSE);
   }
 
 public:
-  using msg_sev = vk::DebugUtilsMessageSeverityFlagBitsEXT;
-  using msg_type = vk::DebugUtilsMessageTypeFlagBitsEXT;
-
-  static constexpr auto default_severity_flags =
-      msg_sev::eVerbose | msg_sev::eWarning | msg_sev::eError | msg_sev::eInfo;
-  static constexpr auto default_type_flags = msg_type::eGeneral | msg_type::eValidation | msg_type::ePerformance;
+  debug_messenger() = default;
 
   debug_messenger(const vk::raii::Instance &instance, std::function<callback_type> callback = default_debug_callback,
                   vk::DebugUtilsMessageSeverityFlagsEXT severity_flags = default_severity_flags,
                   vk::DebugUtilsMessageTypeFlagsEXT     type_flags = default_type_flags)
-      : m_callback{callback} {
+      : m_callback{std::make_unique<std::function<callback_type>>(callback)} {
     vk::DebugUtilsMessengerCreateInfoEXT create_info = {.messageSeverity = severity_flags,
                                                         .messageType = type_flags,
                                                         .pfnUserCallback = debug_callback,
-                                                        .pUserData = this};
+                                                        .pUserData = m_callback.get()};
 
     m_messenger = instance.createDebugUtilsMessengerEXT(create_info);
   }
+
+  auto       &operator()() { return m_messenger; }
+  const auto &operator()() const { return m_messenger; }
+};
+
+class debugged_instance {
+  instance        m_instance;
+  debug_messenger m_dmes;
+
+public:
+  debugged_instance() = default;
+
+  debugged_instance(instance                                    &&p_instance,
+                    std::function<debug_messenger::callback_type> callback = default_debug_callback,
+                    vk::DebugUtilsMessageSeverityFlagsEXT         severity_flags = default_severity_flags,
+                    vk::DebugUtilsMessageTypeFlagsEXT             type_flags = default_type_flags)
+      : m_instance{std::move(p_instance)}, m_dmes{m_instance(), callback, severity_flags, type_flags} {}
+
+  auto       &operator()() { return m_instance(); }
+  const auto &operator()() const { return m_instance(); }
 };
 
 }; // namespace ezvk

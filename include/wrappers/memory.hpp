@@ -20,16 +20,7 @@ private:
   std::vector<vk::raii::Framebuffer> m_vector;
 
 public:
-  framebuffers(const framebuffers &) = delete;
-
-  framebuffers &operator=(const framebuffers &) = delete;
-
-  framebuffers(framebuffers &&other) { std::swap(m_vector, other.m_vector); }
-
-  framebuffers &operator=(framebuffers &&other) {
-    std::swap(m_vector, other.m_vector);
-    return *this;
-  }
+  framebuffers() {}
 
   framebuffers(const vk::raii::Device &p_device, const std::vector<vk::raii::ImageView> &p_image_views,
                const vk::Extent2D &p_extent, const vk::raii::RenderPass &p_render_pass) {
@@ -117,6 +108,8 @@ private:
   std::vector<buffer> m_vector;
 
 public:
+  buffers() = default;
+
   buffers(const std::size_t count, const std::size_t max_size, const vk::raii::PhysicalDevice &p_phys_device,
           const vk::raii::Device &p_logical_device, const vk::BufferUsageFlags p_usage,
           vk::MemoryPropertyFlags p_property_flags = vk::MemoryPropertyFlagBits::eHostVisible |

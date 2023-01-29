@@ -14,6 +14,7 @@
 
 #include "queue_families.hpp"
 #include "surface.hpp"
+#include <cstddef>
 
 namespace throttle::graphics {
 
@@ -26,6 +27,8 @@ private:
   std::vector<vk::raii::ImageView> m_image_views;
 
 public:
+  swapchain_wrapper(std::nullptr_t) {}
+
   swapchain_wrapper(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
                     const vk::raii::SurfaceKHR &p_surface, const vk::Extent2D &p_extent) {
     auto capabilities = p_phys_device.getSurfaceCapabilitiesKHR(*p_surface);

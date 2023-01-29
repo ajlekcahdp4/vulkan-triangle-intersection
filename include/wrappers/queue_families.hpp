@@ -19,7 +19,7 @@
 
 namespace throttle::graphics {
 
-uint32_t                      find_graphics_family_index(const std::vector<vk::QueueFamilyProperties> &);
+uint32_t find_graphics_family_index(const std::vector<vk::QueueFamilyProperties> &);
 
 std::pair<uint32_t, uint32_t> find_graphics_and_present_family_indices(const vk::raii::PhysicalDevice &p_device,
                                                                        const vk::raii::SurfaceKHR     &p_surface);
@@ -30,6 +30,9 @@ struct queues {
 
   uint32_t graphics_index = 0;
   uint32_t present_index = 0;
+
+public:
+  queues(std::nullptr_t) {}
 
   queues(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device,
          const vk::raii::SurfaceKHR &p_surface) {

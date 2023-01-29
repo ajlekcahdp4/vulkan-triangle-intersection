@@ -94,7 +94,7 @@ if (NOT VulkanFOUND)
   endif()
 endif()
 
-set (VALIDATION_LAYERS OFF CACHE BOOL "Enables Vulkan validation layers" )
+set(VK_VALIDATION_LAYER OFF CACHE BOOL "Enables Vulkan validation layer")
 
 set(EZVK_SOURCES
   src/surface.cc
@@ -111,9 +111,9 @@ set(EZVK_SOURCES
 )
 
 add_library(ezvk ${EZVK_SOURCES})
-if (VALIDATION_LAYERS)
-  message("Vulkan validation layers enabled")
-  target_compile_definitions(ezvk PUBLIC ENABLE_VALIDATION_LAYERS)
+if (VK_VALIDATION_LAYER)
+  message("Vulkan validation layer enabled")
+  target_compile_definitions(ezvk PUBLIC VK_VALIDATION_LAYER)
 endif()
 
 target_include_directories(ezvk PUBLIC include)
@@ -128,11 +128,11 @@ add_spirv_shader(fragment fragment.spv shaders/shader.frag)
 add_custom_target(shaders ALL DEPENDS vertex fragment)
 
 add_executable(triangles ${APPLICATION_SOURCES})
-target_link_libraries(triangles PRIVATE glfw Vulkan::Vulkan ezvk glm throttle)
+target_link_libraries(triangles PUBLIC glfw Vulkan::Vulkan ezvk glm throttle)
 add_dependencies(triangles shaders)
 
 add_executable(ezvk_test app/ezvk_test.cc)
-target_link_libraries(ezvk_test PRIVATE glfw Vulkan::Vulkan ezvk glm throttle)
+target_link_libraries(ezvk_test PUBLIC glfw Vulkan::Vulkan ezvk glm throttle)
 
 install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)

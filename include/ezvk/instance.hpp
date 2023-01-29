@@ -35,6 +35,8 @@ class instance {
   vk::raii::Instance m_instance = nullptr;
 
 public:
+  instance() = default;
+
   instance(const vk::raii::Context &ctx, vk::ApplicationInfo app_info, auto ext_start, auto ext_finish,
            auto layers_start, auto layers_finish) {
     auto [ext_ok, missing_ext] = supports_extensions(ext_start, ext_finish, ctx);
