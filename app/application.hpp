@@ -12,6 +12,8 @@
 
 #include <engine.hpp>
 
+#include "ezvk/window.hpp"
+
 #include "vulkan_include.hpp"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -33,43 +35,13 @@ const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
 constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
 class application final {
-public:
-  application()
-      : m_instance_data{}, m_phys_device{throttle::graphics::pick_physical_device(m_instance_data.instance())},
-        m_surface_data{m_instance_data.instance(), "Triangles intersection", vk::Extent2D{800, 600}},
-        m_logical_device{throttle::graphics::create_device(m_phys_device, m_surface_data.surface())},
-        m_queues{m_phys_device, m_logical_device, m_surface_data.surface()}, m_swapchain_data{m_phys_device,
-                                                                                              m_logical_device,
-                                                                                              m_surface_data.surface(),
-                                                                                              m_surface_data.extent()},
-        m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_phys_device,
-                          m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer},
-        m_descriptor_set_data{m_logical_device, m_uniform_buffers}, m_pipeline_data{m_logical_device,
-                                                                                    "shaders/vertex.spv",
-                                                                                    "shaders/fragment.spv",
-                                                                                    m_surface_data.extent(),
-                                                                                    m_descriptor_set_data},
-        m_framebuffers{m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
-                       m_pipeline_data.m_render_pass},
-        m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
-        m_vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices},
-        m_index_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eIndexBuffer, indices} {
-    create_command_buffers();
-    create_sync_objs();
-  }
-
-  void run() {
-    while (!glfwWindowShouldClose(m_surface_data.window())) {
-      glfwPollEvents();
-      render_frame();
-    }
-    m_logical_device.waitIdle();
-  }
-
 private:
-  throttle::graphics::instance_wrapper                          m_instance_data{};
-  vk::raii::PhysicalDevice                                      m_phys_device{nullptr};
-  throttle::graphics::window_surface                            m_surface_data;
+  throttle::graphics::instance_wrapper m_instance_data{};
+  vk::raii::PhysicalDevice             m_phys_device{nullptr};
+
+  ezvk::unique_glfw_window m_window;
+  ezvk::surface            m_surface;
+
   vk::raii::Device                                              m_logical_device{nullptr};
   throttle::graphics::queues                                    m_queues;
   throttle::graphics::swapchain_wrapper                         m_swapchain_data;
@@ -87,6 +59,39 @@ private:
   std::vector<vk::Fence>                                        m_images_in_flight;
   std::size_t                                                   m_curr_frame = 0;
   bool                                                          m_framebuffer_resized = false;
+
+public:
+  application()
+      : m_instance_data{}, m_phys_device{throttle::graphics::pick_physical_device(m_instance_data.instance())},
+        m_window{"Triangles intersection", vk::Extent2D{800, 600}, true}, m_surface{m_instance_data.instance(),
+                                                                                    m_window},
+        m_logical_device{throttle::graphics::create_device(m_phys_device, m_surface())}, m_queues{m_phys_device,
+                                                                                                  m_logical_device,
+                                                                                                  m_surface()},
+        m_swapchain_data{m_phys_device, m_logical_device, m_surface(), m_window.extent()},
+        m_uniform_buffers{MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_phys_device,
+                          m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer},
+        m_descriptor_set_data{m_logical_device, m_uniform_buffers}, m_pipeline_data{m_logical_device,
+                                                                                    "shaders/vertex.spv",
+                                                                                    "shaders/fragment.spv",
+                                                                                    m_window.extent(),
+                                                                                    m_descriptor_set_data},
+        m_framebuffers{m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
+                       m_pipeline_data.m_render_pass},
+        m_command_pool{throttle::graphics::create_command_pool(m_logical_device, m_queues)},
+        m_vertex_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices},
+        m_index_buffer{m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eIndexBuffer, indices} {
+    create_command_buffers();
+    create_sync_objs();
+  }
+
+  void run() {
+    while (!glfwWindowShouldClose(m_window())) {
+      glfwPollEvents();
+      render_frame();
+    }
+    m_logical_device.waitIdle();
+  }
 
 private:
   void create_command_buffers() {
@@ -154,19 +159,22 @@ private:
   }
 
   void recreate_swap_chain() {
-    int width = 0;
-    int height = 0;
-    glfwGetFramebufferSize(m_surface_data.window(), &width, &height);
-    while (width == 0 || height == 0) {
-      glfwGetFramebufferSize(m_surface_data.window(), &width, &height);
+    auto extent = m_window.extent();
+
+    while (extent.width == 0 || extent.height == 0) {
+      extent = m_window.extent();
       glfwWaitEvents();
     }
+
     m_logical_device.waitIdle();
-    m_swapchain_data = throttle::graphics::swapchain_wrapper(m_phys_device, m_logical_device, m_surface_data.surface(),
-                                                             m_surface_data.extent());
+    m_swapchain_data.swapchain()
+        .clear(); // Destroy the old swapchain before recreating another. NOTE[Sergei]: this is a dirty fix
+
+    m_swapchain_data = throttle::graphics::swapchain_wrapper(m_phys_device, m_logical_device, m_surface(), extent);
     m_pipeline_data = throttle::graphics::pipeline_data<throttle::graphics::vertex>{
         m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_swapchain_data.extent(),
         m_descriptor_set_data};
+
     m_framebuffers = throttle::graphics::framebuffers{m_logical_device, m_swapchain_data.image_views(),
                                                       m_swapchain_data.extent(), m_pipeline_data.m_render_pass};
     create_command_buffers();

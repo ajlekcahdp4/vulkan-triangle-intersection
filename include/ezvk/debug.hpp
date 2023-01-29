@@ -10,15 +10,15 @@
 
 #pragma once
 
+#include "instance.hpp"
+#include "vulkan_hpp_include.hpp"
+
 #include <spdlog/spdlog.h>
 
 #include <functional>
 #include <iostream>
 #include <sstream>
 #include <string>
-
-#include "instance.hpp"
-#include "vulkan_hpp_include.hpp"
 
 namespace ezvk {
 

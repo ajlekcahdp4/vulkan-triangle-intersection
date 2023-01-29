@@ -11,11 +11,12 @@
 #pragma once
 
 #include "error.hpp"
-#include "vulkan_include.hpp"
-#include <iterator>
+#include "vulkan_hpp_include.hpp"
+
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
+#include <iterator>
 #include <memory>
 #include <string>
 
@@ -56,7 +57,7 @@ public:
   unique_glfw_window(GLFWwindow *ptr) : m_handle{ptr} {}
   unique_glfw_window(const std::string &name, const vk::Extent2D &extent, bool resizable = false);
 
-  vk::Extent2D size() const {
+  vk::Extent2D extent() const {
     int width, height;
     glfwGetFramebufferSize(m_handle.get(), &width, &height);
     return vk::Extent2D{.width = static_cast<uint32_t>(width), .height = static_cast<uint32_t>(height)};
