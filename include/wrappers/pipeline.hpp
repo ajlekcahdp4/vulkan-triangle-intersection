@@ -16,7 +16,7 @@
 #include <tuple>
 #include <vector>
 
-#include "memory.hpp"
+#include "ezvk/memory.hpp"
 #include "shaders.hpp"
 
 namespace throttle::graphics {
@@ -28,7 +28,7 @@ public:
   vk::raii::DescriptorSet       m_descriptor_set = nullptr;
 
   descriptor_set_data(std::nullptr_t) {}
-  descriptor_set_data(const vk::raii::Device &p_device, buffers &p_uniform_buffers)
+  descriptor_set_data(const vk::raii::Device &p_device, const ezvk::device_buffers &p_uniform_buffers)
       : m_layout{create_decriptor_set_layout(
             p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
                        {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment}})},
@@ -40,19 +40,19 @@ public:
                                                                                         .pSetLayouts = &(*m_layout)}})
                           .front())} {
 
-    std::vector<std::tuple<vk::DescriptorType, vk::raii::Buffer &, vk::DeviceSize, const vk::raii::BufferView *>>
+    std::vector<std::tuple<vk::DescriptorType, const vk::raii::Buffer &, vk::DeviceSize, const vk::raii::BufferView *>>
         buffer_data;
     buffer_data.reserve(p_uniform_buffers.size());
     for (unsigned i = 0; i < p_uniform_buffers.size(); ++i) {
       buffer_data.push_back(
-          {vk::DescriptorType::eUniformBuffer, p_uniform_buffers[i].m_buffer, VK_WHOLE_SIZE, nullptr});
+          {vk::DescriptorType::eUniformBuffer, p_uniform_buffers[i].buffer(), VK_WHOLE_SIZE, nullptr});
     }
 
     update(p_device, buffer_data);
   }
 
   void update(const vk::raii::Device                                      &p_device,
-              const std::vector<std::tuple<vk::DescriptorType, vk::raii::Buffer &, vk::DeviceSize,
+              const std::vector<std::tuple<vk::DescriptorType, const vk::raii::Buffer &, vk::DeviceSize,
                                            const vk::raii::BufferView *>> &p_buffer_data,
               uint32_t                                                     p_binding_offset = 0) {
     std::vector<vk::DescriptorBufferInfo> buffer_infos;

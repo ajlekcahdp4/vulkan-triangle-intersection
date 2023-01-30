@@ -10,12 +10,13 @@
 
 #pragma once
 
+#include <spdlog/spdlog.h>
+
 #include "instance.hpp"
 #include "utils.hpp"
 #include "vulkan_hpp_include.hpp"
 
 #include <cstddef>
-#include <spdlog/spdlog.h>
 
 #include <functional>
 #include <iostream>

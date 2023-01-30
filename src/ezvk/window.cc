@@ -8,7 +8,10 @@
  * ----------------------------------------------------------------------------
  */
 
+#include "glfw_include.hpp"
+
 #include "ezvk/window.hpp"
+
 #include <cassert>
 
 namespace ezvk {

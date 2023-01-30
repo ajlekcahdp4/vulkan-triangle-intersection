@@ -9,6 +9,7 @@
  */
 
 #include "ezvk/debug.hpp"
+#include "ezvk/window.hpp"
 #include "glfw_include.hpp"
 #include "vulkan_hpp_include.hpp"
 
@@ -19,6 +20,7 @@
 #include "application.hpp"
 
 int main() {
+  ezvk::enable_glfw_exceptions();
   spdlog::cfg::load_env_levels(); // Read logging level from environment variables
   glfwInit();
 

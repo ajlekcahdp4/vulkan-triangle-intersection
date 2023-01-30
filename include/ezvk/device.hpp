@@ -16,6 +16,8 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <string>
+#include <vector>
 
 namespace ezvk {
 
@@ -51,8 +53,25 @@ class logical_device {
 public:
   logical_device() = default;
 
-  logical_device(const vk::raii::PhysicalDevice &p_device, const vk::raii::SurfaceKHR &surface) {
+  using device_queue_create_infos = std::vector<vk::DeviceQueueCreateInfo>;
+  logical_device(const vk::raii::PhysicalDevice &p_device, device_queue_create_infos requested_queues, auto ext_start,
+                 auto ext_finish, vk::PhysicalDeviceFeatures features = {}) {
     // TODO[Sergei]: finish refactoring this
+    std::vector<const char *> extensions, layers;
+    // For now we ignore device layers completely, this is a dummy vector
+    for (; ext_start != ext_finish; ++ext_start) {
+      extensions.push_back(ext_start->c_str());
+    }
+
+    vk::DeviceCreateInfo device_create_info = {.queueCreateInfoCount = static_cast<uint32_t>(requested_queues.size()),
+                                               .pQueueCreateInfos = requested_queues.data(),
+                                               .enabledLayerCount = static_cast<uint32_t>(layers.size()),
+                                               .ppEnabledLayerNames = layers.data(),
+                                               .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+                                               .ppEnabledExtensionNames = extensions.data(),
+                                               .pEnabledFeatures = &features};
+
+    m_device = p_device.createDevice(device_create_info);
   }
 
   auto       &operator()() { return m_device; }

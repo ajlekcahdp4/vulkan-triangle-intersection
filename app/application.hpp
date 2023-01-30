@@ -16,6 +16,7 @@
 
 #include "ezvk/debug.hpp"
 #include "ezvk/instance.hpp"
+#include "ezvk/memory.hpp"
 #include "ezvk/queues.hpp"
 #include "ezvk/shaders.hpp"
 #include "ezvk/window.hpp"
@@ -51,21 +52,24 @@ class application final {
   ezvk::surface            m_surface;
   vk::raii::Device         m_logical_device = nullptr;
 
-  throttle::graphics::queues                                    m_queues = nullptr;
-  throttle::graphics::swapchain_wrapper                         m_swapchain_data = nullptr;
-  throttle::graphics::buffers                                   m_uniform_buffers;
+  throttle::graphics::queues            m_queues = nullptr;
+  throttle::graphics::swapchain_wrapper m_swapchain_data = nullptr;
+
+  ezvk::device_buffers m_uniform_buffers;
+
   throttle::graphics::descriptor_set_data                       m_descriptor_set_data = nullptr;
   throttle::graphics::pipeline_data<throttle::graphics::vertex> m_pipeline_data = nullptr;
-  throttle::graphics::framebuffers                              m_framebuffers;
-  vk::raii::CommandPool                                         m_command_pool = nullptr;
-  throttle::graphics::buffer                                    m_vertex_buffer = nullptr;
-  throttle::graphics::buffer                                    m_index_buffer = nullptr;
-  vk::raii::CommandBuffers                                      m_command_buffers = nullptr;
-  std::vector<vk::raii::Semaphore>                              m_image_availible_semaphores;
-  std::vector<vk::raii::Semaphore>                              m_render_finished_semaphores;
-  std::vector<vk::raii::Fence>                                  m_in_flight_fences;
-  std::size_t                                                   m_curr_frame = 0;
-  std::size_t                                                   m_verices_n = 0;
+
+  ezvk::framebuffers    m_framebuffers;
+  vk::raii::CommandPool m_command_pool = nullptr;
+  ezvk::device_buffer   m_vertex_buffer;
+
+  vk::raii::CommandBuffers         m_command_buffers = nullptr;
+  std::vector<vk::raii::Semaphore> m_image_availible_semaphores;
+  std::vector<vk::raii::Semaphore> m_render_finished_semaphores;
+  std::vector<vk::raii::Fence>     m_in_flight_fences;
+  std::size_t                      m_curr_frame = 0;
+  std::size_t                      m_verices_n = 0;
 
 public:
   application(INSTANCE_TYPE p_instance) {
@@ -101,7 +105,7 @@ public:
 
   void load_triangles(const std::vector<throttle::graphics::vertex> &vertices) {
     m_verices_n = vertices.size();
-    m_vertex_buffer = {m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices};
+    m_vertex_buffer = {m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, std::span{vertices}};
     create_command_buffers();
   }
 
@@ -130,7 +134,7 @@ private:
       m_command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
       m_command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
                                               {*m_descriptor_set_data.m_descriptor_set}, nullptr);
-      vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.m_buffer};
+      vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.buffer()};
       vk::DeviceSize offsets[] = {0};
       m_command_buffers[i].bindVertexBuffers(0, vertex_buffers, offsets);
       m_command_buffers[i].draw(m_verices_n, 1, 0, 0);
@@ -171,8 +175,8 @@ private:
         m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_swapchain_data.extent(),
         m_descriptor_set_data};
 
-    m_framebuffers = throttle::graphics::framebuffers{m_logical_device, m_swapchain_data.image_views(),
-                                                      m_swapchain_data.extent(), m_pipeline_data.m_render_pass};
+    m_framebuffers = {m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
+                      m_pipeline_data.m_render_pass};
     create_command_buffers();
   }
 

@@ -15,12 +15,12 @@ namespace throttle::graphics {
 vk::raii::DescriptorSetLayout descriptor_set_data::create_decriptor_set_layout(
     const vk::raii::Device                                                            &p_device,
     const std::vector<std::tuple<vk::DescriptorType, uint32_t, vk::ShaderStageFlags>> &p_binding_data) {
-  unsigned                                    counter{};
   std::vector<vk::DescriptorSetLayoutBinding> bindings;
   bindings.reserve(p_binding_data.size());
-  std::transform(p_binding_data.begin(), p_binding_data.end(), std::back_inserter(bindings), [&counter](auto &elem) {
-    return vk::DescriptorSetLayoutBinding{counter++, std::get<0>(elem), std::get<1>(elem), std::get<2>(elem)};
-  });
+  std::transform(p_binding_data.begin(), p_binding_data.end(), std::back_inserter(bindings),
+                 [i = uint32_t{0}](auto &elem) mutable {
+                   return vk::DescriptorSetLayoutBinding{i++, std::get<0>(elem), std::get<1>(elem), std::get<2>(elem)};
+                 });
   vk::DescriptorSetLayoutCreateInfo descriptor_set_info = {.bindingCount = static_cast<uint32_t>(bindings.size()),
                                                            .pBindings = bindings.data()};
   return vk::raii::DescriptorSetLayout{p_device, descriptor_set_info};

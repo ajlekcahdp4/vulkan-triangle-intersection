@@ -103,7 +103,6 @@ set(EZVK_SOURCES
   src/queue_families.cc
   src/pipeline.cc
   src/swapchain.cc
-  src/memory.cc
   src/ezvk/window.cc
 )
 

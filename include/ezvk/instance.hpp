@@ -18,7 +18,6 @@
 #include <cstddef>
 #include <iterator>
 #include <span>
-#include <string_view>
 
 namespace ezvk {
 

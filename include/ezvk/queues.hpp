@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <memory>
 #include <optional>
 
 namespace ezvk {
@@ -25,36 +27,71 @@ struct queue_family_indices {
   queue_family_index graphics, present;
 };
 
-inline std::optional<queue_family_index> find_graphics_family_index(auto properties_start, auto properties_finish) {
-  auto found = std::find_if(properties_start, properties_finish, [](vk::QueueFamilyProperties const &qfp) {
-    return qfp.queueFlags & vk::QueueFlagBits::eGraphics;
-  });
+inline std::vector<queue_family_index> find_graphics_family_indices(const vk::raii::PhysicalDevice &p_device) {
+  auto                            properties = p_device.getQueueFamilyProperties();
+  std::vector<queue_family_index> graphics_indices;
 
-  if (found == properties_finish) return std::nullopt;
-
-  return static_cast<queue_family_index>(std::distance(properties_start, found));
-}
-
-inline std::optional<queue_family_indices>
-find_graphics_and_present_family_indices(const vk::raii::PhysicalDevice &p_device,
-                                         const vk::raii::SurfaceKHR     &p_surface) {
-  auto queue_family_properties = p_device.getQueueFamilyProperties();
-  auto graphics_family_index =
-      find_graphics_family_index(queue_family_properties.begin(), queue_family_properties.end());
-
-  if (!graphics_family_index) return std::nullopt;
-
-  for (queue_family_index idx = 0; idx < queue_family_properties.size(); ++idx) {
-    if (p_device.getSurfaceSupportKHR(idx, *p_surface)) {
-      return queue_family_indices{.graphics = graphics_family_index.value(), .present = idx};
-    }
+  for (queue_family_index i = 0; const auto &qfp : properties) {
+    if (qfp.queueFlags & vk::QueueFlagBits::eGraphics) graphics_indices.push_back(i);
+    ++i;
   }
 
-  return std::nullopt;
+  return graphics_indices;
 }
 
-inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, const queue_family_indices queues) {
-  return device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = queues.graphics});
+inline std::vector<queue_family_index> find_present_family_indices(const vk::raii::PhysicalDevice &p_device,
+                                                                   const vk::raii::SurfaceKHR     &surface) {
+  auto                            size = p_device.getQueueFamilyProperties().size();
+  std::vector<queue_family_index> present_indices;
+
+  for (queue_family_index i = 0; i < size; ++i) {
+    if (p_device.getSurfaceSupportKHR(i, *surface)) present_indices.push_back(i);
+  }
+
+  return present_indices;
+}
+
+class i_graphics_present_queues {
+public:
+  virtual vk::Queue graphics() const = 0;
+  virtual vk::Queue present() const = 0;
+  virtual ~i_graphics_present_queues() {}
+};
+
+using queue_index = uint32_t;
+
+namespace detail {
+
+class separate_graphics_present_queues : public i_graphics_present_queues {
+  vk::raii::Queue m_graphics = nullptr, m_present = nullptr;
+
+public:
+  separate_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index graphics_family,
+                                   queue_index graphics, queue_family_index present_family, queue_index present) {
+    m_graphics = l_device.getQueue(graphics_family, graphics);
+    m_present = l_device.getQueue(present_family, present);
+  }
+
+  vk::Queue graphics() const override { return *m_graphics; }
+  vk::Queue present() const override { return *m_present; }
+};
+
+class single_graphics_present_queues : i_graphics_present_queues {
+  vk::raii::Queue m_queue = nullptr;
+
+public:
+  single_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index family, queue_index index) {
+    m_queue = l_device.getQueue(family, index);
+  }
+
+  vk::Queue graphics() const override { return *m_queue; }
+  vk::Queue present() const override { return *m_queue; }
+};
+
+} // namespace detail
+
+inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, const queue_family_index queue) {
+  return device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = queue});
 }
 
 } // namespace ezvk
