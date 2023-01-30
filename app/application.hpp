@@ -257,8 +257,6 @@ void render_frame() {
   } catch (vk::OutOfDateKHRError &) {
     recreate_swap_chain();
     return;
-  } catch (vk::SystemError &) {
-    throw std::runtime_error("failed to acquire swap chain image");
   }
   auto mvpc = create_mvpc_matrix(m_swapchain_data.extent());
   m_uniform_buffers[m_curr_frame].copy_to_device(mvpc);
