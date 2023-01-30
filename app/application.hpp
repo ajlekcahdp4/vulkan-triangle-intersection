@@ -45,12 +45,10 @@ const std::vector<throttle::graphics::vertex> vertices
 {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
 // triangle 2
 {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
-{{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+{{0.0f, -0.5f, -0.0f}, {1.0f, 0.0f, 0.0f}},
 {{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}}
 };
 // clang-format on
-
-const std::vector<uint16_t> indices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
 constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
 class application final {
@@ -81,7 +79,6 @@ class application final {
   std::vector<vk::raii::Semaphore>                              m_render_finished_semaphores;
   std::vector<vk::raii::Fence>                                  m_in_flight_fences;
   std::size_t                                                   m_curr_frame = 0;
-  bool                                                          m_framebuffer_resized = false;
 
 public:
   APPLICATION_CONSTRUCTOR;
@@ -122,9 +119,7 @@ private:
       vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.m_buffer};
       vk::DeviceSize offsets[] = {0};
       m_command_buffers[i].bindVertexBuffers(0, vertex_buffers, offsets);
-      vk::Buffer index_buffer = *m_index_buffer.m_buffer;
-      m_command_buffers[i].bindIndexBuffer(index_buffer, 0, vk::IndexType::eUint16);
-      m_command_buffers[i].drawIndexed(indices.size(), 1, 0, 0, 0);
+      m_command_buffers[i].draw(vertices.size(), 1, 0, 0);
       m_command_buffers[i].endRenderPass();
       m_command_buffers[i].end();
     }
@@ -275,7 +270,6 @@ application::APPLICATION_CONSTRUCTOR {
 
   m_command_pool = {throttle::graphics::create_command_pool(m_logical_device, m_queues)};
   m_vertex_buffer = {m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices};
-  m_index_buffer = {m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eIndexBuffer, indices};
 
   create_command_buffers();
   create_sync_objs();
