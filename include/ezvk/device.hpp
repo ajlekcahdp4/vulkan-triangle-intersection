@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "queues.hpp"
 #include "utils.hpp"
 #include "vulkan_hpp_include.hpp"
 
@@ -22,16 +23,17 @@ namespace physical_device_selector {
 
 using supports_result = std::pair<bool, std::vector<std::string>>;
 
-[[nodiscard]] supports_result supports_extensions(const PhysicalDevice &device, auto ext_start, auto ext_finish) {
+[[nodiscard]] inline supports_result supports_extensions(const vk::raii::PhysicalDevice &device, auto ext_start,
+                                                         auto ext_finish) {
   const auto supported_extensions = device.enumerateDeviceExtensionProperties();
   auto missing_extensions = utils::find_all_missing(supported_extensions.begin(), supported_extensions.end(), ext_start,
                                                     ext_finish, [](auto a) { return a.extensionName; });
   return std::make_pair(missing_extensions.empty(), missing_extensions);
 }
 
-std::vector<vk::raii::PhysicalDevice> enumerate_suitable_physical_devices(const vk::raii::Instance &instance,
-                                                                          auto ext_start, auto ext_finish) {
-  auto                                  available_devices = p_inst.enumeratePhysicalDevices();
+inline std::vector<vk::raii::PhysicalDevice> enumerate_suitable_physical_devices(const vk::raii::Instance &instance,
+                                                                                 auto ext_start, auto ext_finish) {
+  auto                                  available_devices = instance.enumeratePhysicalDevices();
   std::vector<vk::raii::PhysicalDevice> suitable_devices;
 
   for (const auto &device : available_devices) {
@@ -53,8 +55,8 @@ public:
     // TODO[Sergei]: finish refactoring this
   }
 
-  auto       &operator() { return m_device; }
-  const auto &operator() const { return m_device; }
+  auto       &operator()() { return m_device; }
+  const auto &operator()() const { return m_device; }
 };
 
 } // namespace ezvk
