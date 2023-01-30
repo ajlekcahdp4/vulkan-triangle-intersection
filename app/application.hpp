@@ -76,8 +76,7 @@ class application final {
   vk::raii::CommandBuffers                                      m_command_buffers = nullptr;
   std::vector<vk::raii::Semaphore>                              m_image_availible_semaphores;
   std::vector<vk::raii::Semaphore>                              m_render_finished_semaphores;
-  std::vector<vk::Fence>                                        m_in_flight_fences;
-  std::vector<vk::Fence>                                        m_images_in_flight;
+  std::vector<vk::raii::Fence>                                  m_in_flight_fences;
   std::size_t                                                   m_curr_frame = 0;
   bool                                                          m_framebuffer_resized = false;
 
@@ -174,14 +173,13 @@ void create_command_buffers() {
 void create_sync_objs() {
   m_image_availible_semaphores.reserve(MAX_FRAMES_IN_FLIGHT);
   m_render_finished_semaphores.reserve(MAX_FRAMES_IN_FLIGHT);
-  m_in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
-  m_images_in_flight.resize(m_swapchain_data.images().size(), VK_NULL_HANDLE);
+
   try {
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
       m_image_availible_semaphores.push_back(m_logical_device.createSemaphore({}));
       m_render_finished_semaphores.push_back(m_logical_device.createSemaphore({}));
-      auto &device = *m_logical_device;
-      m_in_flight_fences[i] = device.createFence(vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled});
+      m_in_flight_fences.push_back(
+          m_logical_device.createFence(vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled}));
     }
   } catch (vk::SystemError &) {
     throw std::runtime_error("failed to create synchronisation objects for a frame");
@@ -207,7 +205,6 @@ void recreate_swap_chain() {
   m_framebuffers = throttle::graphics::framebuffers{m_logical_device, m_swapchain_data.image_views(),
                                                     m_swapchain_data.extent(), m_pipeline_data.m_render_pass};
   create_command_buffers();
-  m_images_in_flight.resize(m_swapchain_data.images().size(), VK_NULL_HANDLE);
 }
 
 // TEMPORARY
@@ -246,7 +243,7 @@ void update_uniform_buffers() {
 
 // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
 void render_frame() {
-  m_logical_device.waitForFences({m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
+  m_logical_device.waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
   uint32_t image_index{};
   try {
     vk::AcquireNextImageInfoKHR acquire_info{.swapchain = *m_swapchain_data.swapchain(),
@@ -263,10 +260,6 @@ void render_frame() {
   } catch (vk::SystemError &) {
     throw std::runtime_error("failed to acquire swap chain image");
   }
-
-  if (m_images_in_flight[image_index] != vk::Fence{VK_NULL_HANDLE})
-    m_logical_device.waitForFences({m_images_in_flight[image_index]}, VK_TRUE, UINT64_MAX);
-  m_images_in_flight[image_index] = m_in_flight_fences[m_curr_frame];
   auto mvpc = create_mvpc_matrix(m_swapchain_data.extent());
   m_uniform_buffers[m_curr_frame].copy_to_device(mvpc);
 
@@ -284,10 +277,10 @@ void render_frame() {
   submit_info.signalSemaphoreCount = 1;
   submit_info.pSignalSemaphores = signal_semaphores;
 
-  m_logical_device.resetFences({m_in_flight_fences[m_curr_frame]}); // segfault was there
+  m_logical_device.resetFences({*m_in_flight_fences[m_curr_frame]}); // segfault was there
 
   try {
-    m_queues.graphics.submit(submit_info, m_in_flight_fences[m_curr_frame]);
+    m_queues.graphics.submit(submit_info, *m_in_flight_fences[m_curr_frame]);
   } catch (vk::SystemError &) {
     throw std::runtime_error("failed to submit sraw command buffer");
   }
