@@ -29,8 +29,7 @@ inline std::vector<char> read_file(std::string filename) {
   return std::vector<char>(start, fin);
 }
 
-auto find_all_missing(auto all_start, auto all_finish, auto find_start, auto find_finish, auto proj)
-    -> std::vector<typename decltype(find_start)::value_type> {
+auto find_all_missing(auto all_start, auto all_finish, auto find_start, auto find_finish, auto proj) {
   std::vector<typename decltype(find_start)::value_type> missing;
 
   for (; find_start != find_finish; ++find_start) {
