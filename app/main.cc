@@ -46,5 +46,21 @@ int main() {
   triangles::application app = {std::move(instance)};
 #endif
 
+  // clang-format off
+  app.load_triangles({
+    // triangle 1
+    {{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+    {{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+    // triangle 2
+    {{1.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{1.0f, -0.5f, -0.0f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+    // triangle 3
+    {{0.0f, 1.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.7f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, -0.5f, -2.0f}, {0.0f, 1.0f, 0.0f}}
+    });
+  // clang-format on
   app.run();
 }

@@ -36,20 +36,6 @@
 
 namespace triangles {
 
-// clang-format off
-const std::vector<throttle::graphics::vertex> vertices
-{
-// triangle 1
-{{-0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-{{0.5f, -0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-{{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-// triangle 2
-{{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
-{{0.0f, -0.5f, -0.0f}, {1.0f, 0.0f, 0.0f}},
-{{0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}}
-};
-// clang-format on
-
 constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
 class application final {
 #ifdef USE_DEBUG_EXTENSION
@@ -79,6 +65,7 @@ class application final {
   std::vector<vk::raii::Semaphore>                              m_render_finished_semaphores;
   std::vector<vk::raii::Fence>                                  m_in_flight_fences;
   std::size_t                                                   m_curr_frame = 0;
+  std::size_t                                                   m_verices_n = 0;
 
 public:
   APPLICATION_CONSTRUCTOR;
@@ -89,6 +76,12 @@ public:
       render_frame();
     }
     m_logical_device.waitIdle();
+  }
+
+  void load_triangles(const std::vector<throttle::graphics::vertex> &vertices) {
+    m_verices_n = vertices.size();
+    m_vertex_buffer = {m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices};
+    create_command_buffers();
   }
 
 private:
@@ -119,7 +112,7 @@ private:
       vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.m_buffer};
       vk::DeviceSize offsets[] = {0};
       m_command_buffers[i].bindVertexBuffers(0, vertex_buffers, offsets);
-      m_command_buffers[i].draw(vertices.size(), 1, 0, 0);
+      m_command_buffers[i].draw(m_verices_n, 1, 0, 0);
       m_command_buffers[i].endRenderPass();
       m_command_buffers[i].end();
     }
@@ -269,9 +262,6 @@ application::APPLICATION_CONSTRUCTOR {
                     m_pipeline_data.m_render_pass};
 
   m_command_pool = {throttle::graphics::create_command_pool(m_logical_device, m_queues)};
-  m_vertex_buffer = {m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, vertices};
-
-  create_command_buffers();
   create_sync_objs();
 }
 
