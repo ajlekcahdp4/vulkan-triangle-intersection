@@ -36,15 +36,15 @@
 
 namespace triangles {
 
-constexpr int     MAX_FRAMES_IN_FLIGHT = 2;
-class application final {
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 #ifdef USE_DEBUG_EXTENSION
-  ezvk::debugged_instance m_instance;
-#define APPLICATION_CONSTRUCTOR application(ezvk::debugged_instance &&p_instance)
+#define INSTANCE_TYPE ezvk::debugged_instance
 #else
-  ezvk::instance m_instance;
-#define APPLICATION_CONSTRUCTOR application(ezvk::instance &&p_instance)
+#define INSTANCE_TYPE ezvk::instance
 #endif
+
+class application final {
+  INSTANCE_TYPE m_instance;
 
   vk::raii::PhysicalDevice m_phys_device = nullptr;
   ezvk::unique_glfw_window m_window = nullptr;
@@ -68,15 +68,36 @@ class application final {
   std::size_t                                                   m_verices_n = 0;
 
 public:
-  APPLICATION_CONSTRUCTOR;
+  application(INSTANCE_TYPE p_instance) {
+    m_instance = std::move(p_instance);
 
-  void run() {
-    while (!glfwWindowShouldClose(m_window())) {
-      glfwPollEvents();
-      render_frame();
-    }
-    m_logical_device.waitIdle();
+    m_phys_device = throttle::graphics::pick_physical_device(m_instance());
+    m_window = {"Triangles intersection", vk::Extent2D{800, 600}, true};
+
+    m_surface = {m_instance(), m_window};
+
+    m_logical_device = {throttle::graphics::create_device(m_phys_device, m_surface())};
+    m_queues = {m_phys_device, m_logical_device, m_surface()};
+
+    m_swapchain_data = {m_phys_device, m_logical_device, m_surface(), m_window.extent()};
+    m_uniform_buffers = {MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_phys_device,
+                         m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer};
+    m_descriptor_set_data = {m_logical_device, m_uniform_buffers};
+
+    m_pipeline_data = {m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_window.extent(),
+                       m_descriptor_set_data};
+    m_framebuffers = {m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
+                      m_pipeline_data.m_render_pass};
+
+    m_command_pool = {throttle::graphics::create_command_pool(m_logical_device, m_queues)};
+
+    create_command_buffers();
+    create_sync_objs();
   }
+
+  void  shutdown() { m_logical_device.waitIdle(); }
+  void  loop() { render_frame(); }
+  auto *window() const { return m_window(); }
 
   void load_triangles(const std::vector<throttle::graphics::vertex> &vertices) {
     m_verices_n = vertices.size();
@@ -137,11 +158,15 @@ private:
       glfwWaitEvents();
     }
 
+    const auto &old_swapchain = m_swapchain_data.swapchain();
+    auto        new_swapchain =
+        throttle::graphics::swapchain_wrapper(m_phys_device, m_logical_device, m_surface(), extent, *old_swapchain);
+
     m_logical_device.waitIdle();
     m_swapchain_data.swapchain()
         .clear(); // Destroy the old swapchain before recreating another. NOTE[Sergei]: this is a dirty fix
+    m_swapchain_data = std::move(new_swapchain);
 
-    m_swapchain_data = throttle::graphics::swapchain_wrapper(m_phys_device, m_logical_device, m_surface(), extent);
     m_pipeline_data = throttle::graphics::pipeline_data<throttle::graphics::vertex>{
         m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_swapchain_data.extent(),
         m_descriptor_set_data};
@@ -231,7 +256,7 @@ private:
       result_present = vk::Result::eErrorOutOfDateKHR;
     }
 
-    if (result_present == vk::Result::eSuboptimalKHR) {
+    if (result_present == vk::Result::eSuboptimalKHR || result_present == vk::Result::eErrorOutOfDateKHR) {
       recreate_swap_chain();
       return;
     }
@@ -239,30 +264,5 @@ private:
     m_curr_frame = (m_curr_frame + 1) % MAX_FRAMES_IN_FLIGHT;
   }
 };
-
-application::APPLICATION_CONSTRUCTOR {
-  m_instance = std::move(p_instance);
-
-  m_phys_device = throttle::graphics::pick_physical_device(m_instance());
-  m_window = {"Triangles intersection", vk::Extent2D{800, 600}, true};
-
-  m_surface = {m_instance(), m_window};
-
-  m_logical_device = {throttle::graphics::create_device(m_phys_device, m_surface())};
-  m_queues = {m_phys_device, m_logical_device, m_surface()};
-
-  m_swapchain_data = {m_phys_device, m_logical_device, m_surface(), m_window.extent()};
-  m_uniform_buffers = {MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_phys_device,
-                       m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer};
-  m_descriptor_set_data = {m_logical_device, m_uniform_buffers};
-
-  m_pipeline_data = {m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_window.extent(),
-                     m_descriptor_set_data};
-  m_framebuffers = {m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
-                    m_pipeline_data.m_render_pass};
-
-  m_command_pool = {throttle::graphics::create_command_pool(m_logical_device, m_queues)};
-  create_sync_objs();
-}
 
 } // namespace triangles

@@ -127,8 +127,5 @@ add_executable(triangles ${APPLICATION_SOURCES})
 target_link_libraries(triangles PUBLIC glfw Vulkan::Vulkan ezvk glm throttle)
 add_dependencies(triangles shaders)
 
-add_executable(ezvk_test app/ezvk_test.cc)
-target_link_libraries(ezvk_test PUBLIC glfw Vulkan::Vulkan ezvk glm throttle)
-
 install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/shaders DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)

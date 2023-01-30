@@ -14,6 +14,7 @@
 
 #include "queue_families.hpp"
 #include <cstddef>
+#include <vulkan/vulkan_handles.hpp>
 
 namespace throttle::graphics {
 
@@ -29,7 +30,8 @@ public:
   swapchain_wrapper(std::nullptr_t) {}
 
   swapchain_wrapper(const vk::raii::PhysicalDevice &p_phys_device, const vk::raii::Device &p_logical_device,
-                    const vk::raii::SurfaceKHR &p_surface, const vk::Extent2D &p_extent) {
+                    const vk::raii::SurfaceKHR &p_surface, const vk::Extent2D &p_extent,
+                    const vk::SwapchainKHR &p_swapchain = nullptr) {
     auto capabilities = p_phys_device.getSurfaceCapabilitiesKHR(*p_surface);
     auto formats = p_phys_device.getSurfaceFormatsKHR(*p_surface);
     auto present_modes = p_phys_device.getSurfacePresentModesKHR(*p_surface);
@@ -43,7 +45,9 @@ public:
                                               .imageColorSpace = m_format.colorSpace,
                                               .imageExtent = m_extent,
                                               .imageArrayLayers = 1,
-                                              .imageUsage = vk::ImageUsageFlagBits::eColorAttachment};
+                                              .imageUsage = vk::ImageUsageFlagBits::eColorAttachment,
+                                              .oldSwapchain = p_swapchain};
+
     auto     queue_family_indices = find_graphics_and_present_family_indices(p_phys_device, p_surface);
     uint32_t arr_indices[2] = {queue_family_indices.first, queue_family_indices.second};
     if (queue_family_indices.first != queue_family_indices.second) {

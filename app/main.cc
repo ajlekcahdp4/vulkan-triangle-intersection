@@ -13,6 +13,7 @@
 #include "vulkan_hpp_include.hpp"
 
 #include "spdlog/cfg/env.h"
+#include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 
 #include "application.hpp"
@@ -62,5 +63,11 @@ int main() {
     {{0.5f, -0.5f, -2.0f}, {0.0f, 1.0f, 0.0f}}
     });
   // clang-format on
-  app.run();
+
+  while (!glfwWindowShouldClose(app.window())) {
+    glfwPollEvents();
+    app.loop();
+  }
+
+  app.shutdown();
 }
