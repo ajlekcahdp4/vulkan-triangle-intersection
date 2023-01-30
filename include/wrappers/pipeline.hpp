@@ -234,11 +234,7 @@ vk::PipelineRasterizationStateCreateInfo pipeline_data<vertex_t>::rasterization_
       .rasterizerDiscardEnable = VK_FALSE,
       .polygonMode = vk::PolygonMode::eFill,
       .cullMode = vk::CullModeFlagBits::eNone,
-<<<<<<< HEAD
-      .frontFace = vk::FrontFace::eClockwise,
-=======
       .frontFace = vk::FrontFace::eCounterClockwise,
->>>>>>> 3b92613 (Draw 2 triangles)
       .depthBiasEnable = VK_FALSE,
       .lineWidth = 1.0f,
   };
