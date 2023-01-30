@@ -83,11 +83,9 @@ struct buffer final {
         m_memory{allocate_device_memory(p_logical_device, p_phys_device.getMemoryProperties(),
                                         m_buffer.getMemoryRequirements(), p_property_flags)} {
     m_buffer.bindMemory(*m_memory, 0);
-    vk::DeviceSize size = sizeof_vector(p_data);
-    auto           memory = static_cast<char *>(m_memory.mapMemory(0, size));
-    memcpy(memory, p_data.data(), size);
-    m_memory.unmapMemory();
+    copy_to_device(p_data.data(), p_data.size());
   }
+
   template <typename T> void copy_to_device(const T *data, const std::size_t count, vk::DeviceSize stride = sizeof(T)) {
     assert(sizeof(T) <= stride);
     auto memory = static_cast<uint8_t *>(m_memory.mapMemory(0, count * stride));
