@@ -10,9 +10,11 @@
 
 #pragma once
 
-#include <engine.hpp>
+#include "wrappers.hpp"
 
 #include "misc.hpp"
+#include "ubo.hpp"
+#include "vertex.hpp"
 
 #include "ezvk/debug.hpp"
 #include "ezvk/debugged_instance.hpp"
@@ -76,8 +78,8 @@ class application final {
 
   ezvk::device_buffers m_uniform_buffers;
 
-  throttle::graphics::descriptor_set_data                       m_descriptor_set_data = nullptr;
-  throttle::graphics::pipeline_data<throttle::graphics::vertex> m_pipeline_data = nullptr;
+  throttle::graphics::descriptor_set_data        m_descriptor_set_data = nullptr;
+  throttle::graphics::pipeline_data<vertex_type> m_pipeline_data = nullptr;
 
   ezvk::framebuffers    m_framebuffers;
   vk::raii::CommandPool m_command_pool = nullptr;
@@ -98,7 +100,7 @@ public:
     m_queues = {m_platform.p_device(), m_logical_device, m_platform.surface()};
 
     m_swapchain_data = {m_platform.p_device(), m_logical_device, m_platform.surface(), m_platform.window().extent()};
-    m_uniform_buffers = {MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_platform.p_device(),
+    m_uniform_buffers = {MAX_FRAMES_IN_FLIGHT, sizeof(triangles::uniform_buffer_object), m_platform.p_device(),
                          m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer};
     m_descriptor_set_data = {m_logical_device, m_uniform_buffers};
 
@@ -116,7 +118,7 @@ public:
   void  loop() { render_frame(); }
   auto *window() const { return m_platform.window()(); }
 
-  void load_triangles(const std::vector<throttle::graphics::vertex> &vertices) {
+  void load_triangles(const std::vector<vertex_type> &vertices) {
     m_verices_n = vertices.size();
     m_vertex_buffer = {m_platform.p_device(), m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer,
                        std::span{vertices}};
@@ -184,9 +186,9 @@ private:
         .clear(); // Destroy the old swapchain before recreating another. NOTE[Sergei]: this is a dirty fix
     m_swapchain_data = std::move(new_swapchain);
 
-    m_pipeline_data = throttle::graphics::pipeline_data<throttle::graphics::vertex>{
-        m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_swapchain_data.extent(),
-        m_descriptor_set_data};
+    m_pipeline_data =
+        throttle::graphics::pipeline_data<vertex_type>{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv",
+                                                       m_swapchain_data.extent(), m_descriptor_set_data};
 
     m_framebuffers = {m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
                       m_pipeline_data.m_render_pass};
@@ -218,7 +220,7 @@ private:
     static auto start_time = std::chrono::high_resolution_clock::now();
     auto        curr_time = std::chrono::high_resolution_clock::now();
     float       time = std::chrono::duration<float, std::chrono::seconds::period>(curr_time - start_time).count();
-    throttle::graphics::uniform_buffer_object ubo{};
+    triangles::uniform_buffer_object ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f),

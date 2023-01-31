@@ -15,8 +15,7 @@
 
 #include <array>
 
-namespace throttle {
-namespace graphics {
+namespace triangles {
 
 struct uniform_buffer_object {
   glm::mat4 model;
@@ -24,5 +23,4 @@ struct uniform_buffer_object {
   glm::mat4 proj;
 };
 
-} // namespace graphics
-} // namespace throttle
+} // namespace triangles

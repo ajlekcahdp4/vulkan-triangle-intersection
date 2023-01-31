@@ -10,27 +10,29 @@
 
 #pragma once
 
-#include "vulkan_include.hpp"
+#include "vulkan_hpp_include.hpp"
 #include <glm/glm.hpp>
 
 #include <array>
 
-namespace throttle::graphics {
+namespace triangles {
 
-struct vertex {
+struct vertex_type {
   glm::vec3 pos;
   glm::vec3 color;
 
 public:
   static constexpr vk::VertexInputBindingDescription get_binding_description() {
-    return {.binding = 0, .stride = sizeof(vertex), .inputRate = vk::VertexInputRate::eVertex};
+    return {.binding = 0, .stride = sizeof(vertex_type), .inputRate = vk::VertexInputRate::eVertex};
   }
 
   static constexpr std::array<vk::VertexInputAttributeDescription, 2> get_attribute_description() {
-    return std::array<vk::VertexInputAttributeDescription, 2>{
-        {.binding = 0, .location = 0, .format = vk::Format::eR32G32Sfloat, .offset = offsetof(vertex, pos)},
-        {.binding = 0, .location = 1, .format = vk::Format::eR32G32B32Sfloat, .offset = offsetof(vertex, color)}};
+    auto first = vk::VertexInputAttributeDescription{
+        .location = 0, .binding = 0, .format = vk::Format::eR32G32Sfloat, .offset = offsetof(vertex_type, pos)};
+    auto second = vk::VertexInputAttributeDescription{
+        .location = 1, .binding = 0, .format = vk::Format::eR32G32B32Sfloat, .offset = offsetof(vertex_type, color)};
+    return {first, second};
   }
 };
 
-} // namespace throttle::graphics
+} // namespace triangles
