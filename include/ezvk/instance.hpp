@@ -32,12 +32,14 @@ public:
   const auto &missing() const { return m_missing; }
 };
 
+// clang-format off
 class i_instance {
 public:
-  virtual vk::raii::Instance       &operator()() = 0;
-  virtual const vk::raii::Instance &operator()() const = 0;
+  virtual vk::raii::Instance       &operator()()       & = 0;
+  virtual const vk::raii::Instance &operator()() const & = 0;
   virtual ~i_instance() {}
 };
+// clang-format on
 
 class instance : public i_instance {
   vk::raii::Instance m_instance = nullptr;
@@ -89,8 +91,8 @@ public:
     return std::make_pair(missing_layers.empty(), missing_layers);
   }
 
-  vk::raii::Instance       &operator()() override { return m_instance; }
-  const vk::raii::Instance &operator()() const override { return m_instance; }
+  vk::raii::Instance       &operator()() & override { return m_instance; }
+  const vk::raii::Instance &operator()() const & override { return m_instance; }
 };
 
 } // namespace ezvk

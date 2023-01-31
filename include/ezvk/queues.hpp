@@ -57,13 +57,6 @@ inline std::vector<queue_family_index_type> find_present_family_indices(const vk
   return present_indices;
 }
 
-class i_graphics_present_queues {
-public:
-  virtual const vk::raii::Queue &graphics() const = 0;
-  virtual const vk::raii::Queue &present() const = 0;
-  virtual ~i_graphics_present_queues() {}
-};
-
 using queue_index_type = uint32_t;
 
 class device_queue {
@@ -87,6 +80,13 @@ public:
   const auto &queue() const { return m_queue; }
 };
 
+class i_graphics_present_queues {
+public:
+  virtual const device_queue &graphics() const & = 0;
+  virtual const device_queue &present() const & = 0;
+  virtual ~i_graphics_present_queues() {}
+};
+
 namespace detail {
 
 class separate_graphics_present_queues : public i_graphics_present_queues {
@@ -100,8 +100,8 @@ public:
     m_present = {l_device, present_family, present};
   }
 
-  const vk::raii::Queue &graphics() const override { return m_graphics.queue(); }
-  const vk::raii::Queue &present() const override { return m_present.queue(); }
+  const device_queue &graphics() const & override { return m_graphics; }
+  const device_queue &present() const & override { return m_present; }
 };
 
 class single_graphics_present_queues : i_graphics_present_queues {
@@ -113,8 +113,8 @@ public:
     m_queue = {l_device, family, index};
   }
 
-  const vk::raii::Queue &graphics() const override { return m_queue.queue(); }
-  const vk::raii::Queue &present() const override { return m_queue.queue(); }
+  const device_queue &graphics() const & override { return m_queue; }
+  const device_queue &present() const & override { return m_queue; }
 };
 
 } // namespace detail

@@ -40,8 +40,8 @@ public:
                     vk::DebugUtilsMessageTypeFlagsEXT             type_flags = default_type_flags)
       : m_instance{std::move(p_instance)}, m_dmes{m_instance(), callback, severity_flags, type_flags} {}
 
-  vk::raii::Instance       &operator()() override { return m_instance(); }
-  const vk::raii::Instance &operator()() const override { return m_instance(); }
+  vk::raii::Instance       &operator()() & override { return m_instance(); }
+  const vk::raii::Instance &operator()() const & override { return m_instance(); }
 };
 
 class generic_instance {
@@ -53,8 +53,8 @@ public:
   generic_instance(debugged_instance inst)
       : m_abstract_instance_ptr{std::make_unique<debugged_instance>(std::move(inst))} {}
 
-  vk::raii::Instance       &operator()() { return m_abstract_instance_ptr->operator()(); }
-  const vk::raii::Instance &operator()() const { return m_abstract_instance_ptr->operator()(); }
+  vk::raii::Instance       &operator()()       &{ return m_abstract_instance_ptr->operator()(); }
+  const vk::raii::Instance &operator()() const & { return m_abstract_instance_ptr->operator()(); }
 };
 
 }; // namespace ezvk

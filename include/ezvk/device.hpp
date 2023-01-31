@@ -47,7 +47,7 @@ inline std::vector<vk::raii::PhysicalDevice> enumerate_suitable_physical_devices
 
 }; // namespace physical_device_selector
 
-class logical_device {
+class logical_device final {
   vk::raii::Device m_device = nullptr;
 
 public:
@@ -74,8 +74,8 @@ public:
     m_device = p_device.createDevice(device_create_info);
   }
 
-  auto       &operator()() { return m_device; }
-  const auto &operator()() const { return m_device; }
+  auto       &operator()()       &{ return m_device; }
+  const auto &operator()() const & { return m_device; }
 };
 
 } // namespace ezvk

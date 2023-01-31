@@ -127,8 +127,8 @@ public:
     m_messenger = instance.createDebugUtilsMessengerEXT(create_info);
   }
 
-  auto       &operator()() { return m_messenger; }
-  const auto &operator()() const { return m_messenger; }
+  auto       &operator()()       &{ return m_messenger; }
+  const auto &operator()() const & { return m_messenger; }
 };
 
 }; // namespace ezvk

@@ -39,7 +39,7 @@ inline uint32_t find_memory_type(vk::PhysicalDeviceMemoryProperties mem_properti
                                  vk::MemoryPropertyFlags property_flags) {
   uint32_t i = 0;
   auto     found = std::find_if(
-          mem_properties.memoryTypes.begin(), mem_properties.memoryTypes.end(), [&i, property_flags, type_filter](auto a) {
+      mem_properties.memoryTypes.begin(), mem_properties.memoryTypes.end(), [&i, property_flags, type_filter](auto a) {
         return (type_filter & (1 << i++)) && ((a.propertyFlags & property_flags) == property_flags);
       });
 
@@ -80,13 +80,13 @@ public:
     }
   }
 
-  auto       &operator[](std::size_t pos) { return m_vector.at(pos); }
-  const auto &operator[](std::size_t pos) const { return m_vector.at(pos); }
+  auto       &operator[](std::size_t pos)       &{ return m_vector.at(pos); }
+  const auto &operator[](std::size_t pos) const & { return m_vector.at(pos); }
 
-  auto       &front() { return m_vector.front(); }
-  const auto &front() const { return m_vector.front(); }
-  auto       &back() { return m_vector.back(); }
-  const auto &back() const { return m_vector.back(); }
+  auto       &front()       &{ return m_vector.front(); }
+  const auto &front() const & { return m_vector.front(); }
+  auto       &back()       &{ return m_vector.back(); }
+  const auto &back() const & { return m_vector.back(); }
 
   auto size() const { return m_vector.size(); }
   auto begin() { return m_vector.begin(); }
@@ -165,13 +165,13 @@ public:
     }
   }
 
-  auto       &operator[](std::size_t pos) { return m_vector.at(pos); }
-  const auto &operator[](std::size_t pos) const { return m_vector.at(pos); }
+  auto       &operator[](std::size_t pos)       &{ return m_vector.at(pos); }
+  const auto &operator[](std::size_t pos) const & { return m_vector.at(pos); }
 
-  auto       &front() { return m_vector.front(); }
-  const auto &front() const { return m_vector.front(); }
-  auto       &back() { return m_vector.back(); }
-  const auto &back() const { return m_vector.back(); }
+  auto       &front()       &{ return m_vector.front(); }
+  const auto &front() const & { return m_vector.front(); }
+  auto       &back()       &{ return m_vector.back(); }
+  const auto &back() const & { return m_vector.back(); }
 
   auto size() const { return m_vector.size(); }
   auto begin() { return m_vector.begin(); }

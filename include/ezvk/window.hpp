@@ -65,7 +65,7 @@ public:
     return vk::Extent2D{.width = static_cast<uint32_t>(width), .height = static_cast<uint32_t>(height)};
   }
 
-  GLFWwindow *operator()() const { return m_handle.get(); }
+  GLFWwindow *operator()() const & { return m_handle.get(); }
 };
 
 inline std::vector<std::string> glfw_required_vk_extensions() {
@@ -87,8 +87,8 @@ public:
   surface() = default;
   surface(const vk::raii::Instance &instance, const unique_glfw_window &window);
 
-  auto       &operator()() { return m_surface; }
-  const auto &operator()() const { return m_surface; }
+  auto       &operator()()       &{ return m_surface; }
+  const auto &operator()() const & { return m_surface; }
 };
 
 }; // namespace ezvk

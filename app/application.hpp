@@ -54,17 +54,17 @@ public:
       : m_instance{std::move(instance)}, m_window{std::move(window)}, m_surface{std::move(surface)},
         m_p_device{std::move(p_device)} {}
 
-  auto       &instance() { return m_instance(); }
-  const auto &instance() const { return m_instance(); }
+  auto       &instance()       &{ return m_instance(); }
+  const auto &instance() const & { return m_instance(); }
 
-  auto       &window() { return m_window; }
-  const auto &window() const { return m_window; }
+  auto       &window()       &{ return m_window; }
+  const auto &window() const & { return m_window; }
 
-  auto       &surface() { return m_surface(); }
-  const auto &surface() const { return m_surface(); }
+  auto       &surface()       &{ return m_surface(); }
+  const auto &surface() const & { return m_surface(); }
 
-  auto       &p_device() { return m_p_device; }
-  const auto &p_device() const { return m_p_device; }
+  auto       &p_device()       &{ return m_p_device; }
+  const auto &p_device() const & { return m_p_device; }
 };
 
 class application final {
