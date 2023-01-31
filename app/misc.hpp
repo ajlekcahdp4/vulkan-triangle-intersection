@@ -24,4 +24,6 @@ inline std::vector<std::string> required_vk_layers(bool validation = false) {
   return {};
 }
 
+inline std::vector<std::string> required_physical_device_extensions() { return {VK_KHR_SWAPCHAIN_EXTENSION_NAME}; }
+
 }; // namespace triangles

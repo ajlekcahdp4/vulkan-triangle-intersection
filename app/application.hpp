@@ -15,6 +15,7 @@
 #include "misc.hpp"
 
 #include "ezvk/debug.hpp"
+#include "ezvk/debugged_instance.hpp"
 #include "ezvk/instance.hpp"
 #include "ezvk/memory.hpp"
 #include "ezvk/queues.hpp"
@@ -37,15 +38,10 @@
 
 namespace triangles {
 
-constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-#ifdef USE_DEBUG_EXTENSION
-#define INSTANCE_TYPE ezvk::debugged_instance
-#else
-#define INSTANCE_TYPE ezvk::instance
-#endif
+constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 class application final {
-  INSTANCE_TYPE m_instance;
+  ezvk::generic_instance m_instance;
 
   vk::raii::PhysicalDevice m_phys_device = nullptr;
   ezvk::unique_glfw_window m_window = nullptr;
@@ -74,7 +70,7 @@ class application final {
 public:
   bool m_triangles_loaded = false;
 
-  application(INSTANCE_TYPE p_instance) {
+  application(ezvk::generic_instance p_instance) {
     m_instance = std::move(p_instance);
 
     m_phys_device = throttle::graphics::pick_physical_device(m_instance());

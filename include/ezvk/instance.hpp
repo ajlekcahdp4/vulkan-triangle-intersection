@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "debug.hpp"
 #include "error.hpp"
 #include "utils.hpp"
 #include "vulkan_hpp_include.hpp"
@@ -18,6 +19,7 @@
 #include <cstddef>
 #include <iterator>
 #include <span>
+#include <vulkan/vulkan_raii.hpp>
 
 namespace ezvk {
 
@@ -30,7 +32,14 @@ public:
   const auto &missing() const { return m_missing; }
 };
 
-class instance {
+class i_instance {
+public:
+  virtual vk::raii::Instance       &operator()() = 0;
+  virtual const vk::raii::Instance &operator()() const = 0;
+  virtual ~i_instance() {}
+};
+
+class instance : public i_instance {
   vk::raii::Instance m_instance = nullptr;
 
 public:
@@ -80,8 +89,8 @@ public:
     return std::make_pair(missing_layers.empty(), missing_layers);
   }
 
-  auto       &operator()() { return m_instance; }
-  const auto &operator()() const { return m_instance; }
+  vk::raii::Instance       &operator()() override { return m_instance; }
+  const vk::raii::Instance &operator()() const override { return m_instance; }
 };
 
 } // namespace ezvk

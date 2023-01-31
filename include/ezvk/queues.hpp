@@ -23,17 +23,17 @@
 
 namespace ezvk {
 
-using queue_family_index = uint32_t;
+using queue_family_index_type = uint32_t;
 struct queue_family_indices {
-  queue_family_index graphics, present;
+  queue_family_index_type graphics, present;
 };
 
-inline std::vector<queue_family_index> find_family_indices_with_queue_type(const vk::raii::PhysicalDevice &p_device,
-                                                                           vk::QueueFlagBits               queue_bits) {
-  auto                            properties = p_device.getQueueFamilyProperties();
-  std::vector<queue_family_index> graphics_indices;
+inline std::vector<queue_family_index_type>
+find_family_indices_with_queue_type(const vk::raii::PhysicalDevice &p_device, vk::QueueFlagBits queue_bits) {
+  auto                                 properties = p_device.getQueueFamilyProperties();
+  std::vector<queue_family_index_type> graphics_indices;
 
-  for (queue_family_index i = 0; const auto &qfp : properties) {
+  for (queue_family_index_type i = 0; const auto &qfp : properties) {
     if (qfp.queueFlags & queue_bits) graphics_indices.push_back(i);
     ++i;
   }
@@ -41,16 +41,16 @@ inline std::vector<queue_family_index> find_family_indices_with_queue_type(const
   return graphics_indices;
 }
 
-inline std::vector<queue_family_index> find_graphics_family_indices(const vk::raii::PhysicalDevice &p_device) {
+inline std::vector<queue_family_index_type> find_graphics_family_indices(const vk::raii::PhysicalDevice &p_device) {
   return find_family_indices_with_queue_type(p_device, vk::QueueFlagBits::eGraphics);
 }
 
-inline std::vector<queue_family_index> find_present_family_indices(const vk::raii::PhysicalDevice &p_device,
-                                                                   const vk::raii::SurfaceKHR     &surface) {
-  auto                            size = p_device.getQueueFamilyProperties().size();
-  std::vector<queue_family_index> present_indices;
+inline std::vector<queue_family_index_type> find_present_family_indices(const vk::raii::PhysicalDevice &p_device,
+                                                                        const vk::raii::SurfaceKHR     &surface) {
+  auto                                 size = p_device.getQueueFamilyProperties().size();
+  std::vector<queue_family_index_type> present_indices;
 
-  for (queue_family_index i = 0; i < size; ++i) {
+  for (queue_family_index_type i = 0; i < size; ++i) {
     if (p_device.getSurfaceSupportKHR(i, *surface)) present_indices.push_back(i);
   }
 
@@ -64,17 +64,17 @@ public:
   virtual ~i_graphics_present_queues() {}
 };
 
-using queue_index_t = uint32_t;
+using queue_index_type = uint32_t;
 
 class device_queue {
-  vk::raii::Queue    m_queue = nullptr;
-  queue_index_t      m_queue_index;
-  queue_family_index m_queue_family_index;
+  vk::raii::Queue         m_queue = nullptr;
+  queue_index_type        m_queue_index;
+  queue_family_index_type m_queue_family_index;
 
 public:
   device_queue() = default;
 
-  device_queue(const vk::raii::Device &l_device, queue_family_index queue_family, queue_index_t index) {
+  device_queue(const vk::raii::Device &l_device, queue_family_index_type queue_family, queue_index_type index) {
     m_queue = l_device.getQueue(queue_family, index);
     m_queue_index = index;
     m_queue_family_index = queue_family;
@@ -93,8 +93,9 @@ class separate_graphics_present_queues : public i_graphics_present_queues {
   vk::raii::Queue m_graphics = nullptr, m_present = nullptr;
 
 public:
-  separate_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index graphics_family,
-                                   queue_index_t graphics, queue_family_index present_family, queue_index_t present) {
+  separate_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index_type graphics_family,
+                                   queue_index_type graphics, queue_family_index_type present_family,
+                                   queue_index_type present) {
     m_graphics = l_device.getQueue(graphics_family, graphics);
     m_present = l_device.getQueue(present_family, present);
   }
@@ -107,7 +108,8 @@ class single_graphics_present_queues : i_graphics_present_queues {
   vk::raii::Queue m_queue = nullptr;
 
 public:
-  single_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index family, queue_index_t index) {
+  single_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index_type family,
+                                 queue_index_type index) {
     m_queue = l_device.getQueue(family, index);
   }
 
@@ -117,7 +119,7 @@ public:
 
 } // namespace detail
 
-inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, queue_family_index queue) {
+inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, queue_family_index_type queue) {
   return device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = queue});
 }
 

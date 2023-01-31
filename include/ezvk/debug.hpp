@@ -131,21 +131,4 @@ public:
   const auto &operator()() const { return m_messenger; }
 };
 
-class debugged_instance {
-  instance        m_instance;
-  debug_messenger m_dmes;
-
-public:
-  debugged_instance() = default;
-
-  debugged_instance(instance                                    &&p_instance,
-                    std::function<debug_messenger::callback_type> callback = default_debug_callback,
-                    vk::DebugUtilsMessageSeverityFlagsEXT         severity_flags = default_severity_flags,
-                    vk::DebugUtilsMessageTypeFlagsEXT             type_flags = default_type_flags)
-      : m_instance{std::move(p_instance)}, m_dmes{m_instance(), callback, severity_flags, type_flags} {}
-
-  auto       &operator()() { return m_instance(); }
-  const auto &operator()() const { return m_instance(); }
-};
-
 }; // namespace ezvk

@@ -9,6 +9,7 @@
  */
 
 #include "ezvk/debug.hpp"
+#include "ezvk/device.hpp"
 #include "ezvk/window.hpp"
 #include "glfw_include.hpp"
 #include "vulkan_hpp_include.hpp"
@@ -40,14 +41,17 @@ int main() {
   auto                   layers = triangles::required_vk_layers();
 #endif
 
-  ezvk::instance instance = {ctx, app_info, extensions.begin(), extensions.end(), layers.begin(), layers.end()};
+  ezvk::instance raw_instance = {ctx, app_info, extensions.begin(), extensions.end(), layers.begin(), layers.end()};
 
 #ifdef USE_DEBUG_EXTENSION
-  ezvk::debugged_instance debugged_instance = {std::move(instance)};
-  triangles::application  app = {std::move(debugged_instance)};
+  ezvk::generic_instance instance = ezvk::debugged_instance{std::move(raw_instance)};
 #else
-  triangles::application app = {std::move(instance)};
+  ezvk::generic_instance instance = std::move(raw_instance);
 #endif
+
+  triangles::application app = {std::move(instance)};
+  auto                   physical_device_extensions = triangles::required_physical_device_extensions();
+  // auto suitable_physical_devies = ezvk::ene
 
   // clang-format off
   app.load_triangles({
