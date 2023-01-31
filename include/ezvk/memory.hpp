@@ -37,15 +37,14 @@ public:
 
 inline uint32_t find_memory_type(vk::PhysicalDeviceMemoryProperties mem_properties, uint32_t &type_filter,
                                  vk::MemoryPropertyFlags property_flags) {
-  std::span<const vk::MemoryType> memory_types = {mem_properties.memoryTypes.data(), mem_properties.memoryTypeCount};
-
   uint32_t i = 0;
-  auto     found = std::find_if(memory_types.begin(), memory_types.end(), [&i, property_flags, type_filter](auto a) {
-    return (type_filter & (1 << i++)) && ((a.propertyFlags & property_flags) == property_flags);
-  });
+  auto     found = std::find_if(
+          mem_properties.memoryTypes.begin(), mem_properties.memoryTypes.end(), [&i, property_flags, type_filter](auto a) {
+        return (type_filter & (1 << i++)) && ((a.propertyFlags & property_flags) == property_flags);
+      });
 
-  if (found == memory_types.end()) throw ezvk::vk_memory_error{"Could not find suitable memory type"};
-  return i;
+  if (found == mem_properties.memoryTypes.end()) throw ezvk::vk_memory_error{"Could not find suitable memory type"};
+  return i - 1;
 }
 
 inline vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device            &l_device,
