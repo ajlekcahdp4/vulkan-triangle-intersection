@@ -111,35 +111,34 @@ public:
 
 private:
   void create_command_buffers() {
-    uint32_t                      n_frame_buffers = m_framebuffers.size();
-    vk::CommandBufferAllocateInfo alloc_info{};
-    alloc_info.commandPool = *m_command_pool;
-    alloc_info.commandBufferCount = n_frame_buffers;
-    alloc_info.level = vk::CommandBufferLevel::ePrimary;
+    vk::CommandBufferAllocateInfo alloc_info{.commandPool = *m_command_pool,
+                                             .level = vk::CommandBufferLevel::ePrimary,
+                                             .commandBufferCount = static_cast<uint32_t>(m_framebuffers.size())};
+
     m_command_buffers = vk::raii::CommandBuffers(m_logical_device, alloc_info);
 
     for (uint32_t i = 0; i < m_command_buffers.size(); ++i) {
-      vk::CommandBufferBeginInfo begin_info{};
-      begin_info.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
-      m_command_buffers[i].begin(begin_info);
-      vk::RenderPassBeginInfo render_pass_info{};
-      render_pass_info.renderPass = *m_pipeline_data.m_render_pass;
-      render_pass_info.framebuffer = *m_framebuffers[i];
-      render_pass_info.renderArea.offset = vk::Offset2D{0, 0};
-      render_pass_info.renderArea.extent = m_swapchain_data.extent();
-      vk::ClearValue clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
-      render_pass_info.clearValueCount = 1;
-      render_pass_info.pClearValues = &clear_color;
-      m_command_buffers[i].beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
-      m_command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
-      m_command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
-                                              {*m_descriptor_set_data.m_descriptor_set}, nullptr);
-      vk::Buffer     vertex_buffers[] = {*m_vertex_buffer.buffer()};
-      vk::DeviceSize offsets[] = {0};
-      m_command_buffers[i].bindVertexBuffers(0, vertex_buffers, offsets);
-      m_command_buffers[i].draw(m_verices_n, 1, 0, 0);
-      m_command_buffers[i].endRenderPass();
-      m_command_buffers[i].end();
+      const auto &buffer = m_command_buffers[i];
+
+      buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
+
+      vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
+      vk::RenderPassBeginInfo render_pass_info{.renderPass = *m_pipeline_data.m_render_pass,
+                                               .framebuffer = *m_framebuffers[i],
+                                               .renderArea.offset = vk::Offset2D{0, 0},
+                                               .renderArea.extent = m_swapchain_data.extent(),
+                                               .clearValueCount = 1,
+                                               .pClearValues = &clear_color};
+
+      buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
+      buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
+      buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
+                                {*m_descriptor_set_data.m_descriptor_set}, nullptr);
+
+      buffer.bindVertexBuffers(0, *m_vertex_buffer.buffer(), {0});
+      buffer.draw(m_verices_n, 1, 0, 0);
+      buffer.endRenderPass();
+      buffer.end();
     }
   }
 

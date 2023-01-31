@@ -19,6 +19,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <vulkan/vulkan_raii.hpp>
 
 namespace ezvk {
 
@@ -27,16 +28,21 @@ struct queue_family_indices {
   queue_family_index graphics, present;
 };
 
-inline std::vector<queue_family_index> find_graphics_family_indices(const vk::raii::PhysicalDevice &p_device) {
+inline std::vector<queue_family_index> find_family_indices_with_queue_type(const vk::raii::PhysicalDevice &p_device,
+                                                                           vk::QueueFlagBits               queue_bits) {
   auto                            properties = p_device.getQueueFamilyProperties();
   std::vector<queue_family_index> graphics_indices;
 
   for (queue_family_index i = 0; const auto &qfp : properties) {
-    if (qfp.queueFlags & vk::QueueFlagBits::eGraphics) graphics_indices.push_back(i);
+    if (qfp.queueFlags & queue_bits) graphics_indices.push_back(i);
     ++i;
   }
 
   return graphics_indices;
+}
+
+inline std::vector<queue_family_index> find_graphics_family_indices(const vk::raii::PhysicalDevice &p_device) {
+  return find_family_indices_with_queue_type(p_device, vk::QueueFlagBits::eGraphics);
 }
 
 inline std::vector<queue_family_index> find_present_family_indices(const vk::raii::PhysicalDevice &p_device,
@@ -59,6 +65,27 @@ public:
 };
 
 using queue_index = uint32_t;
+
+class device_queue {
+  vk::raii::Queue    m_queue = nullptr;
+  queue_index        m_queue_index;
+  queue_family_index m_queue_family_index;
+
+public:
+  device_queue() = default;
+
+  device_queue(const vk::raii::Device &l_device, queue_family_index queue_family, queue_index index) {
+    m_queue = l_device.getQueue(queue_family, index);
+    m_queue_index = index;
+    m_queue_family_index = queue_family;
+  }
+
+  auto family_index() const { return m_queue_family_index; }
+  auto queue_index() const { return m_queue_index; }
+
+  auto       &queue() { return m_queue; }
+  const auto &queue() const { return m_queue; }
+};
 
 namespace detail {
 
@@ -90,7 +117,7 @@ public:
 
 } // namespace detail
 
-inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, const queue_family_index queue) {
+inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, queue_family_index queue) {
   return device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = queue});
 }
 

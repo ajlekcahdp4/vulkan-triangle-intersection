@@ -13,17 +13,27 @@
 #include "ezvk/error.hpp"
 #include "ezvk/memory.hpp"
 
+#include "ezvk/queues.hpp"
 #include "utils.hpp"
 
 #include "vulkan_hpp_include.hpp"
 
 #include <cstddef>
 #include <cstdlib>
+#include <functional>
+#include <iterator>
 #include <memory>
 #include <span>
+#include <string>
 #include <vector>
+#include <vulkan/vulkan_raii.hpp>
 
 namespace ezvk {
+
+class vk_memory_error : public ezvk::vk_error {
+public:
+  vk_memory_error(std::string msg) : ezvk::vk_error{msg} {}
+};
 
 inline uint32_t find_memory_type(vk::PhysicalDeviceMemoryProperties mem_properties, uint32_t &type_filter,
                                  vk::MemoryPropertyFlags property_flags) {
@@ -34,7 +44,7 @@ inline uint32_t find_memory_type(vk::PhysicalDeviceMemoryProperties mem_properti
     return (type_filter & (1 << i++)) && ((a.propertyFlags & property_flags) == property_flags);
   });
 
-  if (found == memory_types.end()) throw ezvk::vk_error{"Could not find suitable memory type"};
+  if (found == memory_types.end()) throw ezvk::vk_memory_error{"Could not find suitable memory type"};
   return i;
 }
 
@@ -171,6 +181,37 @@ public:
   auto end() const { return m_vector.end(); }
   auto cbegin() const { return m_vector.cbegin(); }
   auto cend() const { return m_vector.cend(); }
+};
+
+class upload_context {
+  const vk::raii::Device *m_device_ptr;
+  device_queue            m_transfer_queue;
+
+  vk::raii::Fence         m_upload_fence = nullptr;
+  vk::raii::CommandBuffer m_command_buffer = nullptr;
+  vk::raii::CommandPool   m_command_pool = nullptr;
+
+public:
+  upload_context(const vk::raii::Device *l_device, device_queue transfer_queue)
+      : m_device_ptr{l_device}, m_transfer_queue{std::move(transfer_queue)} {
+    assert(l_device);
+    m_command_pool = ezvk::create_command_pool(*m_device_ptr, transfer_queue.family_index());
+
+    vk::CommandBufferAllocateInfo alloc_info{
+        .commandPool = *m_command_pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1};
+    m_command_buffer = std::move(vk::raii::CommandBuffers{*m_device_ptr, alloc_info}.front());
+    m_upload_fence = l_device->createFence({});
+  }
+
+  void immediate_submit(std::function<void(vk::raii::CommandBuffer &cmd)> cmd_buffer_creation_func) {
+    m_command_buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    cmd_buffer_creation_func(m_command_buffer);
+    vk::SubmitInfo submit_info = {.commandBufferCount = 1, .pCommandBuffers = &(*m_command_buffer)};
+    m_transfer_queue.queue().submit(submit_info, *m_upload_fence);
+    m_device_ptr->waitForFences(*m_upload_fence, true, UINT64_MAX);
+    m_device_ptr->resetFences(*m_upload_fence);
+    m_command_buffer.reset();
+  };
 };
 
 } // namespace ezvk
