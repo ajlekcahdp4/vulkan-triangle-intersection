@@ -125,8 +125,7 @@ private:
       vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
       vk::RenderPassBeginInfo render_pass_info{.renderPass = *m_pipeline_data.m_render_pass,
                                                .framebuffer = *m_framebuffers[i],
-                                               .renderArea.offset = vk::Offset2D{0, 0},
-                                               .renderArea.extent = m_swapchain_data.extent(),
+                                               .renderArea = {vk::Offset2D{0, 0}, m_swapchain_data.extent()},
                                                .clearValueCount = 1,
                                                .pClearValues = &clear_color};
 

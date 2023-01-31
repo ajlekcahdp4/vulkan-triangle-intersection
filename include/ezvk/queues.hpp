@@ -64,17 +64,17 @@ public:
   virtual ~i_graphics_present_queues() {}
 };
 
-using queue_index = uint32_t;
+using queue_index_t = uint32_t;
 
 class device_queue {
   vk::raii::Queue    m_queue = nullptr;
-  queue_index        m_queue_index;
+  queue_index_t      m_queue_index;
   queue_family_index m_queue_family_index;
 
 public:
   device_queue() = default;
 
-  device_queue(const vk::raii::Device &l_device, queue_family_index queue_family, queue_index index) {
+  device_queue(const vk::raii::Device &l_device, queue_family_index queue_family, queue_index_t index) {
     m_queue = l_device.getQueue(queue_family, index);
     m_queue_index = index;
     m_queue_family_index = queue_family;
@@ -94,7 +94,7 @@ class separate_graphics_present_queues : public i_graphics_present_queues {
 
 public:
   separate_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index graphics_family,
-                                   queue_index graphics, queue_family_index present_family, queue_index present) {
+                                   queue_index_t graphics, queue_family_index present_family, queue_index_t present) {
     m_graphics = l_device.getQueue(graphics_family, graphics);
     m_present = l_device.getQueue(present_family, present);
   }
@@ -107,7 +107,7 @@ class single_graphics_present_queues : i_graphics_present_queues {
   vk::raii::Queue m_queue = nullptr;
 
 public:
-  single_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index family, queue_index index) {
+  single_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index family, queue_index_t index) {
     m_queue = l_device.getQueue(family, index);
   }
 
