@@ -68,7 +68,7 @@ int main() {
 
   while (!glfwWindowShouldClose(app.window())) {
     glfwPollEvents();
-    app.loop();
+    if (app.m_triangles_loaded) app.loop();
   }
 
   app.shutdown();

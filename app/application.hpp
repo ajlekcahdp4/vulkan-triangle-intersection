@@ -72,6 +72,8 @@ class application final {
   std::size_t                      m_verices_n = 0;
 
 public:
+  bool m_triangles_loaded = false;
+
   application(INSTANCE_TYPE p_instance) {
     m_instance = std::move(p_instance);
 
@@ -95,7 +97,6 @@ public:
 
     m_command_pool = {throttle::graphics::create_command_pool(m_logical_device, m_queues)};
 
-    create_command_buffers();
     create_sync_objs();
   }
 
@@ -107,6 +108,7 @@ public:
     m_verices_n = vertices.size();
     m_vertex_buffer = {m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, std::span{vertices}};
     create_command_buffers();
+    m_triangles_loaded = true;
   }
 
 private:
