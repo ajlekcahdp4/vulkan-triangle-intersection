@@ -59,8 +59,8 @@ inline std::vector<queue_family_index_type> find_present_family_indices(const vk
 
 class i_graphics_present_queues {
 public:
-  virtual vk::Queue graphics() const = 0;
-  virtual vk::Queue present() const = 0;
+  virtual const vk::raii::Queue &graphics() const = 0;
+  virtual const vk::raii::Queue &present() const = 0;
   virtual ~i_graphics_present_queues() {}
 };
 
@@ -90,31 +90,31 @@ public:
 namespace detail {
 
 class separate_graphics_present_queues : public i_graphics_present_queues {
-  vk::raii::Queue m_graphics = nullptr, m_present = nullptr;
+  device_queue m_graphics, m_present;
 
 public:
   separate_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index_type graphics_family,
                                    queue_index_type graphics, queue_family_index_type present_family,
                                    queue_index_type present) {
-    m_graphics = l_device.getQueue(graphics_family, graphics);
-    m_present = l_device.getQueue(present_family, present);
+    m_graphics = {l_device, graphics_family, graphics};
+    m_present = {l_device, present_family, present};
   }
 
-  vk::Queue graphics() const override { return *m_graphics; }
-  vk::Queue present() const override { return *m_present; }
+  const vk::raii::Queue &graphics() const override { return m_graphics.queue(); }
+  const vk::raii::Queue &present() const override { return m_present.queue(); }
 };
 
 class single_graphics_present_queues : i_graphics_present_queues {
-  vk::raii::Queue m_queue = nullptr;
+  device_queue m_queue;
 
 public:
   single_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index_type family,
                                  queue_index_type index) {
-    m_queue = l_device.getQueue(family, index);
+    m_queue = {l_device, family, index};
   }
 
-  vk::Queue graphics() const override { return *m_queue; }
-  vk::Queue present() const override { return *m_queue; }
+  const vk::raii::Queue &graphics() const override { return m_queue.queue(); }
+  const vk::raii::Queue &present() const override { return m_queue.queue(); }
 };
 
 } // namespace detail

@@ -55,6 +55,7 @@ private:
   std::unique_ptr<GLFWwindow, glfw_window_deleter> m_handle;
 
 public:
+  unique_glfw_window() = default;
   unique_glfw_window(GLFWwindow *ptr) : m_handle{ptr} {}
   unique_glfw_window(const std::string &name, const vk::Extent2D &extent, bool resizable = false);
 

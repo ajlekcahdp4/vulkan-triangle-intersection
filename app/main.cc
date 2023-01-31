@@ -10,12 +10,16 @@
 
 #include "ezvk/debug.hpp"
 #include "ezvk/device.hpp"
+#include "ezvk/error.hpp"
+#include "ezvk/queues.hpp"
 #include "ezvk/window.hpp"
 #include "glfw_include.hpp"
 #include "vulkan_hpp_include.hpp"
 
 #include "spdlog/cfg/env.h"
 #include <GLFW/glfw3.h>
+#include <algorithm>
+#include <iterator>
 #include <spdlog/spdlog.h>
 
 #include "application.hpp"
@@ -49,9 +53,31 @@ int main() {
   ezvk::generic_instance instance = std::move(raw_instance);
 #endif
 
-  triangles::application app = {std::move(instance)};
-  auto                   physical_device_extensions = triangles::required_physical_device_extensions();
-  // auto suitable_physical_devies = ezvk::ene
+  auto physical_device_extensions = triangles::required_physical_device_extensions();
+  auto suitable_physical_devices = ezvk::physical_device_selector::enumerate_suitable_physical_devices(
+      instance(), physical_device_extensions.begin(), physical_device_extensions.end());
+
+  if (suitable_physical_devices.empty()) {
+    throw ezvk::vk_error{"No suitable physical devices found"};
+  }
+
+  auto p_device = std::move(suitable_physical_devices.front());
+  auto window = ezvk::unique_glfw_window{"Triangles intersection", vk::Extent2D{800, 600}, true};
+  auto surface = ezvk::surface{instance(), window};
+
+#if 0
+  auto graphics_queue_indices = ezvk::find_graphics_family_indices(p_device);
+  auto present_queue_indices = ezvk::find_present_family_indices(p_device, surface());
+
+  std::vector<ezvk::queue_family_index_type> intersection;
+  std::set_intersection(graphics_queue_indices.begin(), graphics_queue_indices.end(), present_queue_indices.begin(),
+                        present_queue_indices.end(), std::back_inserter(intersection));
+#endif
+
+  triangles::applicaton_platform platform = {std::move(instance), std::move(window), std::move(surface),
+                                             std::move(p_device)};
+
+  triangles::application app = {std::move(platform)};
 
   // clang-format off
   app.load_triangles({

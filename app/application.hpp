@@ -31,6 +31,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <vulkan/vulkan_raii.hpp>
 
 #if defined(VK_VALIDATION_LAYER) || !defined(NDEBUG)
 #define USE_DEBUG_EXTENSION
@@ -40,13 +41,35 @@ namespace triangles {
 
 constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
-class application final {
-  ezvk::generic_instance m_instance;
-
-  vk::raii::PhysicalDevice m_phys_device = nullptr;
+struct applicaton_platform {
+  ezvk::generic_instance   m_instance;
   ezvk::unique_glfw_window m_window = nullptr;
   ezvk::surface            m_surface;
-  vk::raii::Device         m_logical_device = nullptr;
+
+  vk::raii::PhysicalDevice m_p_device = nullptr;
+
+public:
+  applicaton_platform(ezvk::generic_instance instance, ezvk::unique_glfw_window window, ezvk::surface surface,
+                      vk::raii::PhysicalDevice p_device)
+      : m_instance{std::move(instance)}, m_window{std::move(window)}, m_surface{std::move(surface)},
+        m_p_device{std::move(p_device)} {}
+
+  auto       &instance() { return m_instance(); }
+  const auto &instance() const { return m_instance(); }
+
+  auto       &window() { return m_window; }
+  const auto &window() const { return m_window; }
+
+  auto       &surface() { return m_surface(); }
+  const auto &surface() const { return m_surface(); }
+
+  auto       &p_device() { return m_p_device; }
+  const auto &p_device() const { return m_p_device; }
+};
+
+class application final {
+  applicaton_platform m_platform;
+  vk::raii::Device    m_logical_device = nullptr;
 
   throttle::graphics::queues            m_queues = nullptr;
   throttle::graphics::swapchain_wrapper m_swapchain_data = nullptr;
@@ -70,23 +93,16 @@ class application final {
 public:
   bool m_triangles_loaded = false;
 
-  application(ezvk::generic_instance p_instance) {
-    m_instance = std::move(p_instance);
+  application(applicaton_platform platform) : m_platform{std::move(platform)} {
+    m_logical_device = {throttle::graphics::create_device(m_platform.p_device(), m_platform.surface())};
+    m_queues = {m_platform.p_device(), m_logical_device, m_platform.surface()};
 
-    m_phys_device = throttle::graphics::pick_physical_device(m_instance());
-    m_window = {"Triangles intersection", vk::Extent2D{800, 600}, true};
-
-    m_surface = {m_instance(), m_window};
-
-    m_logical_device = {throttle::graphics::create_device(m_phys_device, m_surface())};
-    m_queues = {m_phys_device, m_logical_device, m_surface()};
-
-    m_swapchain_data = {m_phys_device, m_logical_device, m_surface(), m_window.extent()};
-    m_uniform_buffers = {MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_phys_device,
+    m_swapchain_data = {m_platform.p_device(), m_logical_device, m_platform.surface(), m_platform.window().extent()};
+    m_uniform_buffers = {MAX_FRAMES_IN_FLIGHT, sizeof(throttle::graphics::uniform_buffer_object), m_platform.p_device(),
                          m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer};
     m_descriptor_set_data = {m_logical_device, m_uniform_buffers};
 
-    m_pipeline_data = {m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_window.extent(),
+    m_pipeline_data = {m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_platform.window().extent(),
                        m_descriptor_set_data};
     m_framebuffers = {m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
                       m_pipeline_data.m_render_pass};
@@ -98,11 +114,12 @@ public:
 
   void  shutdown() { m_logical_device.waitIdle(); }
   void  loop() { render_frame(); }
-  auto *window() const { return m_window(); }
+  auto *window() const { return m_platform.window()(); }
 
   void load_triangles(const std::vector<throttle::graphics::vertex> &vertices) {
     m_verices_n = vertices.size();
-    m_vertex_buffer = {m_phys_device, m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer, std::span{vertices}};
+    m_vertex_buffer = {m_platform.p_device(), m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer,
+                       std::span{vertices}};
     create_command_buffers();
     m_triangles_loaded = true;
   }
@@ -151,16 +168,16 @@ private:
   }
 
   void recreate_swap_chain() {
-    auto extent = m_window.extent();
+    auto extent = m_platform.window().extent();
 
     while (extent.width == 0 || extent.height == 0) {
-      extent = m_window.extent();
+      extent = m_platform.window().extent();
       glfwWaitEvents();
     }
 
     const auto &old_swapchain = m_swapchain_data.swapchain();
-    auto        new_swapchain =
-        throttle::graphics::swapchain_wrapper(m_phys_device, m_logical_device, m_surface(), extent, *old_swapchain);
+    auto        new_swapchain = throttle::graphics::swapchain_wrapper(m_platform.p_device(), m_logical_device,
+                                                                      m_platform.surface(), extent, *old_swapchain);
 
     m_logical_device.waitIdle();
     m_swapchain_data.swapchain()

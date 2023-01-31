@@ -39,7 +39,7 @@ inline std::vector<vk::raii::PhysicalDevice> enumerate_suitable_physical_devices
   std::vector<vk::raii::PhysicalDevice> suitable_devices;
 
   for (const auto &device : available_devices) {
-    if (supports_extensions(device, ext_start, ext_finish)) suitable_devices.push_back(std::move(device));
+    if (supports_extensions(device, ext_start, ext_finish).first) suitable_devices.push_back(std::move(device));
   }
 
   return suitable_devices;
