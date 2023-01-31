@@ -21,29 +21,15 @@ struct vertex {
   glm::vec3 pos;
   glm::vec3 color;
 
-  static vk::VertexInputBindingDescription get_binding_description() {
-    vk::VertexInputBindingDescription binding_description{};
-    binding_description.binding = 0;
-    binding_description.stride = sizeof(vertex);
-    binding_description.inputRate = vk::VertexInputRate::eVertex;
-    return binding_description;
+public:
+  static constexpr vk::VertexInputBindingDescription get_binding_description() {
+    return {.binding = 0, .stride = sizeof(vertex), .inputRate = vk::VertexInputRate::eVertex};
   }
 
-  static std::array<vk::VertexInputAttributeDescription, 2> get_attribute_description() {
-    std::array<vk::VertexInputAttributeDescription, 2> attribute_description{};
-
-    vk::VertexInputAttributeDescription();
-    attribute_description[0].binding = 0;
-    attribute_description[0].location = 0;
-    attribute_description[0].format = vk::Format::eR32G32Sfloat;
-    attribute_description[0].offset = offsetof(vertex, pos);
-
-    attribute_description[1].binding = 0;
-    attribute_description[1].location = 1;
-    attribute_description[1].format = vk::Format::eR32G32B32Sfloat;
-    attribute_description[1].offset = offsetof(vertex, color);
-
-    return attribute_description;
+  static constexpr std::array<vk::VertexInputAttributeDescription, 2> get_attribute_description() {
+    return std::array<vk::VertexInputAttributeDescription, 2>{
+        {.binding = 0, .location = 0, .format = vk::Format::eR32G32Sfloat, .offset = offsetof(vertex, pos)},
+        {.binding = 0, .location = 1, .format = vk::Format::eR32G32B32Sfloat, .offset = offsetof(vertex, color)}};
   }
 };
 
