@@ -139,9 +139,15 @@ pipeline_data<vertex_t>::create_pipeline(const vk::raii::Device &p_device, const
   auto color_blend_info = color_blend_state_create_info(color_attachments);
   vk::PipelineInputAssemblyStateCreateInfo input_asm_info{.flags = vk::PipelineInputAssemblyStateCreateFlags(),
                                                           .topology = vk::PrimitiveTopology::eTriangleList};
-  vk::Viewport viewport = {0.0f, 0.0f, static_cast<float>(p_extent.width), static_cast<float>(p_extent.height),
-                           0.0f, 1.0f};
-  vk::Rect2D   scissor = {vk::Offset2D{0, 0}, p_extent};
+
+  vk::Viewport viewport = {0.0f,
+                           static_cast<float>(p_extent.height),
+                           static_cast<float>(p_extent.width),
+                           -static_cast<float>(p_extent.height),
+                           0.0f,
+                           1.0f};
+
+  vk::Rect2D                          scissor = {vk::Offset2D{0, 0}, p_extent};
   vk::PipelineViewportStateCreateInfo viewport_info = {
       .viewportCount = 1, .pViewports = &viewport, .scissorCount = 1, .pScissors = &scissor};
   vk::PipelineMultisampleStateCreateInfo         multisampling = {.rasterizationSamples = vk::SampleCountFlagBits::e1,

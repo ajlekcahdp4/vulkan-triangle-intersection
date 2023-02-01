@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
                                                        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
                                                        .pEngineName = "Junk Inc.",
                                                        .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-                                                       .apiVersion = VK_MAKE_VERSION(1, 0, 0)};
+                                                       .apiVersion = VK_MAKE_VERSION(1, 1, 0)};
 
   vk::raii::Context ctx;
 
