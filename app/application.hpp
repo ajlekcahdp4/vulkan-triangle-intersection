@@ -246,7 +246,7 @@ private:
     glm::vec3 camera_pos = {-1000.0f, -1000.0f, -1000.0f};
     glm::vec3 camera_dir = glm::normalize(glm::vec3{1.0f, 1.0f, 1.0f});
 
-    glm::mat4x4 view = glm::lookAt(camera_pos, camera_pos + camera_dir, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4x4 view = glm::lookAt(camera_pos, camera_pos + camera_dir, glm::vec3(0.0f, -1.0f, 0.0f));
     glm::mat4x4 proj = glm::perspective(fov, static_cast<float>(extent.width) / extent.height, 0.1f, 5000.0f);
 
     return proj * view * model;
