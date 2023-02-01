@@ -110,7 +110,7 @@ public:
                       m_pipeline_data.m_render_pass};
 
     m_command_pool = {throttle::graphics::create_command_pool(m_logical_device, m_queues)};
-
+    create_command_buffers();
     create_sync_objs();
   }
 
@@ -122,8 +122,8 @@ public:
     m_verices_n = vertices.size();
     m_vertex_buffer = {m_platform.p_device(), m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer,
                        std::span{vertices}};
-    create_command_buffers();
     m_triangles_loaded = true;
+    create_command_buffers();
   }
 
 private:
@@ -151,8 +151,10 @@ private:
       buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
                                 {*m_descriptor_set_data.m_descriptor_set}, nullptr);
 
-      buffer.bindVertexBuffers(0, *m_vertex_buffer.buffer(), {0});
-      buffer.draw(m_verices_n, 1, 0, 0);
+      if (m_triangles_loaded) {
+        buffer.bindVertexBuffers(0, *m_vertex_buffer.buffer(), {0});
+        buffer.draw(m_verices_n, 1, 0, 0);
+      }
       buffer.endRenderPass();
       buffer.end();
     }
