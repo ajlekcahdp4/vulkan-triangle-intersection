@@ -10,6 +10,10 @@
 
 #pragma once
 
+#include "glm/geometric.hpp"
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_LEFT_HANDED
+
 #include "wrappers.hpp"
 
 #include "misc.hpp"
@@ -34,8 +38,6 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
-#include <vulkan/vulkan_raii.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
 #if defined(VK_VALIDATION_LAYER) || !defined(NDEBUG)
 #define USE_DEBUG_EXTENSION
@@ -236,38 +238,18 @@ private:
     create_command_buffers();
   }
 
-  // TEMPORARY
   glm::mat4x4 create_mvpc_matrix(const vk::Extent2D &extent) {
     float fov = glm::radians(45.0f);
-    if (extent.width > extent.height) fov *= static_cast<float>(extent.height) / static_cast<float>(extent.width);
 
     glm::mat4x4 model = glm::mat4x4(1.0f);
-    glm::mat4x4 view =
-        glm::lookAt(glm::vec3(-5.0f, 3.0f, -10.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    glm::mat4x4 proj = glm::perspective(fov, static_cast<float>(extent.width) / extent.height, 0.1f, 100.0f);
-    // clang-format off
-    glm::mat4x4 clip = glm::mat4x4{ // Vulkan clip space has inverted Y and half Z
-      1.0f, 0.0f, 0.0f, 0.0f,
-      0.0f, -1.0f, 0.0f, 0.0f,
-      0.0f,  0.0f, 0.5f, 0.0f,
-      0.0f,  0.0f, 0.5f, 1.0f
-    };
-    // clang-format on
-    return clip * proj * view * model;
-  }
 
-  // NOTE: uniform buffers should be updated before the descriptors set's creation
-  void update_uniform_buffers() {
-    static auto start_time = std::chrono::high_resolution_clock::now();
-    auto        curr_time = std::chrono::high_resolution_clock::now();
-    float       time = std::chrono::duration<float, std::chrono::seconds::period>(curr_time - start_time).count();
-    triangles::uniform_buffer_object ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f),
-                                m_swapchain_data.extent().width / (float)m_swapchain_data.extent().height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1; // because in OpenGl y axis is inverted
-    m_uniform_buffers[m_curr_frame].copy_to_device(ubo);
+    glm::vec3 camera_pos = {-1000.0f, -1000.0f, -1000.0f};
+    glm::vec3 camera_dir = glm::normalize(glm::vec3{1.0f, 1.0f, 1.0f});
+
+    glm::mat4x4 view = glm::lookAt(camera_pos, camera_pos + camera_dir, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::mat4x4 proj = glm::perspective(fov, static_cast<float>(extent.width) / extent.height, 0.1f, 5000.0f);
+
+    return proj * view * model;
   }
 
   // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc

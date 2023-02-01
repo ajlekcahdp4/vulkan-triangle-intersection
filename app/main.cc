@@ -109,29 +109,34 @@ bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_ge
   auto result = cont.many_to_many();
   if (hide) return true;
 
-  // for (const auto v : result)
-  //   std::cout << v->index << " ";
-  // std::cout << "\n";
+#if 0
+  for (const auto v : result) {
+    std::cout << v->index << " ";
+  }
+  std::cout << "\n";
+#endif
+
   unsigned point_ind = 0;
+
   std::transform(points.begin(), points.end(), std::back_inserter(vertices), [&result, &point_ind](auto &point) {
     triangles::vertex_type vertex;
-    vertex.pos[0] = point[0];
-    vertex.pos[1] = point[1];
-    vertex.pos[2] = point[2];
+    vertex.pos = {point[0], point[1], point[2]};
+
     auto found =
         std::find_if(result.begin(), result.end(), [point_ind](auto shape) { return shape->index == point_ind / 3; });
     point_ind += 1;
-    if (found == result.end())
+    if (found == result.end()) {
       vertex.color = {0.0f, 0.0f, 1.0f};
-    else
+    } else {
       vertex.color = {1.0f, 0.0f, 0.0f};
+    }
+
     return vertex;
   });
   return true;
 }
 
 int main(int argc, char *argv[]) {
-
   // intersection
 
   bool hide = false;

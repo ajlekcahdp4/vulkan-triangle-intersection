@@ -28,7 +28,7 @@ public:
 
   static constexpr std::array<vk::VertexInputAttributeDescription, 2> get_attribute_description() {
     auto first = vk::VertexInputAttributeDescription{
-        .location = 0, .binding = 0, .format = vk::Format::eR32G32Sfloat, .offset = offsetof(vertex_type, pos)};
+        .location = 0, .binding = 0, .format = vk::Format::eR32G32B32Sfloat, .offset = offsetof(vertex_type, pos)};
     auto second = vk::VertexInputAttributeDescription{
         .location = 1, .binding = 0, .format = vk::Format::eR32G32B32Sfloat, .offset = offsetof(vertex_type, color)};
     return {first, second};
