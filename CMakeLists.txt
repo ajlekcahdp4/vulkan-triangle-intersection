@@ -17,6 +17,12 @@ else()
   add_compile_options(-Wall -Wextra)
 endif()
 
+find_package(Boost COMPONENTS program_options)
+
+if(${Boost_FOUND})
+  add_compile_definitions(BOOST_FOUND__)
+endif()
+
 find_package(GTest)
 set(NOGTEST OFF CACHE BOOL "Disable GoogleTest")
 
@@ -131,6 +137,10 @@ add_custom_command(TARGET triangles POST_BUILD
 )
 
 target_link_libraries(triangles PUBLIC glfw Vulkan::Vulkan ezvk glm throttle)
+if (${BOOST_FOUND})
+  target_link_libraries(triangles PUBLIC Boost::program_options)
+endif()
+
 add_dependencies(triangles shaders)
 
 install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
