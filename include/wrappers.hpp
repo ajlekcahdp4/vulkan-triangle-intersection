@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "wrappers/device.hpp"
 #include "wrappers/pipeline.hpp"
 #include "wrappers/queue_families.hpp"
 #include "wrappers/swapchain.hpp"

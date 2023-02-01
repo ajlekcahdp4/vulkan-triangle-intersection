@@ -105,7 +105,6 @@ set(VK_VALIDATION_LAYER OFF CACHE BOOL "Enables Vulkan validation layer")
 
 set(EZVK_SOURCES
   src/shaders.cc
-  src/device.cc
   src/queue_families.cc
   src/pipeline.cc
   src/swapchain.cc
