@@ -18,6 +18,7 @@
 
 #include "ezvk/debug.hpp"
 #include "ezvk/debugged_instance.hpp"
+#include "ezvk/device.hpp"
 #include "ezvk/instance.hpp"
 #include "ezvk/memory.hpp"
 #include "ezvk/queues.hpp"
@@ -34,14 +35,13 @@
 #include <iostream>
 #include <memory>
 #include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
 #if defined(VK_VALIDATION_LAYER) || !defined(NDEBUG)
 #define USE_DEBUG_EXTENSION
 #endif
 
 namespace triangles {
-
-constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 2;
 
 struct applicaton_platform {
   ezvk::generic_instance   m_instance;
@@ -70,10 +70,19 @@ public:
 };
 
 class application final {
-  applicaton_platform m_platform;
-  vk::raii::Device    m_logical_device = nullptr;
+private:
+  static constexpr uint32_t c_max_frames_in_flight = 2; // Double buffering
+  static constexpr uint32_t c_graphics_queue_index = 0;
+  static constexpr uint32_t c_present_queue_index = 0;
+  static constexpr uint32_t c_dear_imgui_queue_index = 1;
 
-  throttle::graphics::queues            m_queues = nullptr;
+private:
+  applicaton_platform m_platform;
+
+  // Logical device and queues needed for rendering
+  ezvk::logical_device m_logical_device;
+  ezvk::device_queue   m_graphics, m_present;
+
   throttle::graphics::swapchain_wrapper m_swapchain_data = nullptr;
 
   ezvk::device_buffers m_uniform_buffers;
@@ -96,43 +105,73 @@ public:
   bool m_triangles_loaded = false;
 
   application(applicaton_platform platform) : m_platform{std::move(platform)} {
-    m_logical_device = {throttle::graphics::create_device(m_platform.p_device(), m_platform.surface())};
-    m_queues = {m_platform.p_device(), m_logical_device, m_platform.surface()};
+    initialize_logical_device_queues();
 
-    m_swapchain_data = {m_platform.p_device(), m_logical_device, m_platform.surface(), m_platform.window().extent()};
-    m_uniform_buffers = {MAX_FRAMES_IN_FLIGHT, sizeof(triangles::uniform_buffer_object), m_platform.p_device(),
-                         m_logical_device, vk::BufferUsageFlagBits::eUniformBuffer};
-    m_descriptor_set_data = {m_logical_device, m_uniform_buffers};
+    m_swapchain_data = {m_platform.p_device(), m_logical_device(), m_platform.surface(), m_platform.window().extent()};
+    m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::uniform_buffer_object), m_platform.p_device(),
+                         m_logical_device(), vk::BufferUsageFlagBits::eUniformBuffer};
+    m_descriptor_set_data = {m_logical_device(), m_uniform_buffers};
 
-    m_pipeline_data = {m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv", m_platform.window().extent(),
+    m_pipeline_data = {m_logical_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_platform.window().extent(),
                        m_descriptor_set_data};
-    m_framebuffers = {m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
+    m_framebuffers = {m_logical_device(), m_swapchain_data.image_views(), m_swapchain_data.extent(),
                       m_pipeline_data.m_render_pass};
 
-    m_command_pool = {throttle::graphics::create_command_pool(m_logical_device, m_queues)};
+    m_command_pool = {ezvk::create_command_pool(m_logical_device(), m_graphics.family_index())};
     create_command_buffers();
     create_sync_objs();
   }
 
-  void  shutdown() { m_logical_device.waitIdle(); }
+  void  shutdown() { m_logical_device().waitIdle(); }
   void  loop() { render_frame(); }
   auto *window() const { return m_platform.window()(); }
 
   void load_triangles(const std::vector<vertex_type> &vertices) {
     m_verices_n = vertices.size();
-    m_vertex_buffer = {m_platform.p_device(), m_logical_device, vk::BufferUsageFlagBits::eVertexBuffer,
+    m_vertex_buffer = {m_platform.p_device(), m_logical_device(), vk::BufferUsageFlagBits::eVertexBuffer,
                        std::span{vertices}};
     m_triangles_loaded = true;
     create_command_buffers();
   }
 
 private:
+  void initialize_logical_device_queues() {
+    auto graphics_queue_indices = ezvk::find_graphics_family_indices(m_platform.p_device());
+    auto present_queue_indices = ezvk::find_present_family_indices(m_platform.p_device(), m_platform.surface());
+
+    std::vector<ezvk::queue_family_index_type> intersection;
+    std::set_intersection(graphics_queue_indices.begin(), graphics_queue_indices.end(), present_queue_indices.begin(),
+                          present_queue_indices.end(), std::back_inserter(intersection));
+
+    float                                  default_priority = 1.0f;
+    std::vector<vk::DeviceQueueCreateInfo> reqs;
+
+    ezvk::queue_family_index_type chosen_graphics, chosen_present;
+    if (intersection.empty()) {
+      chosen_graphics = graphics_queue_indices.front(); // Maybe find a queue family with maximum number of queues
+      chosen_present = present_queue_indices.front();
+      reqs.push_back({.queueFamilyIndex = chosen_graphics, .queueCount = 1, .pQueuePriorities = &default_priority});
+      reqs.push_back({.queueFamilyIndex = chosen_present, .queueCount = 1, .pQueuePriorities = &default_priority});
+    }
+
+    else {
+      chosen_graphics = chosen_present = intersection.front();
+      reqs.push_back({.queueFamilyIndex = chosen_graphics, .queueCount = 1, .pQueuePriorities = &default_priority});
+    }
+
+    auto extensions = required_physical_device_extensions();
+    m_logical_device = ezvk::logical_device{m_platform.p_device(), reqs, extensions.begin(), extensions.end()};
+
+    m_graphics = ezvk::device_queue{m_logical_device(), chosen_graphics, c_graphics_queue_index};
+    m_present = ezvk::device_queue{m_logical_device(), chosen_graphics, c_present_queue_index};
+  };
+
   void create_command_buffers() {
     vk::CommandBufferAllocateInfo alloc_info{.commandPool = *m_command_pool,
                                              .level = vk::CommandBufferLevel::ePrimary,
                                              .commandBufferCount = static_cast<uint32_t>(m_framebuffers.size())};
 
-    m_command_buffers = vk::raii::CommandBuffers(m_logical_device, alloc_info);
+    m_command_buffers = vk::raii::CommandBuffers(m_logical_device(), alloc_info);
 
     for (uint32_t i = 0; i < m_command_buffers.size(); ++i) {
       const auto &buffer = m_command_buffers[i];
@@ -161,13 +200,13 @@ private:
   }
 
   void create_sync_objs() {
-    m_image_availible_semaphores.reserve(MAX_FRAMES_IN_FLIGHT);
-    m_render_finished_semaphores.reserve(MAX_FRAMES_IN_FLIGHT);
+    m_image_availible_semaphores.reserve(c_max_frames_in_flight);
+    m_render_finished_semaphores.reserve(c_max_frames_in_flight);
 
-    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-      m_image_availible_semaphores.push_back(m_logical_device.createSemaphore({}));
-      m_render_finished_semaphores.push_back(m_logical_device.createSemaphore({}));
-      m_in_flight_fences.push_back(m_logical_device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled}));
+    for (uint32_t i = 0; i < c_max_frames_in_flight; ++i) {
+      m_image_availible_semaphores.push_back(m_logical_device().createSemaphore({}));
+      m_render_finished_semaphores.push_back(m_logical_device().createSemaphore({}));
+      m_in_flight_fences.push_back(m_logical_device().createFence({.flags = vk::FenceCreateFlagBits::eSignaled}));
     }
   }
 
@@ -180,19 +219,19 @@ private:
     }
 
     const auto &old_swapchain = m_swapchain_data.swapchain();
-    auto        new_swapchain = throttle::graphics::swapchain_wrapper(m_platform.p_device(), m_logical_device,
+    auto        new_swapchain = throttle::graphics::swapchain_wrapper(m_platform.p_device(), m_logical_device(),
                                                                       m_platform.surface(), extent, *old_swapchain);
 
-    m_logical_device.waitIdle();
+    m_logical_device().waitIdle();
     m_swapchain_data.swapchain()
         .clear(); // Destroy the old swapchain before recreating another. NOTE[Sergei]: this is a dirty fix
     m_swapchain_data = std::move(new_swapchain);
 
     m_pipeline_data =
-        throttle::graphics::pipeline_data<vertex_type>{m_logical_device, "shaders/vertex.spv", "shaders/fragment.spv",
+        throttle::graphics::pipeline_data<vertex_type>{m_logical_device(), "shaders/vertex.spv", "shaders/fragment.spv",
                                                        m_swapchain_data.extent(), m_descriptor_set_data};
 
-    m_framebuffers = {m_logical_device, m_swapchain_data.image_views(), m_swapchain_data.extent(),
+    m_framebuffers = {m_logical_device(), m_swapchain_data.image_views(), m_swapchain_data.extent(),
                       m_pipeline_data.m_render_pass};
     create_command_buffers();
   }
@@ -233,7 +272,7 @@ private:
 
   // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
   void render_frame() {
-    m_logical_device.waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
+    m_logical_device().waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
 
     vk::AcquireNextImageInfoKHR acquire_info = {.swapchain = *m_swapchain_data.swapchain(),
                                                 .timeout = UINT64_MAX,
@@ -243,7 +282,7 @@ private:
 
     uint32_t image_index;
     try {
-      image_index = m_logical_device.acquireNextImage2KHR(acquire_info).second;
+      image_index = m_logical_device().acquireNextImage2KHR(acquire_info).second;
     } catch (vk::OutOfDateKHRError &) {
       recreate_swap_chain();
       return;
@@ -261,8 +300,8 @@ private:
                                           .signalSemaphoreCount = 1,
                                           .pSignalSemaphores = std::addressof(*m_render_finished_semaphores[m_curr_frame])};
 
-    m_logical_device.resetFences(*m_in_flight_fences[m_curr_frame]); // segfault was there
-    m_queues.graphics.submit(submit_info, *m_in_flight_fences[m_curr_frame]);
+    m_logical_device().resetFences(*m_in_flight_fences[m_curr_frame]); // segfault was there
+    m_graphics.queue().submit(submit_info, *m_in_flight_fences[m_curr_frame]);
 
     vk::PresentInfoKHR present_info = {.waitSemaphoreCount = 1,
                                        .pWaitSemaphores = std::addressof(*m_render_finished_semaphores[m_curr_frame]),
@@ -272,7 +311,7 @@ private:
 
     vk::Result result_present;
     try {
-      result_present = m_queues.present.presentKHR(present_info);
+      result_present = m_present.queue().presentKHR(present_info);
     } catch (vk::OutOfDateKHRError &) {
       result_present = vk::Result::eErrorOutOfDateKHR;
     }
@@ -282,7 +321,7 @@ private:
       return;
     }
 
-    m_curr_frame = (m_curr_frame + 1) % MAX_FRAMES_IN_FLIGHT;
+    m_curr_frame = (m_curr_frame + 1) % c_max_frames_in_flight;
   }
 };
 

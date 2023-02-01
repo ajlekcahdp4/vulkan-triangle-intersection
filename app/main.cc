@@ -66,12 +66,6 @@ int main() {
   auto surface = ezvk::surface{instance(), window};
 
 #if 0
-  auto graphics_queue_indices = ezvk::find_graphics_family_indices(p_device);
-  auto present_queue_indices = ezvk::find_present_family_indices(p_device, surface());
-
-  std::vector<ezvk::queue_family_index_type> intersection;
-  std::set_intersection(graphics_queue_indices.begin(), graphics_queue_indices.end(), present_queue_indices.begin(),
-                        present_queue_indices.end(), std::back_inserter(intersection));
 #endif
 
   triangles::applicaton_platform platform = {std::move(instance), std::move(window), std::move(surface),
