@@ -104,7 +104,7 @@ public:
   const device_queue &present() const & override { return m_present; }
 };
 
-class single_graphics_present_queues : i_graphics_present_queues {
+class single_graphics_present_queues : public i_graphics_present_queues {
   device_queue m_queue;
 
 public:
@@ -118,6 +118,19 @@ public:
 };
 
 } // namespace detail
+
+inline std::unique_ptr<i_graphics_present_queues> make_graphics_present_queues(const vk::raii::Device &l_device,
+                                                                               queue_family_index_type graphics_family,
+                                                                               queue_index_type        graphics,
+                                                                               queue_family_index_type present_family,
+                                                                               queue_index_type        present) {
+  if (graphics_family == present_family) {
+    return std::make_unique<detail::single_graphics_present_queues>(l_device, graphics_family, graphics);
+  }
+
+  return std::make_unique<detail::separate_graphics_present_queues>(l_device, graphics_family, graphics, present_family,
+                                                                    present);
+}
 
 inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, queue_family_index_type queue) {
   return device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = queue});

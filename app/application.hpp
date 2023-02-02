@@ -25,6 +25,7 @@
 #include "ezvk/memory.hpp"
 #include "ezvk/queues.hpp"
 #include "ezvk/shaders.hpp"
+#include "ezvk/swapchain.hpp"
 #include "ezvk/window.hpp"
 
 #include "glfw_include.hpp"
@@ -80,11 +81,10 @@ private:
   applicaton_platform m_platform;
 
   // Logical device and queues needed for rendering
-  ezvk::logical_device m_logical_device;
-  ezvk::device_queue   m_graphics, m_present;
+  ezvk::logical_device                             m_logical_device;
+  std::unique_ptr<ezvk::i_graphics_present_queues> m_graphics_present;
 
-  throttle::graphics::swapchain_wrapper m_swapchain_data = nullptr;
-
+  ezvk::swapchain      m_swapchain;
   ezvk::device_buffers m_uniform_buffers;
 
   throttle::graphics::descriptor_set_data        m_descriptor_set_data = nullptr;
@@ -107,16 +107,18 @@ public:
   application(applicaton_platform platform) : m_platform{std::move(platform)} {
     initialize_logical_device_queues();
 
-    m_swapchain_data = {m_platform.p_device(), m_logical_device(), m_platform.surface(), m_platform.window().extent()};
+    m_swapchain = {m_platform.p_device(), m_logical_device(), m_platform.surface(), m_platform.window().extent(),
+                   m_graphics_present.get()};
+
     m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::uniform_buffer_object), m_platform.p_device(),
                          m_logical_device(), vk::BufferUsageFlagBits::eUniformBuffer};
     m_descriptor_set_data = {m_logical_device(), m_uniform_buffers};
 
     m_pipeline_data = {m_logical_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_descriptor_set_data};
-    m_framebuffers = {m_logical_device(), m_swapchain_data.image_views(), m_swapchain_data.extent(),
+    m_framebuffers = {m_logical_device(), m_swapchain.image_views(), m_swapchain.extent(),
                       m_pipeline_data.m_render_pass};
 
-    m_command_pool = {ezvk::create_command_pool(m_logical_device(), m_graphics.family_index())};
+    m_command_pool = {ezvk::create_command_pool(m_logical_device(), m_graphics_present->graphics().family_index())};
     create_command_buffers();
     create_sync_objs();
   }
@@ -160,9 +162,8 @@ private:
 
     auto extensions = required_physical_device_extensions();
     m_logical_device = ezvk::logical_device{m_platform.p_device(), reqs, extensions.begin(), extensions.end()};
-
-    m_graphics = ezvk::device_queue{m_logical_device(), chosen_graphics, c_graphics_queue_index};
-    m_present = ezvk::device_queue{m_logical_device(), chosen_graphics, c_present_queue_index};
+    m_graphics_present = ezvk::make_graphics_present_queues(m_logical_device(), chosen_graphics, c_graphics_queue_index,
+                                                            chosen_present, c_present_queue_index);
   };
 
   void create_command_buffers() {
@@ -180,12 +181,13 @@ private:
       vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
       vk::RenderPassBeginInfo render_pass_info{.renderPass = *m_pipeline_data.m_render_pass,
                                                .framebuffer = *m_framebuffers[i],
-                                               .renderArea = {vk::Offset2D{0, 0}, m_swapchain_data.extent()},
+                                               .renderArea = {vk::Offset2D{0, 0}, m_swapchain.extent()},
                                                .clearValueCount = 1,
                                                .pClearValues = &clear_color};
 
       buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
-      auto         extent = m_swapchain_data.extent();
+      auto extent = m_swapchain.extent();
+
       vk::Viewport viewport = {0.0f,
                                static_cast<float>(extent.height),
                                static_cast<float>(extent.width),
@@ -193,6 +195,7 @@ private:
                                0.0f,
                                1.0f};
       vk::Rect2D   scissor = {vk::Offset2D{0, 0}, extent};
+
       buffer.setViewport(0, {viewport});
       buffer.setScissor(0, {scissor});
       buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
@@ -228,17 +231,17 @@ private:
       glfwWaitEvents();
     }
 
-    const auto &old_swapchain = m_swapchain_data.swapchain();
-    auto        new_swapchain = throttle::graphics::swapchain_wrapper(m_platform.p_device(), m_logical_device(),
-                                                                      m_platform.surface(), extent, *old_swapchain);
+    const auto &old_swapchain = m_swapchain();
+    auto new_swapchain = ezvk::swapchain{m_platform.p_device(),    m_logical_device(), m_platform.surface(), extent,
+                                         m_graphics_present.get(), *old_swapchain};
 
     m_logical_device().waitIdle();
-    m_swapchain_data.swapchain()
-        .clear(); // Destroy the old swapchain before recreating another. NOTE[Sergei]: this is a dirty fix
-    m_swapchain_data = std::move(new_swapchain);
+    m_swapchain().clear(); // Destroy the old swapchain before recreating another. NOTE[Sergei]: this is a dirty fix
+    m_swapchain = std::move(new_swapchain);
 
-    m_framebuffers = {m_logical_device(), m_swapchain_data.image_views(), m_swapchain_data.extent(),
+    m_framebuffers = {m_logical_device(), m_swapchain.image_views(), m_swapchain.extent(),
                       m_pipeline_data.m_render_pass};
+
     create_command_buffers();
   }
 
@@ -260,7 +263,7 @@ private:
   void render_frame() {
     m_logical_device().waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
 
-    vk::AcquireNextImageInfoKHR acquire_info = {.swapchain = *m_swapchain_data.swapchain(),
+    vk::AcquireNextImageInfoKHR acquire_info = {.swapchain = *m_swapchain(),
                                                 .timeout = UINT64_MAX,
                                                 .semaphore = *m_image_availible_semaphores[m_curr_frame],
                                                 .fence = nullptr,
@@ -274,7 +277,7 @@ private:
       return;
     }
 
-    auto mvpc = create_mvpc_matrix(m_swapchain_data.extent());
+    auto mvpc = create_mvpc_matrix(m_swapchain.extent());
     m_uniform_buffers[m_curr_frame].copy_to_device(mvpc);
 
     vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -287,17 +290,17 @@ private:
                                           .pSignalSemaphores = std::addressof(*m_render_finished_semaphores[m_curr_frame])};
 
     m_logical_device().resetFences(*m_in_flight_fences[m_curr_frame]); // segfault was there
-    m_graphics.queue().submit(submit_info, *m_in_flight_fences[m_curr_frame]);
+    m_graphics_present->graphics().queue().submit(submit_info, *m_in_flight_fences[m_curr_frame]);
 
     vk::PresentInfoKHR present_info = {.waitSemaphoreCount = 1,
                                        .pWaitSemaphores = std::addressof(*m_render_finished_semaphores[m_curr_frame]),
                                        .swapchainCount = 1,
-                                       .pSwapchains = std::addressof(*m_swapchain_data.swapchain()),
+                                       .pSwapchains = std::addressof(*m_swapchain()),
                                        .pImageIndices = &image_index};
 
     vk::Result result_present;
     try {
-      result_present = m_present.queue().presentKHR(present_info);
+      result_present = m_graphics_present->present().queue().presentKHR(present_info);
     } catch (vk::OutOfDateKHRError &) {
       result_present = vk::Result::eErrorOutOfDateKHR;
     }
