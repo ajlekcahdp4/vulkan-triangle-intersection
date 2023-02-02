@@ -94,12 +94,15 @@ private:
   vk::raii::CommandPool m_command_pool = nullptr;
   ezvk::device_buffer   m_vertex_buffer;
 
-  vk::raii::CommandBuffers         m_command_buffers = nullptr;
-  std::vector<vk::raii::Semaphore> m_image_availible_semaphores;
-  std::vector<vk::raii::Semaphore> m_render_finished_semaphores;
-  std::vector<vk::raii::Fence>     m_in_flight_fences;
-  std::size_t                      m_curr_frame = 0;
-  std::size_t                      m_verices_n = 0;
+  struct frame_rendering_info {
+    vk::raii::Semaphore     image_availible_semaphore, render_finished_semaphore;
+    vk::raii::Fence         in_flight_fence;
+    vk::raii::CommandBuffer cmd = nullptr;
+  };
+
+  std::vector<frame_rendering_info> m_rendering_info;
+
+  std::size_t m_curr_frame = 0, m_verices_n = 0;
 
 public:
   bool m_triangles_loaded = false;
@@ -112,6 +115,7 @@ public:
 
     m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::uniform_buffer_object), m_platform.p_device(),
                          m_logical_device(), vk::BufferUsageFlagBits::eUniformBuffer};
+
     m_descriptor_set_data = {m_logical_device(), m_uniform_buffers};
 
     m_pipeline_data = {m_logical_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_descriptor_set_data};
@@ -119,8 +123,8 @@ public:
                       m_pipeline_data.m_render_pass};
 
     m_command_pool = {ezvk::create_command_pool(m_logical_device(), m_graphics_present->graphics().family_index())};
-    create_command_buffers();
-    create_sync_objs();
+
+    initialize_sync_primitives();
   }
 
   void  shutdown() { m_logical_device().waitIdle(); }
@@ -132,7 +136,6 @@ public:
     m_vertex_buffer = {m_platform.p_device(), m_logical_device(), vk::BufferUsageFlagBits::eVertexBuffer,
                        std::span{vertices}};
     m_triangles_loaded = true;
-    create_command_buffers();
   }
 
 private:
@@ -164,63 +167,56 @@ private:
     m_logical_device = ezvk::logical_device{m_platform.p_device(), reqs, extensions.begin(), extensions.end()};
     m_graphics_present = ezvk::make_graphics_present_queues(m_logical_device(), chosen_graphics, c_graphics_queue_index,
                                                             chosen_present, c_present_queue_index);
-  };
+  }
 
-  void create_command_buffers() {
-    vk::CommandBufferAllocateInfo alloc_info{.commandPool = *m_command_pool,
-                                             .level = vk::CommandBufferLevel::ePrimary,
-                                             .commandBufferCount = static_cast<uint32_t>(m_framebuffers.size())};
-
-    m_command_buffers = vk::raii::CommandBuffers(m_logical_device(), alloc_info);
-
-    for (uint32_t i = 0; i < m_command_buffers.size(); ++i) {
-      const auto &buffer = m_command_buffers[i];
-
-      buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
-
-      vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
-      vk::RenderPassBeginInfo render_pass_info{.renderPass = *m_pipeline_data.m_render_pass,
-                                               .framebuffer = *m_framebuffers[i],
-                                               .renderArea = {vk::Offset2D{0, 0}, m_swapchain.extent()},
-                                               .clearValueCount = 1,
-                                               .pClearValues = &clear_color};
-
-      buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
-      auto extent = m_swapchain.extent();
-
-      vk::Viewport viewport = {0.0f,
-                               static_cast<float>(extent.height),
-                               static_cast<float>(extent.width),
-                               -static_cast<float>(extent.height),
-                               0.0f,
-                               1.0f};
-      vk::Rect2D   scissor = {vk::Offset2D{0, 0}, extent};
-
-      buffer.setViewport(0, {viewport});
-      buffer.setScissor(0, {scissor});
-      buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
-      buffer.setViewport(0, {viewport});
-      buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
-                                {*m_descriptor_set_data.m_descriptor_set}, nullptr);
-
-      if (m_triangles_loaded) {
-        buffer.bindVertexBuffers(0, *m_vertex_buffer.buffer(), {0});
-        buffer.draw(m_verices_n, 1, 0, 0);
-      }
-      buffer.endRenderPass();
-      buffer.end();
+  void initialize_sync_primitives() {
+    for (uint32_t i = 0; i < c_max_frames_in_flight; ++i) {
+      frame_rendering_info primitive = {m_logical_device().createSemaphore({}), m_logical_device().createSemaphore({}),
+                                        m_logical_device().createFence({.flags = vk::FenceCreateFlagBits::eSignaled})};
+      m_rendering_info.push_back(std::move(primitive));
     }
   }
 
-  void create_sync_objs() {
-    m_image_availible_semaphores.reserve(c_max_frames_in_flight);
-    m_render_finished_semaphores.reserve(c_max_frames_in_flight);
+  vk::raii::CommandBuffer fill_command_buffer(uint32_t image_index) {
+    vk::CommandBufferAllocateInfo alloc_info = {
+        .commandPool = *m_command_pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1u};
+    vk::raii::CommandBuffer cmd = std::move(vk::raii::CommandBuffers{m_logical_device(), alloc_info}.front());
 
-    for (uint32_t i = 0; i < c_max_frames_in_flight; ++i) {
-      m_image_availible_semaphores.push_back(m_logical_device().createSemaphore({}));
-      m_render_finished_semaphores.push_back(m_logical_device().createSemaphore({}));
-      m_in_flight_fences.push_back(m_logical_device().createFence({.flags = vk::FenceCreateFlagBits::eSignaled}));
+    cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
+
+    vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
+    vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_pipeline_data.m_render_pass,
+                                                .framebuffer = *m_framebuffers[image_index],
+                                                .renderArea = {vk::Offset2D{0, 0}, m_swapchain.extent()},
+                                                .clearValueCount = 1,
+                                                .pClearValues = &clear_color};
+
+    cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
+    auto extent = m_swapchain.extent();
+
+    vk::Viewport viewport = {0.0f,
+                             static_cast<float>(extent.height),
+                             static_cast<float>(extent.width),
+                             -static_cast<float>(extent.height),
+                             0.0f,
+                             1.0f};
+
+    cmd.setViewport(0, {viewport});
+    cmd.setScissor(0, {{vk::Offset2D{0, 0}, extent}});
+
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
+                           {*m_descriptor_set_data.m_descriptor_set}, nullptr);
+
+    if (m_triangles_loaded) {
+      cmd.bindVertexBuffers(0, *m_vertex_buffer.buffer(), {0});
+      cmd.draw(m_verices_n, 1, 0, 0);
     }
+
+    cmd.endRenderPass();
+    cmd.end();
+
+    return cmd;
   }
 
   void recreate_swap_chain() {
@@ -241,8 +237,6 @@ private:
 
     m_framebuffers = {m_logical_device(), m_swapchain.image_views(), m_swapchain.extent(),
                       m_pipeline_data.m_render_pass};
-
-    create_command_buffers();
   }
 
   glm::mat4x4 create_mvpc_matrix(const vk::Extent2D &extent) {
@@ -261,11 +255,12 @@ private:
 
   // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
   void render_frame() {
-    m_logical_device().waitForFences({*m_in_flight_fences[m_curr_frame]}, VK_TRUE, UINT64_MAX);
+    auto &current_frame_data = m_rendering_info.at(m_curr_frame);
+    m_logical_device().waitForFences({*current_frame_data.in_flight_fence}, VK_TRUE, UINT64_MAX);
 
     vk::AcquireNextImageInfoKHR acquire_info = {.swapchain = *m_swapchain(),
                                                 .timeout = UINT64_MAX,
-                                                .semaphore = *m_image_availible_semaphores[m_curr_frame],
+                                                .semaphore = *current_frame_data.image_availible_semaphore,
                                                 .fence = nullptr,
                                                 .deviceMask = 1};
 
@@ -277,23 +272,24 @@ private:
       return;
     }
 
-    auto mvpc = create_mvpc_matrix(m_swapchain.extent());
-    m_uniform_buffers[m_curr_frame].copy_to_device(mvpc);
+    current_frame_data.cmd = fill_command_buffer(image_index);
+    m_uniform_buffers[m_curr_frame].copy_to_device(create_mvpc_matrix(m_swapchain.extent()));
 
     vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    vk::SubmitInfo         submit_info = {.waitSemaphoreCount = 1,
-                                          .pWaitSemaphores = std::addressof(*m_image_availible_semaphores[m_curr_frame]),
-                                          .pWaitDstStageMask = std::addressof(wait_stages),
-                                          .commandBufferCount = 1,
-                                          .pCommandBuffers = &(*m_command_buffers[image_index]),
-                                          .signalSemaphoreCount = 1,
-                                          .pSignalSemaphores = std::addressof(*m_render_finished_semaphores[m_curr_frame])};
 
-    m_logical_device().resetFences(*m_in_flight_fences[m_curr_frame]); // segfault was there
-    m_graphics_present->graphics().queue().submit(submit_info, *m_in_flight_fences[m_curr_frame]);
+    vk::SubmitInfo submit_info = {.waitSemaphoreCount = 1,
+                                  .pWaitSemaphores = std::addressof(*current_frame_data.image_availible_semaphore),
+                                  .pWaitDstStageMask = std::addressof(wait_stages),
+                                  .commandBufferCount = 1,
+                                  .pCommandBuffers = &(*current_frame_data.cmd),
+                                  .signalSemaphoreCount = 1,
+                                  .pSignalSemaphores = std::addressof(*current_frame_data.render_finished_semaphore)};
+
+    m_logical_device().resetFences(*current_frame_data.in_flight_fence);
+    m_graphics_present->graphics().queue().submit(submit_info, *current_frame_data.in_flight_fence);
 
     vk::PresentInfoKHR present_info = {.waitSemaphoreCount = 1,
-                                       .pWaitSemaphores = std::addressof(*m_render_finished_semaphores[m_curr_frame]),
+                                       .pWaitSemaphores = std::addressof(*current_frame_data.render_finished_semaphore),
                                        .swapchainCount = 1,
                                        .pSwapchains = std::addressof(*m_swapchain()),
                                        .pImageIndices = &image_index};
@@ -307,7 +303,6 @@ private:
 
     if (result_present == vk::Result::eSuboptimalKHR || result_present == vk::Result::eErrorOutOfDateKHR) {
       recreate_swap_chain();
-      return;
     }
 
     m_curr_frame = (m_curr_frame + 1) % c_max_frames_in_flight;
