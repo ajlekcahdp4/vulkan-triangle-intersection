@@ -100,15 +100,14 @@ public:
   pipeline_data(std::nullptr_t) {}
 
   pipeline_data(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
-                const std::string &p_fragment_file_path, const vk::Extent2D &p_extent,
-                const descriptor_set_data &p_descriptor_set_data)
+                const std::string &p_fragment_file_path, const descriptor_set_data &p_descriptor_set_data)
       : m_render_pass{create_render_pass(p_device)}, m_layout{create_pipeline_layout(p_device,
                                                                                      p_descriptor_set_data.m_layout)},
-        m_pipeline{create_pipeline(p_device, p_vertex_file_path, p_fragment_file_path, p_extent)} {}
+        m_pipeline{create_pipeline(p_device, p_vertex_file_path, p_fragment_file_path)} {}
 
 private:
   vk::raii::Pipeline create_pipeline(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
-                                     const std::string &p_fragment_file_path, const vk::Extent2D &p_extent);
+                                     const std::string &p_fragment_file_path);
 
   static vk::raii::PipelineLayout create_pipeline_layout(const vk::raii::Device              &device,
                                                          const vk::raii::DescriptorSetLayout &p_descriptor_set_layout);
@@ -128,9 +127,9 @@ private:
 };
 
 template <class vertex_t>
-vk::raii::Pipeline
-pipeline_data<vertex_t>::create_pipeline(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
-                                         const std::string &p_fragment_file_path, const vk::Extent2D &p_extent) {
+vk::raii::Pipeline pipeline_data<vertex_t>::create_pipeline(const vk::raii::Device &p_device,
+                                                            const std::string      &p_vertex_file_path,
+                                                            const std::string      &p_fragment_file_path) {
   auto binding_description = vertex_t::get_binding_description();
   auto attribute_description = vertex_t::get_attribute_description();
   auto vertex_input_info = vertex_input_state_create_info(binding_description, attribute_description);
@@ -140,16 +139,15 @@ pipeline_data<vertex_t>::create_pipeline(const vk::raii::Device &p_device, const
   vk::PipelineInputAssemblyStateCreateInfo input_asm_info{.flags = vk::PipelineInputAssemblyStateCreateFlags(),
                                                           .topology = vk::PrimitiveTopology::eTriangleList};
 
-  vk::Viewport viewport = {0.0f,
-                           static_cast<float>(p_extent.height),
-                           static_cast<float>(p_extent.width),
-                           -static_cast<float>(p_extent.height),
-                           0.0f,
-                           1.0f};
+  auto             dynamic_state_viewport = vk::DynamicState::eViewport;
+  auto             dynamic_state_scissor = vk::DynamicState::eScissor;
+  vk::DynamicState dynamic_states[] = {dynamic_state_viewport, dynamic_state_scissor};
 
-  vk::Rect2D                          scissor = {vk::Offset2D{0, 0}, p_extent};
   vk::PipelineViewportStateCreateInfo viewport_info = {
-      .viewportCount = 1, .pViewports = &viewport, .scissorCount = 1, .pScissors = &scissor};
+      .viewportCount = 1, .pViewports = nullptr, .scissorCount = 1, .pScissors = nullptr};
+
+  vk::PipelineDynamicStateCreateInfo dynamic_state_info = {.dynamicStateCount = 2, .pDynamicStates = dynamic_states};
+
   vk::PipelineMultisampleStateCreateInfo         multisampling = {.rasterizationSamples = vk::SampleCountFlagBits::e1,
                                                                   .sampleShadingEnable = VK_FALSE};
   std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
@@ -174,6 +172,7 @@ pipeline_data<vertex_t>::create_pipeline(const vk::raii::Device &p_device, const
                                                   .pRasterizationState = &rasterization_info,
                                                   .pMultisampleState = &multisampling,
                                                   .pColorBlendState = &color_blend_info,
+                                                  .pDynamicState = &dynamic_state_info,
                                                   .layout = *m_layout,
                                                   .renderPass = *m_render_pass,
                                                   .subpass = 0,

@@ -112,8 +112,7 @@ public:
                          m_logical_device(), vk::BufferUsageFlagBits::eUniformBuffer};
     m_descriptor_set_data = {m_logical_device(), m_uniform_buffers};
 
-    m_pipeline_data = {m_logical_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_platform.window().extent(),
-                       m_descriptor_set_data};
+    m_pipeline_data = {m_logical_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_descriptor_set_data};
     m_framebuffers = {m_logical_device(), m_swapchain_data.image_views(), m_swapchain_data.extent(),
                       m_pipeline_data.m_render_pass};
 
@@ -186,7 +185,18 @@ private:
                                                .pClearValues = &clear_color};
 
       buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
+      auto         extent = m_swapchain_data.extent();
+      vk::Viewport viewport = {0.0f,
+                               static_cast<float>(extent.height),
+                               static_cast<float>(extent.width),
+                               -static_cast<float>(extent.height),
+                               0.0f,
+                               1.0f};
+      vk::Rect2D   scissor = {vk::Offset2D{0, 0}, extent};
+      buffer.setViewport(0, {viewport});
+      buffer.setScissor(0, {scissor});
       buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
+      buffer.setViewport(0, {viewport});
       buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
                                 {*m_descriptor_set_data.m_descriptor_set}, nullptr);
 
@@ -226,10 +236,6 @@ private:
     m_swapchain_data.swapchain()
         .clear(); // Destroy the old swapchain before recreating another. NOTE[Sergei]: this is a dirty fix
     m_swapchain_data = std::move(new_swapchain);
-
-    m_pipeline_data =
-        throttle::graphics::pipeline_data<vertex_type>{m_logical_device(), "shaders/vertex.spv", "shaders/fragment.spv",
-                                                       m_swapchain_data.extent(), m_descriptor_set_data};
 
     m_framebuffers = {m_logical_device(), m_swapchain_data.image_views(), m_swapchain_data.extent(),
                       m_pipeline_data.m_render_pass};
