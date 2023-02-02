@@ -100,10 +100,7 @@ public:
                                                .baseArrayLayer = 0,
                                                .layerCount = 1};
 
-    vk::ComponentMapping component_mapping = {.r = vk::ComponentSwizzle::eIdentity,
-                                              .g = vk::ComponentSwizzle::eIdentity,
-                                              .b = vk::ComponentSwizzle::eIdentity,
-                                              .a = vk::ComponentSwizzle::eIdentity};
+    vk::ComponentMapping component_mapping = {};
 
     vk::ImageViewCreateInfo image_view_create_info = {.viewType = vk::ImageViewType::e2D,
                                                       .format = create_info.imageFormat,
@@ -119,10 +116,11 @@ public:
   auto       &operator()()       &{ return m_handle; }
   const auto &operator()() const & { return m_handle; }
 
-  std::vector<vk::Image>           &images() { return m_images; }
-  std::vector<vk::raii::ImageView> &image_views() { return m_image_views; }
-  vk::SurfaceFormatKHR             &format() { return m_format; }
-  vk::Extent2D                     &extent() { return m_extent; }
+  auto &images() { return m_images; }
+  auto &image_views() { return m_image_views; }
+
+  vk::SurfaceFormatKHR format() const { return m_format; }
+  vk::Extent2D         extent() const { return m_extent; }
 };
 
 } // namespace ezvk
