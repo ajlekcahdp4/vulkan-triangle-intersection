@@ -104,7 +104,6 @@ endif()
 set(VK_VALIDATION_LAYER OFF CACHE BOOL "Enables Vulkan validation layer")
 
 set(EZVK_SOURCES
-  src/pipeline.cc
   src/ezvk/window.cc
 )
 
