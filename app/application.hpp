@@ -84,7 +84,7 @@ private:
 
   input_handler() {}
 
-  static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+  static void key_callback(GLFWwindow *, int key, int, int action, int) {
     auto &me = instance();
 
     auto found = me.m_tracked_keys.find(key);
@@ -165,19 +165,18 @@ private:
   std::size_t m_curr_frame = 0, m_verices_n = 0;
   camera      m_camera;
 
+  bool m_triangles_loaded = false;
+
   static constexpr float c_velocity = 10.0f;
   static constexpr float c_angular_velocity = glm::radians(30.0f);
 
 public:
-  bool m_triangles_loaded = false;
-
   application(applicaton_platform platform) : m_platform{std::move(platform)} {
     initialize_logical_device_queues();
 
     // Create command pool and a context for submitting immediate copy operations (graphics queue family implicitly
     // supports copy operations)
-    m_command_pool = {ezvk::create_command_pool(m_l_device(), m_graphics_present->graphics().family_index(), true)};
-
+    m_command_pool = ezvk::create_command_pool(m_l_device(), m_graphics_present->graphics().family_index(), true);
     m_oneshot_upload = ezvk::upload_context{&m_l_device(), &m_graphics_present->graphics(), &m_command_pool};
 
     m_swapchain = {m_platform.p_device(), m_l_device(), m_platform.surface(), m_platform.window().extent(),
@@ -206,22 +205,30 @@ public:
     auto &handler = input_handler::instance();
     auto  events = handler.poll();
 
-    auto fwd_movement = (1.0f * events.count(GLFW_KEY_W)) - (1.0f * events.count(GLFW_KEY_S));
-    auto side_movement = (1.0f * events.count(GLFW_KEY_D)) - (1.0f * events.count(GLFW_KEY_A));
+    const auto calculate_movement = [events](int plus, int minus) {
+      return (1.0f * events.count(plus)) - (1.0f * events.count(minus));
+    };
 
-    glm::vec3 dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways();
+    auto fwd_movement = calculate_movement(GLFW_KEY_W, GLFW_KEY_S);
+    auto side_movement = calculate_movement(GLFW_KEY_D, GLFW_KEY_A);
+    auto up_movement = calculate_movement(GLFW_KEY_SPACE, GLFW_KEY_C);
+
+    glm::vec3 dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways() +
+                             up_movement * m_camera.get_up();
 
     if (throttle::geometry::is_definitely_greater(glm::length(dir_movement), 0.0f)) {
       m_camera.translate(glm::normalize(dir_movement) * c_velocity * delta_t);
     }
 
-    auto yaw_movement = (1.0f * events.count(GLFW_KEY_RIGHT)) - (1.0f * events.count(GLFW_KEY_LEFT));
-    auto pitch_movement = (1.0f * events.count(GLFW_KEY_DOWN)) - (1.0f * events.count(GLFW_KEY_UP));
-    auto roll_movement = (1.0f * events.count(GLFW_KEY_Q)) - (1.0f * events.count(GLFW_KEY_E));
+    auto yaw_movement = calculate_movement(GLFW_KEY_RIGHT, GLFW_KEY_LEFT);
+    auto pitch_movement = calculate_movement(GLFW_KEY_DOWN, GLFW_KEY_UP);
+    auto roll_movement = calculate_movement(GLFW_KEY_Q, GLFW_KEY_E);
 
-    glm::quat yaw_rotation = glm::angleAxis(yaw_movement * c_angular_velocity * delta_t, m_camera.get_up());
-    glm::quat pitch_rotation = glm::angleAxis(pitch_movement * c_angular_velocity * delta_t, m_camera.get_sideways());
-    glm::quat roll_rotation = glm::angleAxis(roll_movement * c_angular_velocity * delta_t, m_camera.get_direction());
+    auto angular_per_delta_t = c_angular_velocity * delta_t;
+
+    glm::quat yaw_rotation = glm::angleAxis(yaw_movement * angular_per_delta_t, m_camera.get_up());
+    glm::quat pitch_rotation = glm::angleAxis(pitch_movement * angular_per_delta_t, m_camera.get_sideways());
+    glm::quat roll_rotation = glm::angleAxis(roll_movement * angular_per_delta_t, m_camera.get_direction());
 
     glm::quat resulting_rotation = yaw_rotation * pitch_rotation * roll_rotation;
     m_camera.rotate(resulting_rotation);
@@ -266,6 +273,8 @@ private:
     handler.monitor(GLFW_KEY_A, input_handler::button_state::e_held_down);
     handler.monitor(GLFW_KEY_S, input_handler::button_state::e_held_down);
     handler.monitor(GLFW_KEY_D, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_SPACE, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_C, input_handler::button_state::e_held_down);
 
     // Rotate around the camera direction axis
     handler.monitor(GLFW_KEY_Q, input_handler::button_state::e_held_down);

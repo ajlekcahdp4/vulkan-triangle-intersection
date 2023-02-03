@@ -25,8 +25,8 @@ public:
 
   camera(glm::vec3 p_pos = {0, 0, 25}, glm::vec3 p_dir = {0, 0, -1.0f}, glm::vec3 p_up = {0, 1.0f, 0},
          float p_fov = glm::radians(45.0), float p_near_clip = 0.1f, float p_far_clip = 1000.0f)
-      : position{p_pos}, direction{glm::normalize(p_dir)}, up{glm::normalize(p_up)}, fov{p_fov},
-        z_near_clip{p_near_clip}, z_far_clip{p_far_clip} {}
+      : direction{glm::normalize(p_dir)}, up{glm::normalize(p_up)}, fov{p_fov}, z_near_clip{p_near_clip},
+        z_far_clip{p_far_clip}, position{p_pos} {}
 
   void  set_fov_degrees(float degrees) { fov = glm::radians(degrees); }
   float get_fov_degrees() const { return glm::degrees(fov); }
