@@ -14,6 +14,7 @@
 
 #include "wrappers.hpp"
 
+#include "camera.hpp"
 #include "misc.hpp"
 #include "ubo.hpp"
 #include "vertex.hpp"
@@ -103,6 +104,8 @@ private:
   std::vector<frame_rendering_info> m_rendering_info;
 
   std::size_t m_curr_frame = 0, m_verices_n = 0;
+
+  camera m_camera;
 
 public:
   bool m_triangles_loaded = false;
@@ -239,20 +242,6 @@ private:
                       m_pipeline_data.m_render_pass};
   }
 
-  glm::mat4x4 create_mvpc_matrix(const vk::Extent2D &extent) {
-    float fov = glm::radians(45.0f);
-
-    glm::mat4x4 model = glm::mat4x4(1.0f);
-
-    glm::vec3 camera_pos = {0.0f, 0.0f, 25.0f};
-    glm::vec3 camera_dir = glm::normalize(glm::vec3{0.0f, 0.0f, -1.0f});
-
-    glm::mat4x4 view = glm::lookAt(camera_pos, camera_pos + camera_dir, glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4x4 proj = glm::perspective(fov, static_cast<float>(extent.width) / extent.height, 0.1f, 5000.0f);
-
-    return proj * view * model;
-  }
-
   // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
   void render_frame() {
     auto &current_frame_data = m_rendering_info.at(m_curr_frame);
@@ -273,7 +262,7 @@ private:
     }
 
     current_frame_data.cmd = fill_command_buffer(image_index);
-    m_uniform_buffers[m_curr_frame].copy_to_device(create_mvpc_matrix(m_swapchain.extent()));
+    m_uniform_buffers[m_curr_frame].copy_to_device(m_camera.get_mvp_matrix(m_swapchain.extent()));
 
     vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
