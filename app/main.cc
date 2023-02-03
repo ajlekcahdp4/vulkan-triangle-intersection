@@ -109,13 +109,6 @@ bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_ge
   auto result = cont.many_to_many();
   if (hide) return true;
 
-#if 0
-  for (const auto v : result) {
-    std::cout << v->index << " ";
-  }
-  std::cout << "\n";
-#endif
-
   unsigned point_ind = 0;
 
   std::transform(points.begin(), points.end(), std::back_inserter(vertices), [&result, &point_ind](auto &point) {
@@ -133,6 +126,14 @@ bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_ge
 
     return vertex;
   });
+
+  std::transform(vertices.begin(), vertices.end(), std::back_inserter(vertices), [](auto &v) {
+    triangles::vertex_type vertex;
+    vertex.pos = {v.pos[0], v.pos[2], v.pos[1]};
+    vertex.color = v.color;
+    return vertex;
+  });
+
   return true;
 }
 

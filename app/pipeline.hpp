@@ -153,8 +153,8 @@ public:
         .depthClampEnable = VK_FALSE,
         .rasterizerDiscardEnable = VK_FALSE,
         .polygonMode = vk::PolygonMode::eFill,
-        .cullMode = vk::CullModeFlagBits::eNone,
-        .frontFace = vk::FrontFace::eCounterClockwise,
+        .cullMode = vk::CullModeFlagBits::eFront,
+        .frontFace = vk::FrontFace::eClockwise,
         .depthBiasEnable = VK_FALSE,
         .lineWidth = 1.0f,
     };

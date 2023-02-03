@@ -171,7 +171,7 @@ private:
 
   bool m_triangles_loaded = false;
 
-  static constexpr float c_velocity = 10.0f;
+  static constexpr float c_velocity = 100.0f;
   static constexpr float c_angular_velocity = glm::radians(30.0f);
 
 public:
