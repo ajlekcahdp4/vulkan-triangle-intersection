@@ -121,9 +121,11 @@ public:
     std::unordered_map<key_index, button_state> result;
 
     for (auto &v : m_tracked_keys) {
-      if (v.second.current_state == v.second.look_for) {
-        result.insert({v.first, v.second.current_state});
-      }
+      if (v.second.current_state != v.second.look_for) continue;
+
+      result.insert({v.first, v.second.current_state});
+      // After polling the button change pressed to idle flag
+      if (v.second.current_state == button_state::e_pressed) v.second.current_state = button_state::e_idle;
     }
 
     return result;
