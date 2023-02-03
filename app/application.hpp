@@ -151,7 +151,7 @@ private:
 
   render_pass            m_render_pass;
   pipeline_layout        m_pipeline_layout;
-  triangle_pipeline_data m_pipeline;
+  triangle_pipeline_data m_triangle_pipeline;
 
   ezvk::framebuffers  m_framebuffers;
   ezvk::device_buffer m_vertex_buffer;
@@ -193,7 +193,8 @@ public:
 
     m_render_pass = {m_l_device()};
     m_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
-    m_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_pipeline_layout(), m_render_pass()};
+    m_triangle_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_pipeline_layout(),
+                           m_render_pass()};
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_render_pass()};
 
     initialize_frame_rendering_info();
@@ -364,7 +365,7 @@ private:
     cmd.setViewport(0, {viewport});
     cmd.setScissor(0, {{vk::Offset2D{0, 0}, extent}});
 
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline());
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_triangle_pipeline());
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_layout(), 0,
                            {*m_descriptor_set.m_descriptor_set}, nullptr);
 
