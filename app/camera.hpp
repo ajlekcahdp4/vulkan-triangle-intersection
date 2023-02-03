@@ -10,57 +10,39 @@
 
 #pragma once
 
-#include "glfw_include.hpp"
-#include "vulkan_include.hpp"
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "glm_inlcude.hpp"
+#include "vulkan_hpp_include.hpp"
 
 namespace triangles {
 
-class camera final {
-
+struct camera final {
 private:
-  // drecton should be normalized
-  glm::vec3 direction = glm::normalize(glm::vec3{0.0f, 0.0f, -1.0f});
-
-  glm::vec3 up = glm::normalize(glm::vec3{0.0f, 1.0f, 0.0f});
-
-  float fov = glm::radians(45.0f);
-
-  struct {
-    glm::mat4x4 model = glm::mat4x4(1.0f);
-    glm::mat4x4 view;
-    glm::mat4x4 proj;
-  } matrices;
+  glm::vec3 position, direction, up;
+  float     fov, z_near_clip, z_far_clip;
 
 public:
-  glm::vec3 position = {0.0f, 0.0f, 25.0f};
+  camera(glm::vec3 p_pos = {0, 0, 25}, glm::vec3 p_dir = {0, 0, -1.0f}, glm::vec3 p_up = {0, 1.0f, 0},
+         float p_fov = glm::radians(45.0), float p_near_clip = 0.1f, float p_far_clip = 1000.0f)
+      : position{p_pos}, direction{glm::normalize(p_dir)}, up{glm::normalize(p_up)}, fov{p_fov},
+        z_near_clip{p_near_clip}, z_far_clip{p_far_clip} {}
 
-  struct {
-    bool left = false;
-    bool right = false;
-    bool up = false;
-    bool down = false;
-  } keys;
+  void  set_fov_degrees(float degrees) { fov = glm::radians(degrees); }
+  float get_fov_degrees() const { return glm::degrees(fov); }
 
-  void set_up(const glm::vec3 &up_dir) { up = glm::normalize(up_dir); }
+  void translate(glm::vec3 translation) { position += translation; }
 
-  void set_direction(const glm::vec3 &dir) { direction = glm::normalize(dir); }
-
-  void set_fov(const float degrees) { fov = glm::radians(degrees); }
-
-  void compute_matrices(const vk::Extent2D extent) {
-    matrices.view = glm::lookAt(position, position + direction, up);
-    matrices.proj = glm::perspective(fov, static_cast<float>(extent.width) / extent.height, 0.1f, 5000.0f);
+  // Only pass here a normalized quaternion
+  void rotate(glm::quat q) {
+    direction = direction * q; // GLM is so stupid. WHY, just why...
+    up = up * q; // I can't wrap my brain around the fact that this is somehow the Adjunt of the vector up (should be q
+                 // * up * ~q)
   }
 
-  glm::mat4x4 get_mvp_matrix(const vk::Extent2D extent) {
-    compute_matrices(extent);
-    return matrices.proj * matrices.view * matrices.model;
+  glm::mat4x4 get_vp_matrix(uint32_t width, uint32_t height) {
+    auto view = glm::lookAt(position, position + direction, up);
+    auto proj = glm::perspective(fov, static_cast<float>(width) / height, z_near_clip, z_far_clip);
+    return proj * view;
   }
-
-  bool moving() { return keys.left || keys.right || keys.down || keys.up; }
 };
 
 } // namespace triangles

@@ -10,8 +10,6 @@
 
 #pragma once
 
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-
 #include "wrappers.hpp"
 
 #include "camera.hpp"
@@ -30,10 +28,8 @@
 #include "ezvk/window.hpp"
 
 #include "glfw_include.hpp"
-#include "vulkan_include.hpp"
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "glm_inlcude.hpp"
+#include "vulkan_hpp_include.hpp"
 
 #include <chrono>
 #include <iostream>
@@ -127,7 +123,7 @@ public:
 
     m_command_pool = {ezvk::create_command_pool(m_logical_device(), m_graphics_present->graphics().family_index())};
 
-    initialize_sync_primitives();
+    initialize_frame_rendering_info();
   }
 
   void  shutdown() { m_logical_device().waitIdle(); }
@@ -150,7 +146,8 @@ private:
     std::set_intersection(graphics_queue_indices.begin(), graphics_queue_indices.end(), present_queue_indices.begin(),
                           present_queue_indices.end(), std::back_inserter(intersection));
 
-    float                                  default_priority = 1.0f;
+    const float default_priority = 1.0f;
+
     std::vector<vk::DeviceQueueCreateInfo> reqs;
 
     ezvk::queue_family_index_type chosen_graphics, chosen_present;
@@ -172,7 +169,7 @@ private:
                                                             chosen_present, c_present_queue_index);
   }
 
-  void initialize_sync_primitives() {
+  void initialize_frame_rendering_info() {
     for (uint32_t i = 0; i < c_max_frames_in_flight; ++i) {
       frame_rendering_info primitive = {m_logical_device().createSemaphore({}), m_logical_device().createSemaphore({}),
                                         m_logical_device().createFence({.flags = vk::FenceCreateFlagBits::eSignaled})};
@@ -235,7 +232,7 @@ private:
                                          m_graphics_present.get(), *old_swapchain};
 
     m_logical_device().waitIdle();
-    m_swapchain().clear(); // Destroy the old swapchain before recreating another. NOTE[Sergei]: this is a dirty fix
+    m_swapchain().clear(); // Destroy the old swapchain
     m_swapchain = std::move(new_swapchain);
 
     m_framebuffers = {m_logical_device(), m_swapchain.image_views(), m_swapchain.extent(),
@@ -262,7 +259,9 @@ private:
     }
 
     current_frame_data.cmd = fill_command_buffer(image_index);
-    m_uniform_buffers[m_curr_frame].copy_to_device(m_camera.get_mvp_matrix(m_swapchain.extent()));
+
+    m_uniform_buffers[m_curr_frame].copy_to_device(
+        m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height));
 
     vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 

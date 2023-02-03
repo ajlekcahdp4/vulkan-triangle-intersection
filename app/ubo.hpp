@@ -10,9 +10,7 @@
 
 #pragma once
 
-#include "vulkan_include.hpp"
-#include <glm/glm.hpp>
-
+#include "glm_inlcude.hpp"
 #include <array>
 
 namespace triangles {
