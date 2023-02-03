@@ -127,6 +127,7 @@ bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_ge
     return vertex;
   });
 
+  // Here we add triangles oriented in the opposite direction to light them differently
   for (unsigned i = 0; i < 3 * n; i += 3) {
     vertices.push_back(vertices[i]);
     vertices.push_back(vertices[i + 2]);

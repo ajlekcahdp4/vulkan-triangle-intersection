@@ -118,6 +118,13 @@ target_link_libraries(ezvk INTERFACE spdlog_header_only)
 
 set(APPLICATION_SOURCES
   app/main.cc
+  imgui/imgui.cpp
+  imgui/imgui_demo.cpp
+  imgui/imgui_draw.cpp
+  imgui/imgui_tables.cpp
+  imgui/imgui_widgets.cpp
+  imgui/backends/imgui_impl_glfw.cpp
+  imgui/backends/imgui_impl_vulkan.cpp
 )
 
 add_spirv_shader(vertex shaders/shader.vert)
@@ -125,6 +132,7 @@ add_spirv_shader(fragment shaders/shader.frag)
 add_custom_target(shaders ALL DEPENDS vertex fragment)
 
 add_executable(triangles ${APPLICATION_SOURCES})
+target_include_directories(triangles PUBLIC imgui imgui/backends)
 
 add_custom_command(TARGET triangles POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:triangles>/shaders
