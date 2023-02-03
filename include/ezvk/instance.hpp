@@ -19,7 +19,6 @@
 #include <cstddef>
 #include <iterator>
 #include <span>
-#include <vulkan/vulkan_raii.hpp>
 
 namespace ezvk {
 

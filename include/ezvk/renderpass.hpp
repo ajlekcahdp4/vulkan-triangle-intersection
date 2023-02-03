@@ -24,7 +24,6 @@
 #include <span>
 #include <string>
 #include <vector>
-#include <vulkan/vulkan_structs.hpp>
 
 namespace ezvk {
 

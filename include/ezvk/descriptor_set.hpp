@@ -16,9 +16,6 @@
 #include <numeric>
 #include <tuple>
 #include <vector>
-#include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_raii.hpp>
 
 #include "ezvk/memory.hpp"
 

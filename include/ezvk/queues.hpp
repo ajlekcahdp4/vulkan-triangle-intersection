@@ -19,8 +19,6 @@
 #include <iterator>
 #include <memory>
 #include <optional>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_raii.hpp>
 
 namespace ezvk {
 

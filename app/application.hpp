@@ -42,9 +42,6 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_raii.hpp>
 
 #if defined(VK_VALIDATION_LAYER) || !defined(NDEBUG)
 #define USE_DEBUG_EXTENSION
