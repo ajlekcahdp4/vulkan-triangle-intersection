@@ -155,10 +155,11 @@ private:
   ezvk::device_buffer m_vertex_buffer;
 
   struct frame_rendering_info {
-    vk::raii::Semaphore     image_availible_semaphore, render_finished_semaphore;
-    vk::raii::Fence         in_flight_fence;
-    vk::raii::CommandBuffer cmd = nullptr;
+    vk::raii::Semaphore image_availible_semaphore, render_finished_semaphore;
+    vk::raii::Fence     in_flight_fence;
   };
+
+  vk::raii::CommandBuffers m_command_buffers = nullptr;
 
   std::vector<frame_rendering_info>                  m_rendering_info;
   std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;
@@ -327,13 +328,16 @@ private:
                                         m_l_device().createFence({.flags = vk::FenceCreateFlagBits::eSignaled})};
       m_rendering_info.push_back(std::move(primitive));
     }
+
+    vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *m_command_pool,
+                                                .level = vk::CommandBufferLevel::ePrimary,
+                                                .commandBufferCount = c_max_frames_in_flight};
+
+    m_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
   }
 
-  vk::raii::CommandBuffer fill_command_buffer(uint32_t image_index) {
-    vk::CommandBufferAllocateInfo alloc_info = {
-        .commandPool = *m_command_pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1u};
-    vk::raii::CommandBuffer cmd = std::move(vk::raii::CommandBuffers{m_l_device(), alloc_info}.front());
-
+  void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index) {
+    cmd.reset();
     cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
 
     vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
@@ -367,8 +371,6 @@ private:
 
     cmd.endRenderPass();
     cmd.end();
-
-    return cmd;
   }
 
   void recreate_swap_chain() {
@@ -409,7 +411,7 @@ private:
       return;
     }
 
-    current_frame_data.cmd = fill_command_buffer(image_index);
+    fill_command_buffer(m_command_buffers[m_curr_frame], image_index);
 
     m_uniform_buffers[m_curr_frame].copy_to_device(
         m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height));
@@ -420,7 +422,7 @@ private:
                                   .pWaitSemaphores = std::addressof(*current_frame_data.image_availible_semaphore),
                                   .pWaitDstStageMask = std::addressof(wait_stages),
                                   .commandBufferCount = 1,
-                                  .pCommandBuffers = &(*current_frame_data.cmd),
+                                  .pCommandBuffers = &(*m_command_buffers[m_curr_frame]),
                                   .signalSemaphoreCount = 1,
                                   .pSignalSemaphores = std::addressof(*current_frame_data.render_finished_semaphore)};
 
