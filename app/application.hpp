@@ -11,10 +11,10 @@
 #pragma once
 
 #include "equal.hpp"
-#include "wrappers.hpp"
 
 #include "camera.hpp"
 #include "misc.hpp"
+#include "pipeline.hpp"
 #include "ubo.hpp"
 #include "utils.hpp"
 #include "vertex.hpp"
@@ -149,7 +149,9 @@ private:
 
   ezvk::descriptor_set m_descriptor_set;
 
-  throttle::graphics::pipeline_data<vertex_type> m_pipeline_data = nullptr;
+  render_pass            m_render_pass;
+  pipeline_layout        m_pipeline_layout;
+  triangle_pipeline_data m_pipeline;
 
   ezvk::framebuffers  m_framebuffers;
   ezvk::device_buffer m_vertex_buffer;
@@ -189,8 +191,10 @@ public:
 
     m_descriptor_set = {m_l_device(), m_uniform_buffers};
 
-    m_pipeline_data = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_descriptor_set};
-    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_pipeline_data.m_render_pass};
+    m_render_pass = {m_l_device()};
+    m_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
+    m_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_pipeline_layout(), m_render_pass()};
+    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_render_pass()};
 
     initialize_frame_rendering_info();
     initialize_input_hanlder();
@@ -341,7 +345,7 @@ private:
     cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
 
     vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
-    vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_pipeline_data.m_render_pass,
+    vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_render_pass(),
                                                 .framebuffer = *m_framebuffers[image_index],
                                                 .renderArea = {vk::Offset2D{0, 0}, m_swapchain.extent()},
                                                 .clearValueCount = 1,
@@ -360,8 +364,8 @@ private:
     cmd.setViewport(0, {viewport});
     cmd.setScissor(0, {{vk::Offset2D{0, 0}, extent}});
 
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline());
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_layout(), 0,
                            {*m_descriptor_set.m_descriptor_set}, nullptr);
 
     if (m_triangles_loaded) {
@@ -389,7 +393,7 @@ private:
     m_swapchain().clear(); // Destroy the old swapchain
     m_swapchain = std::move(new_swapchain);
 
-    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_pipeline_data.m_render_pass};
+    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_render_pass()};
   }
 
   // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
