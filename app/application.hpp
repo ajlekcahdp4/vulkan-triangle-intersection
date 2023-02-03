@@ -25,6 +25,7 @@
 #include "ezvk/instance.hpp"
 #include "ezvk/memory.hpp"
 #include "ezvk/queues.hpp"
+#include "ezvk/renderpass.hpp"
 #include "ezvk/shaders.hpp"
 #include "ezvk/swapchain.hpp"
 #include "ezvk/window.hpp"
@@ -32,6 +33,10 @@
 #include "glfw_include.hpp"
 #include "glm_inlcude.hpp"
 #include "vulkan_hpp_include.hpp"
+
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_vulkan.h"
+#include "imgui.h"
 
 #include <chrono>
 #include <iostream>
@@ -149,8 +154,8 @@ private:
 
   ezvk::descriptor_set m_descriptor_set;
 
-  render_pass            m_render_pass;
-  pipeline_layout        m_pipeline_layout;
+  ezvk::render_pass      m_render_pass;
+  ezvk::pipeline_layout  m_pipeline_layout;
   triangle_pipeline_data m_triangle_pipeline;
 
   ezvk::framebuffers  m_framebuffers;
@@ -168,6 +173,45 @@ private:
 
   std::size_t m_curr_frame = 0, m_verices_n = 0;
   camera      m_camera;
+
+  friend class imgui_related_data;
+  struct imgui_related_data {
+    vk::raii::DescriptorPool m_descriptor_pool = nullptr;
+
+    imgui_related_data() = default;
+
+    static void imgui_check_vk_error(VkResult res) {
+      vk::Result  hpp_result = vk::Result{res};
+      std::string error_message = vk::to_string(hpp_result);
+      vk::resultCheck(hpp_result, error_message.c_str());
+    }
+
+    static constexpr uint32_t                               default_descriptor_count = 1000;
+    static constexpr std::array<vk::DescriptorPoolSize, 11> imgui_pool_sizes = {
+        {{vk::DescriptorType::eSampler, default_descriptor_count},
+         {vk::DescriptorType::eCombinedImageSampler, default_descriptor_count},
+         {vk::DescriptorType::eSampledImage, default_descriptor_count},
+         {vk::DescriptorType::eStorageImage, default_descriptor_count},
+         {vk::DescriptorType::eUniformTexelBuffer, default_descriptor_count},
+         {vk::DescriptorType::eStorageTexelBuffer, default_descriptor_count},
+         {vk::DescriptorType::eUniformBuffer, default_descriptor_count},
+         {vk::DescriptorType::eStorageBuffer, default_descriptor_count},
+         {vk::DescriptorType::eUniformBufferDynamic, default_descriptor_count},
+         {vk::DescriptorType::eStorageBufferDynamic, default_descriptor_count},
+         {vk::DescriptorType::eInputAttachment, default_descriptor_count}}};
+
+    imgui_related_data(application &app) {
+      uint32_t max_sets = default_descriptor_count * imgui_pool_sizes.size();
+
+      vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+                                                      .maxSets = max_sets,
+                                                      .poolSizeCount = static_cast<uint32_t>(imgui_pool_sizes.size()),
+                                                      .pPoolSizes = imgui_pool_sizes.data()};
+
+      m_descriptor_pool = vk::raii::DescriptorPool{app.m_l_device(), descriptor_info};
+    }
+
+  } m_imgui_data;
 
   bool m_triangles_loaded = false;
 
@@ -339,6 +383,29 @@ private:
                                                 .commandBufferCount = c_max_frames_in_flight};
 
     m_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
+  }
+
+  void initilize_imgui() {
+    m_imgui_data = {*this};
+
+    IMGUI_CHECKVERSION(); // Verify that compiled imgui binary matches the header
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark(); // Blessed dark mode
+
+    ImGui_ImplGlfw_InitForVulkan(m_platform.window()(), true);
+    ImGui_ImplVulkan_InitInfo info = {.Instance = *m_platform.instance(),
+                                      .PhysicalDevice = *m_platform.p_device(),
+                                      .Device = *m_l_device(),
+                                      .QueueFamily = m_graphics_present->graphics().family_index(),
+                                      .Queue = *m_graphics_present->graphics().queue(),
+                                      .PipelineCache = VK_NULL_HANDLE,
+                                      .DescriptorPool = *m_imgui_data.m_descriptor_pool,
+                                      .Subpass = 0,
+                                      m_swapchain.min_image_count(),
+                                      .ImageCount = static_cast<uint32_t>(m_swapchain.images().size()),
+                                      .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
+
+    // ImGui_ImplVulkan_Init(&info, *m_render_pass()); Here we should create a render pass specific to Dear ImGui
   }
 
   void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index) {

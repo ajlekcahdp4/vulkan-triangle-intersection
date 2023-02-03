@@ -24,59 +24,6 @@
 
 namespace triangles {
 
-class render_pass final {
-  vk::raii::RenderPass m_render_pass = nullptr;
-
-public:
-  render_pass() = default;
-
-  render_pass(const vk::raii::Device &device) {
-    vk::AttachmentDescription color_attachment{.flags = vk::AttachmentDescriptionFlags(),
-                                               .format = vk::Format::eB8G8R8A8Unorm,
-                                               .samples = vk::SampleCountFlagBits::e1,
-                                               .loadOp = vk::AttachmentLoadOp::eClear,
-                                               .storeOp = vk::AttachmentStoreOp::eStore,
-                                               .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-                                               .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-                                               .initialLayout = vk::ImageLayout::eUndefined,
-                                               .finalLayout = vk::ImageLayout::ePresentSrcKHR};
-
-    vk::AttachmentReference color_attachment_ref{.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
-
-    vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-                                      .colorAttachmentCount = 1,
-                                      .pColorAttachments = &color_attachment_ref};
-
-    vk::RenderPassCreateInfo renderpass_info{
-        .attachmentCount = 1, .pAttachments = &color_attachment, .subpassCount = 1, .pSubpasses = &subpass};
-
-    m_render_pass = device.createRenderPass(renderpass_info);
-  }
-
-  auto       &operator()()       &{ return m_render_pass; }
-  const auto &operator()() const & { return m_render_pass; }
-};
-
-class pipeline_layout final {
-  vk::raii::PipelineLayout m_layout = nullptr;
-
-public:
-  pipeline_layout() = default;
-
-  pipeline_layout(const vk::raii::Device &device, const vk::raii::DescriptorSetLayout &descriptor_set_layout) {
-    vk::PipelineLayoutCreateInfo layout_info{};
-    layout_info.flags = vk::PipelineLayoutCreateFlags();
-    layout_info.setLayoutCount = 1;
-    vk::DescriptorSetLayout set_layouts[] = {*descriptor_set_layout};
-    layout_info.pSetLayouts = set_layouts;
-    layout_info.pushConstantRangeCount = 0;
-    m_layout = vk::raii::PipelineLayout{device, layout_info};
-  }
-
-  auto       &operator()()       &{ return m_layout; }
-  const auto &operator()() const & { return m_layout; }
-};
-
 class triangle_pipeline_data final {
   vk::raii::Pipeline m_pipeline = nullptr;
 

@@ -27,6 +27,8 @@ class swapchain {
   std::vector<vk::Image>           m_images;
   std::vector<vk::raii::ImageView> m_image_views;
 
+  uint32_t m_min_image_count;
+
 private:
   static vk::SurfaceFormatKHR choose_swapchain_surface_format(const std::vector<vk::SurfaceFormatKHR> &formats) {
     auto format_it = std::find_if(formats.begin(), formats.end(), [](auto &format) {
@@ -64,10 +66,10 @@ public:
     m_extent = choose_swapchain_extent(extent, capabilities);
     m_format = choose_swapchain_surface_format(p_device.getSurfaceFormatsKHR(*surface));
 
-    uint32_t image_count = std::max(capabilities.maxImageCount, capabilities.minImageCount + 1);
+    m_min_image_count = std::max(capabilities.maxImageCount, capabilities.minImageCount + 1);
 
     vk::SwapchainCreateInfoKHR create_info = {.surface = *surface,
-                                              .minImageCount = image_count,
+                                              .minImageCount = m_min_image_count,
                                               .imageFormat = m_format.format,
                                               .imageColorSpace = m_format.colorSpace,
                                               .imageExtent = m_extent,
@@ -121,6 +123,8 @@ public:
 
   vk::SurfaceFormatKHR format() const { return m_format; }
   vk::Extent2D         extent() const { return m_extent; }
+
+  auto min_image_count() const { return m_min_image_count; }
 };
 
 } // namespace ezvk
