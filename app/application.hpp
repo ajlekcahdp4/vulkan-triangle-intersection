@@ -147,7 +147,8 @@ private:
   ezvk::swapchain      m_swapchain;
   ezvk::device_buffers m_uniform_buffers;
 
-  throttle::graphics::descriptor_set_data        m_descriptor_set_data = nullptr;
+  ezvk::descriptor_set m_descriptor_set;
+
   throttle::graphics::pipeline_data<vertex_type> m_pipeline_data = nullptr;
 
   ezvk::framebuffers  m_framebuffers;
@@ -185,9 +186,9 @@ public:
     m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::uniform_buffer_object), m_platform.p_device(),
                          m_l_device(), vk::BufferUsageFlagBits::eUniformBuffer};
 
-    m_descriptor_set_data = {m_l_device(), m_uniform_buffers};
+    m_descriptor_set = {m_l_device(), m_uniform_buffers};
 
-    m_pipeline_data = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_descriptor_set_data};
+    m_pipeline_data = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_descriptor_set};
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_pipeline_data.m_render_pass};
 
     initialize_frame_rendering_info();
@@ -357,7 +358,7 @@ private:
 
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_pipeline);
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_data.m_layout, 0,
-                           {*m_descriptor_set_data.m_descriptor_set}, nullptr);
+                           {*m_descriptor_set.m_descriptor_set}, nullptr);
 
     if (m_triangles_loaded) {
       cmd.bindVertexBuffers(0, *m_vertex_buffer.buffer(), {0});

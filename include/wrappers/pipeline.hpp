@@ -16,80 +16,11 @@
 #include <tuple>
 #include <vector>
 
+#include "ezvk/descriptor_set.hpp"
 #include "ezvk/memory.hpp"
 #include "shaders.hpp"
 
 namespace throttle::graphics {
-
-struct descriptor_set_data {
-public:
-  vk::raii::DescriptorSetLayout m_layout = nullptr;
-  vk::raii::DescriptorPool      m_pool = nullptr;
-  vk::raii::DescriptorSet       m_descriptor_set = nullptr;
-
-  descriptor_set_data(std::nullptr_t) {}
-  descriptor_set_data(const vk::raii::Device &p_device, const ezvk::device_buffers &p_uniform_buffers)
-      : m_layout{create_decriptor_set_layout(
-            p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
-                       {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment}})},
-        m_pool{create_descriptor_pool(
-            p_device, {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eUniformBuffer, 1}})},
-        m_descriptor_set{
-            std::move((vk::raii::DescriptorSets{p_device, vk::DescriptorSetAllocateInfo{.descriptorPool = *m_pool,
-                                                                                        .descriptorSetCount = 1,
-                                                                                        .pSetLayouts = &(*m_layout)}})
-                          .front())} {
-
-    std::vector<std::tuple<vk::DescriptorType, const vk::raii::Buffer &, vk::DeviceSize, const vk::raii::BufferView *>>
-        buffer_data;
-    buffer_data.reserve(p_uniform_buffers.size());
-    for (unsigned i = 0; i < p_uniform_buffers.size(); ++i) {
-      buffer_data.push_back(
-          {vk::DescriptorType::eUniformBuffer, p_uniform_buffers[i].buffer(), VK_WHOLE_SIZE, nullptr});
-    }
-
-    update(p_device, buffer_data);
-  }
-
-  void update(const vk::raii::Device                                      &p_device,
-              const std::vector<std::tuple<vk::DescriptorType, const vk::raii::Buffer &, vk::DeviceSize,
-                                           const vk::raii::BufferView *>> &p_buffer_data,
-              uint32_t                                                     p_binding_offset = 0) {
-    std::vector<vk::DescriptorBufferInfo> buffer_infos;
-    buffer_infos.reserve(p_buffer_data.size());
-
-    std::vector<vk::WriteDescriptorSet> write_descriptor_sets;
-    write_descriptor_sets.reserve(p_buffer_data.size());
-    auto dst_binding = p_binding_offset;
-    for (const auto &bd : p_buffer_data) {
-      buffer_infos.push_back(
-          vk::DescriptorBufferInfo{.buffer = *std::get<1>(bd), .offset = 0, .range = std::get<2>(bd)});
-      vk::BufferView buffer_view;
-      if (std::get<3>(bd)) {
-        buffer_view = **std::get<3>(bd);
-      }
-      write_descriptor_sets.push_back(
-          vk::WriteDescriptorSet{.dstSet = *m_descriptor_set,
-                                 .dstBinding = dst_binding++,
-                                 .dstArrayElement = 0,
-                                 .descriptorCount = 1,
-                                 .descriptorType = std::get<0>(bd),
-                                 .pImageInfo = nullptr,
-                                 .pBufferInfo = &buffer_infos.back(),
-                                 .pTexelBufferView = (std::get<3>(bd) ? &buffer_view : nullptr)});
-    }
-
-    p_device.updateDescriptorSets(write_descriptor_sets, nullptr);
-  }
-
-private:
-  static vk::raii::DescriptorSetLayout create_decriptor_set_layout(
-      const vk::raii::Device                                                            &p_device,
-      const std::vector<std::tuple<vk::DescriptorType, uint32_t, vk::ShaderStageFlags>> &p_binding_data);
-
-  static vk::raii::DescriptorPool create_descriptor_pool(const vk::raii::Device                    &p_device,
-                                                         const std::vector<vk::DescriptorPoolSize> &p_pool_sizes);
-};
 
 template <class vertex_t> struct pipeline_data {
 public:
@@ -100,7 +31,7 @@ public:
   pipeline_data(std::nullptr_t) {}
 
   pipeline_data(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
-                const std::string &p_fragment_file_path, const descriptor_set_data &p_descriptor_set_data)
+                const std::string &p_fragment_file_path, const ezvk::descriptor_set &p_descriptor_set_data)
       : m_render_pass{create_render_pass(p_device)}, m_layout{create_pipeline_layout(p_device,
                                                                                      p_descriptor_set_data.m_layout)},
         m_pipeline{create_pipeline(p_device, p_vertex_file_path, p_fragment_file_path)} {}
