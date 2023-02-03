@@ -127,12 +127,11 @@ bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_ge
     return vertex;
   });
 
-  std::transform(vertices.begin(), vertices.end(), std::back_inserter(vertices), [](auto &v) {
-    triangles::vertex_type vertex;
-    vertex.pos = {v.pos[0], v.pos[2], v.pos[1]};
-    vertex.color = v.color;
-    return vertex;
-  });
+  for (unsigned i = 0; i < 3 * n; i += 3) {
+    vertices.push_back(vertices[i]);
+    vertices.push_back(vertices[i + 2]);
+    vertices.push_back(vertices[i + 1]);
+  }
 
   return true;
 }
