@@ -137,7 +137,6 @@ private:
   static constexpr uint32_t c_max_frames_in_flight = 2; // Double buffering
   static constexpr uint32_t c_graphics_queue_index = 0;
   static constexpr uint32_t c_present_queue_index = 0;
-  static constexpr uint32_t c_dear_imgui_queue_index = 1;
 
   static constexpr vk::AttachmentDescription primitives_renderpass_attachment_description = {
       .flags = vk::AttachmentDescriptionFlags{},
