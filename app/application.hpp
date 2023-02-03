@@ -42,6 +42,9 @@
 #include <iostream>
 #include <memory>
 #include <unordered_map>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
 #if defined(VK_VALIDATION_LAYER) || !defined(NDEBUG)
 #define USE_DEBUG_EXTENSION
@@ -139,6 +142,17 @@ private:
   static constexpr uint32_t c_present_queue_index = 0;
   static constexpr uint32_t c_dear_imgui_queue_index = 1;
 
+  static constexpr vk::AttachmentDescription primitives_renderpass_attachment_description = {
+      .flags = vk::AttachmentDescriptionFlags{},
+      .format = vk::Format::eB8G8R8A8Unorm,
+      .samples = vk::SampleCountFlagBits::e1,
+      .loadOp = vk::AttachmentLoadOp::eClear,
+      .storeOp = vk::AttachmentStoreOp::eStore,
+      .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+      .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+      .initialLayout = vk::ImageLayout::eUndefined,
+      .finalLayout = vk::ImageLayout::eColorAttachmentOptimal};
+
 private:
   applicaton_platform m_platform;
 
@@ -154,8 +168,8 @@ private:
 
   ezvk::descriptor_set m_descriptor_set;
 
-  ezvk::render_pass      m_render_pass;
-  ezvk::pipeline_layout  m_pipeline_layout;
+  ezvk::render_pass      m_primitives_render_pass;
+  ezvk::pipeline_layout  m_primitives_pipeline_layout;
   triangle_pipeline_data m_triangle_pipeline;
 
   ezvk::framebuffers  m_framebuffers;
@@ -166,7 +180,7 @@ private:
     vk::raii::Fence     in_flight_fence;
   };
 
-  vk::raii::CommandBuffers m_command_buffers = nullptr;
+  vk::raii::CommandBuffers m_primitives_command_buffers = nullptr;
 
   std::vector<frame_rendering_info>                  m_rendering_info;
   std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;
@@ -177,6 +191,10 @@ private:
   friend class imgui_related_data;
   struct imgui_related_data {
     vk::raii::DescriptorPool m_descriptor_pool = nullptr;
+    ezvk::render_pass        m_imgui_render_pass;
+    vk::raii::CommandBuffers m_imgui_command_buffers = nullptr;
+    ezvk::framebuffers       m_imgui_framebuffers;
+    application             *m_app;
 
     imgui_related_data() = default;
 
@@ -200,6 +218,25 @@ private:
          {vk::DescriptorType::eStorageBufferDynamic, default_descriptor_count},
          {vk::DescriptorType::eInputAttachment, default_descriptor_count}}};
 
+    static constexpr vk::AttachmentDescription imgui_renderpass_attachment_description = {
+        .flags = vk::AttachmentDescriptionFlags{},
+        .format = vk::Format::eB8G8R8A8Unorm,
+        .samples = vk::SampleCountFlagBits::e1,
+        .loadOp = vk::AttachmentLoadOp::eLoad,
+        .storeOp = vk::AttachmentStoreOp::eStore,
+        .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+        .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+        .initialLayout = vk::ImageLayout::eColorAttachmentOptimal,
+        .finalLayout = vk::ImageLayout::ePresentSrcKHR};
+
+    static constexpr std::array<vk::SubpassDependency, 1> imgui_subpass_dependency = {
+        vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
+                              .dstSubpass = 0,
+                              .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                              .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                              .srcAccessMask = vk::AccessFlagBits::eNone,
+                              .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
+
     imgui_related_data(application &app) {
       uint32_t max_sets = default_descriptor_count * imgui_pool_sizes.size();
 
@@ -209,8 +246,32 @@ private:
                                                       .pPoolSizes = imgui_pool_sizes.data()};
 
       m_descriptor_pool = vk::raii::DescriptorPool{app.m_l_device(), descriptor_info};
+      m_imgui_render_pass = {app.m_l_device(), imgui_renderpass_attachment_description, imgui_subpass_dependency};
+
+      vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *app.m_command_pool,
+                                                  .level = vk::CommandBufferLevel::ePrimary,
+                                                  .commandBufferCount = c_max_frames_in_flight};
+
+      m_imgui_command_buffers = vk::raii::CommandBuffers{app.m_l_device(), alloc_info};
+      m_imgui_framebuffers = {app.m_l_device(), app.m_swapchain.image_views(), app.m_swapchain.extent(),
+                              m_imgui_render_pass()};
     }
 
+    void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
+      cmd.reset();
+      cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
+
+      vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_imgui_render_pass(),
+                                                  .framebuffer = *m_imgui_framebuffers[image_index],
+                                                  .renderArea = {vk::Offset2D{0, 0}, extent}};
+
+      cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
+
+      ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd);
+
+      cmd.endRenderPass();
+      cmd.end();
+    }
   } m_imgui_data;
 
   bool m_triangles_loaded = false;
@@ -235,19 +296,29 @@ public:
 
     m_descriptor_set = {m_l_device(), m_uniform_buffers};
 
-    m_render_pass = {m_l_device()};
-    m_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
-    m_triangle_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_pipeline_layout(),
-                           m_render_pass()};
-    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_render_pass()};
+    m_primitives_render_pass = {m_l_device(), primitives_renderpass_attachment_description};
+    m_primitives_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
+    m_triangle_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_primitives_pipeline_layout(),
+                           m_primitives_render_pass()};
 
-    initialize_frame_rendering_info();
-    initialize_input_hanlder();
+    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass()};
+
+    initialize_input_hanlder(); // Bind key strokes
+
+    initialize_frame_rendering_info(); // Initialize data needed to render primitives
+    initilize_imgui();                 // Initialize GUI specific objects
   }
 
   void init() { m_prev_frame_start = std::chrono::system_clock::now(); }
 
   void loop() {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    draw_gui();
+    ImGui::Render();
+
     render_frame();
 
     auto  finish = std::chrono::system_clock::now();
@@ -313,9 +384,16 @@ public:
     m_triangles_loaded = true;
   }
 
-  void shutdown() { m_l_device().waitIdle(); }
+  void shutdown() {
+    m_l_device().waitIdle();
+    ImGui_ImplVulkan_Shutdown(); // This should probably go in the destructor or in a custom class. For now this will do
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+  }
 
 private:
+  void draw_gui() { ImGui::ShowDemoWindow(); }
+
   void initialize_input_hanlder() {
     auto &handler = input_handler::instance();
 
@@ -382,7 +460,7 @@ private:
                                                 .level = vk::CommandBufferLevel::ePrimary,
                                                 .commandBufferCount = c_max_frames_in_flight};
 
-    m_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
+    m_primitives_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
   }
 
   void initilize_imgui() {
@@ -405,22 +483,23 @@ private:
                                       .ImageCount = static_cast<uint32_t>(m_swapchain.images().size()),
                                       .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
 
-    // ImGui_ImplVulkan_Init(&info, *m_render_pass()); Here we should create a render pass specific to Dear ImGui
+    ImGui_ImplVulkan_Init(&info, *m_imgui_data.m_imgui_render_pass());
+    // Here we should create a render pass specific to Dear ImGui
+    m_oneshot_upload.immediate_submit([](vk::raii::CommandBuffer &cmd) { ImGui_ImplVulkan_CreateFontsTexture(*cmd); });
   }
 
-  void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index) {
+  void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
     cmd.reset();
     cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
 
     vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
-    vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_render_pass(),
+    vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_primitives_render_pass(),
                                                 .framebuffer = *m_framebuffers[image_index],
-                                                .renderArea = {vk::Offset2D{0, 0}, m_swapchain.extent()},
+                                                .renderArea = {vk::Offset2D{0, 0}, extent},
                                                 .clearValueCount = 1,
                                                 .pClearValues = &clear_color};
 
     cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
-    auto extent = m_swapchain.extent();
 
     vk::Viewport viewport = {0.0f,
                              static_cast<float>(extent.height),
@@ -433,7 +512,7 @@ private:
     cmd.setScissor(0, {{vk::Offset2D{0, 0}, extent}});
 
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_triangle_pipeline());
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_pipeline_layout(), 0,
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_primitives_pipeline_layout(), 0,
                            {*m_descriptor_set.m_descriptor_set}, nullptr);
 
     if (m_triangles_loaded) {
@@ -454,14 +533,19 @@ private:
     }
 
     const auto &old_swapchain = m_swapchain();
-    auto        new_swapchain = ezvk::swapchain{m_platform.p_device(),    m_l_device(),  m_platform.surface(), extent,
+
+    auto new_swapchain = ezvk::swapchain{m_platform.p_device(),    m_l_device(),  m_platform.surface(), extent,
                                          m_graphics_present.get(), *old_swapchain};
 
     m_l_device().waitIdle();
     m_swapchain().clear(); // Destroy the old swapchain
     m_swapchain = std::move(new_swapchain);
 
-    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_render_pass()};
+    // Minimum number of images may have changed during swapchain recreation
+    ImGui_ImplVulkan_SetMinImageCount(m_swapchain.min_image_count());
+    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass()};
+    m_imgui_data.m_imgui_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(),
+                                         m_imgui_data.m_imgui_render_pass()};
   }
 
   // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
@@ -483,7 +567,12 @@ private:
       return;
     }
 
-    fill_command_buffer(m_command_buffers[m_curr_frame], image_index);
+    fill_command_buffer(m_primitives_command_buffers[m_curr_frame], image_index, m_swapchain.extent());
+    m_imgui_data.fill_command_buffer(m_imgui_data.m_imgui_command_buffers[m_curr_frame], image_index,
+                                     m_swapchain.extent());
+
+    std::array<vk::CommandBuffer, 2> cmds = {*m_primitives_command_buffers[m_curr_frame],
+                                             *m_imgui_data.m_imgui_command_buffers[m_curr_frame]};
 
     m_uniform_buffers[m_curr_frame].copy_to_device(
         m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height));
@@ -493,8 +582,8 @@ private:
     vk::SubmitInfo submit_info = {.waitSemaphoreCount = 1,
                                   .pWaitSemaphores = std::addressof(*current_frame_data.image_availible_semaphore),
                                   .pWaitDstStageMask = std::addressof(wait_stages),
-                                  .commandBufferCount = 1,
-                                  .pCommandBuffers = &(*m_command_buffers[m_curr_frame]),
+                                  .commandBufferCount = cmds.size(),
+                                  .pCommandBuffers = cmds.data(),
                                   .signalSemaphoreCount = 1,
                                   .pSignalSemaphores = std::addressof(*current_frame_data.render_finished_semaphore)};
 

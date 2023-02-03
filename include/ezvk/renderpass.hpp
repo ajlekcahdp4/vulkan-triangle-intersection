@@ -45,7 +45,8 @@ public:
       .initialLayout = vk::ImageLayout::eUndefined,
       .finalLayout = vk::ImageLayout::ePresentSrcKHR};
 
-  render_pass(const vk::raii::Device &device, vk::AttachmentDescription color_attachment = default_color_attachment) {
+  render_pass(const vk::raii::Device &device, vk::AttachmentDescription color_attachment = default_color_attachment,
+              std::span<const vk::SubpassDependency> deps = {}) {
 
     vk::AttachmentReference color_attachment_ref = {.attachment = 0,
                                                     .layout = vk::ImageLayout::eColorAttachmentOptimal};
@@ -54,8 +55,12 @@ public:
                                       .colorAttachmentCount = 1,
                                       .pColorAttachments = &color_attachment_ref};
 
-    vk::RenderPassCreateInfo renderpass_info = {
-        .attachmentCount = 1, .pAttachments = &color_attachment, .subpassCount = 1, .pSubpasses = &subpass};
+    vk::RenderPassCreateInfo renderpass_info = {.attachmentCount = 1,
+                                                .pAttachments = &color_attachment,
+                                                .subpassCount = 1,
+                                                .pSubpasses = &subpass,
+                                                .dependencyCount = static_cast<uint32_t>(deps.size()),
+                                                .pDependencies = deps.data()};
 
     m_render_pass = device.createRenderPass(renderpass_info);
   }
