@@ -248,6 +248,7 @@ int main(int argc, char *argv[]) {
 
   app.load_triangles(vertices);
 
+  app.init();
   while (!glfwWindowShouldClose(app.window())) {
     glfwPollEvents();
     app.loop();

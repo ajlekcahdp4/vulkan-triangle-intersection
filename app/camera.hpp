@@ -17,10 +17,12 @@ namespace triangles {
 
 struct camera final {
 private:
-  glm::vec3 position, direction, up;
+  glm::vec3 direction, up;
   float     fov, z_near_clip, z_far_clip;
 
 public:
+  glm::vec3 position;
+
   camera(glm::vec3 p_pos = {0, 0, 25}, glm::vec3 p_dir = {0, 0, -1.0f}, glm::vec3 p_up = {0, 1.0f, 0},
          float p_fov = glm::radians(45.0), float p_near_clip = 0.1f, float p_far_clip = 1000.0f)
       : position{p_pos}, direction{glm::normalize(p_dir)}, up{glm::normalize(p_up)}, fov{p_fov},
@@ -29,7 +31,10 @@ public:
   void  set_fov_degrees(float degrees) { fov = glm::radians(degrees); }
   float get_fov_degrees() const { return glm::degrees(fov); }
 
-  void translate(glm::vec3 translation) { position += translation; }
+  void      translate(glm::vec3 translation) { position += translation; }
+  glm::vec3 get_direction() const { return direction; }
+  glm::vec3 get_up() const { return up; }
+  glm::vec3 get_sideways() const { return glm::cross(direction, up); }
 
   // Only pass here a normalized quaternion
   void rotate(glm::quat q) {

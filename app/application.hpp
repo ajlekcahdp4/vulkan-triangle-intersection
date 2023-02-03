@@ -10,6 +10,12 @@
 
 #pragma once
 
+#include "equal.hpp"
+#include "glm/detail/qualifier.hpp"
+#include "glm/ext/quaternion_float.hpp"
+#include "glm/ext/quaternion_geometric.hpp"
+#include "glm/ext/quaternion_trigonometric.hpp"
+#include "glm/trigonometric.hpp"
 #include "wrappers.hpp"
 
 #include "camera.hpp"
@@ -31,9 +37,11 @@
 #include "glm_inlcude.hpp"
 #include "vulkan_hpp_include.hpp"
 
+#include <GLFW/glfw3.h>
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <unordered_map>
 
 #if defined(VK_VALIDATION_LAYER) || !defined(NDEBUG)
 #define USE_DEBUG_EXTENSION
@@ -67,6 +75,61 @@ public:
   const auto &p_device() const & { return m_p_device; }
 };
 
+class input_handler {
+public:
+  enum class button_state : uint32_t { e_idle, e_held_down, e_pressed };
+  using key_index = int;
+
+private:
+  struct tracked_key_info {
+    button_state current_state, look_for;
+  };
+
+  std::unordered_map<key_index, tracked_key_info> m_tracked_keys;
+
+  input_handler() {}
+
+  static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    auto &me = instance();
+
+    auto found = me.m_tracked_keys.find(key);
+    if (found == me.m_tracked_keys.end()) return;
+
+    auto &btn_info = found->second;
+
+    if (action == GLFW_PRESS) {
+      btn_info.current_state = button_state::e_held_down;
+    } else if (action == GLFW_RELEASE) {
+      btn_info.current_state = button_state::e_pressed;
+    }
+  }
+
+public:
+  static input_handler &instance() {
+    static input_handler handler;
+    return handler;
+  }
+
+public:
+  void monitor(key_index key, button_state state_to_notify) {
+    m_tracked_keys[key] = tracked_key_info{button_state::e_idle, state_to_notify};
+  }
+
+  static void bind(GLFWwindow *window) { glfwSetKeyCallback(window, key_callback); }
+
+  std::unordered_map<key_index, button_state> poll() {
+    std::unordered_map<key_index, button_state> result;
+
+    for (auto &v : m_tracked_keys) {
+      if (v.second.current_state == v.second.look_for) {
+        result.insert({v.first, v.second.current_state});
+      }
+    }
+
+    return result;
+  }
+};
+
 class application final {
 private:
   static constexpr uint32_t c_max_frames_in_flight = 2; // Double buffering
@@ -97,11 +160,14 @@ private:
     vk::raii::CommandBuffer cmd = nullptr;
   };
 
-  std::vector<frame_rendering_info> m_rendering_info;
+  std::vector<frame_rendering_info>                  m_rendering_info;
+  std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;
 
   std::size_t m_curr_frame = 0, m_verices_n = 0;
+  camera      m_camera;
 
-  camera m_camera;
+  static constexpr float c_velocity = 10.0f;
+  static constexpr float c_angular_velocity = glm::radians(30.0f);
 
 public:
   bool m_triangles_loaded = false;
@@ -124,10 +190,43 @@ public:
     m_command_pool = {ezvk::create_command_pool(m_logical_device(), m_graphics_present->graphics().family_index())};
 
     initialize_frame_rendering_info();
+    initialize_input_hanlder();
   }
 
-  void  shutdown() { m_logical_device().waitIdle(); }
-  void  loop() { render_frame(); }
+  void init() { m_prev_frame_start = std::chrono::system_clock::now(); }
+
+  void loop() {
+    render_frame();
+
+    auto  finish = std::chrono::system_clock::now();
+    float delta_t = std::chrono::duration<float>{finish - m_prev_frame_start}.count();
+
+    auto &handler = input_handler::instance();
+    auto  events = handler.poll();
+
+    auto fwd_movement = (1.0f * events.count(GLFW_KEY_W)) - (1.0f * events.count(GLFW_KEY_S));
+    auto side_movement = (1.0f * events.count(GLFW_KEY_D)) - (1.0f * events.count(GLFW_KEY_A));
+
+    glm::vec3 dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways();
+
+    if (throttle::geometry::is_definitely_greater(glm::length(dir_movement), 0.0f)) {
+      m_camera.translate(glm::normalize(dir_movement) * c_velocity * delta_t);
+    }
+
+    auto yaw_movement = (1.0f * events.count(GLFW_KEY_RIGHT)) - (1.0f * events.count(GLFW_KEY_LEFT));
+    auto pitch_movement = (1.0f * events.count(GLFW_KEY_DOWN)) - (1.0f * events.count(GLFW_KEY_UP));
+    auto roll_movement = (1.0f * events.count(GLFW_KEY_Q)) - (1.0f * events.count(GLFW_KEY_E));
+
+    glm::quat yaw_rotation = glm::angleAxis(yaw_movement * c_angular_velocity * delta_t, m_camera.get_up());
+    glm::quat pitch_rotation = glm::angleAxis(pitch_movement * c_angular_velocity * delta_t, m_camera.get_sideways());
+    glm::quat roll_rotation = glm::angleAxis(roll_movement * c_angular_velocity * delta_t, m_camera.get_direction());
+
+    glm::quat resulting_rotation = yaw_rotation * pitch_rotation * roll_rotation;
+    m_camera.rotate(resulting_rotation);
+
+    m_prev_frame_start = std::chrono::system_clock::now();
+  }
+
   auto *window() const { return m_platform.window()(); }
 
   void load_triangles(const std::vector<vertex_type> &vertices) {
@@ -137,7 +236,31 @@ public:
     m_triangles_loaded = true;
   }
 
+  void shutdown() { m_logical_device().waitIdle(); }
+
 private:
+  void initialize_input_hanlder() {
+    auto &handler = input_handler::instance();
+
+    // Movements forward, backward and sideways
+    handler.monitor(GLFW_KEY_W, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_A, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_S, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_D, input_handler::button_state::e_held_down);
+
+    // Rotate around the camera direction axis
+    handler.monitor(GLFW_KEY_Q, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_E, input_handler::button_state::e_held_down);
+
+    // Rotate around the yaw and pitch axis
+    handler.monitor(GLFW_KEY_RIGHT, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_LEFT, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_UP, input_handler::button_state::e_held_down);
+    handler.monitor(GLFW_KEY_DOWN, input_handler::button_state::e_held_down);
+
+    handler.bind(m_platform.window()());
+  }
+
   void initialize_logical_device_queues() {
     auto graphics_queue_indices = ezvk::find_graphics_family_indices(m_platform.p_device());
     auto present_queue_indices = ezvk::find_present_family_indices(m_platform.p_device(), m_platform.surface());
