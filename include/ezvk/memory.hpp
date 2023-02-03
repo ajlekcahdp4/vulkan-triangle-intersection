@@ -184,20 +184,23 @@ public:
 
 class upload_context {
   const vk::raii::Device *m_device_ptr;
-  device_queue            m_transfer_queue;
+  const device_queue     *m_transfer_queue;
 
   vk::raii::Fence         m_upload_fence = nullptr;
   vk::raii::CommandBuffer m_command_buffer = nullptr;
-  vk::raii::CommandPool   m_command_pool = nullptr;
 
 public:
-  upload_context(const vk::raii::Device *l_device, device_queue transfer_queue)
-      : m_device_ptr{l_device}, m_transfer_queue{std::move(transfer_queue)} {
-    assert(l_device);
-    m_command_pool = ezvk::create_command_pool(*m_device_ptr, transfer_queue.family_index());
+  upload_context() = default;
 
-    vk::CommandBufferAllocateInfo alloc_info{
-        .commandPool = *m_command_pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1};
+  upload_context(const vk::raii::Device *l_device, const device_queue *transfer_queue,
+                 const vk::raii::CommandPool *pool)
+      : m_device_ptr{l_device}, m_transfer_queue{transfer_queue} {
+    assert(l_device);
+    assert(transfer_queue);
+
+    vk::CommandBufferAllocateInfo alloc_info = {
+        .commandPool = **pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1};
+
     m_command_buffer = std::move(vk::raii::CommandBuffers{*m_device_ptr, alloc_info}.front());
     m_upload_fence = l_device->createFence({});
   }
@@ -205,8 +208,9 @@ public:
   void immediate_submit(std::function<void(vk::raii::CommandBuffer &cmd)> cmd_buffer_creation_func) {
     m_command_buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     cmd_buffer_creation_func(m_command_buffer);
+    m_command_buffer.end();
     vk::SubmitInfo submit_info = {.commandBufferCount = 1, .pCommandBuffers = &(*m_command_buffer)};
-    m_transfer_queue.queue().submit(submit_info, *m_upload_fence);
+    m_transfer_queue->queue().submit(submit_info, *m_upload_fence);
     m_device_ptr->waitForFences(*m_upload_fence, true, UINT64_MAX);
     m_device_ptr->resetFences(*m_upload_fence);
     m_command_buffer.reset();

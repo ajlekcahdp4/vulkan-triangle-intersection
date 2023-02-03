@@ -19,6 +19,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_raii.hpp>
 
 namespace ezvk {
@@ -132,8 +133,12 @@ inline std::unique_ptr<i_graphics_present_queues> make_graphics_present_queues(c
                                                                     present);
 }
 
-inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, queue_family_index_type queue) {
-  return device.createCommandPool(vk::CommandPoolCreateInfo{.queueFamilyIndex = queue});
+inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, queue_family_index_type queue,
+                                                 bool enable_reset = false) {
+  vk::CommandPoolCreateFlags flags;
+  if (enable_reset) flags |= vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+
+  return device.createCommandPool(vk::CommandPoolCreateInfo{.flags = flags, .queueFamilyIndex = queue});
 }
 
 } // namespace ezvk
