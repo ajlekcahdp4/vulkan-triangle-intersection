@@ -18,7 +18,7 @@
 
 #include "ezvk/descriptor_set.hpp"
 #include "ezvk/memory.hpp"
-#include "shaders.hpp"
+#include "ezvk/shaders.hpp"
 
 namespace throttle::graphics {
 
@@ -84,13 +84,13 @@ vk::raii::Pipeline pipeline_data<vertex_t>::create_pipeline(const vk::raii::Devi
   std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
 
   // vertex shader
-  auto                              vertex_shader = create_module(p_vertex_file_path, p_device);
+  auto                              vertex_shader = ezvk::create_module(p_vertex_file_path, p_device);
   vk::PipelineShaderStageCreateInfo vertex_shader_info = {
       .stage = vk::ShaderStageFlagBits::eVertex, .module = *vertex_shader, .pName = "main"};
   shader_stages.push_back(vertex_shader_info);
 
   // fragment shader
-  auto                              fragment_shader = create_module(p_fragment_file_path, p_device);
+  auto                              fragment_shader = ezvk::create_module(p_fragment_file_path, p_device);
   vk::PipelineShaderStageCreateInfo fragment_shader_info = {
       .stage = vk::ShaderStageFlagBits::eFragment, .module = *fragment_shader, .pName = "main"};
   shader_stages.push_back(fragment_shader_info);
