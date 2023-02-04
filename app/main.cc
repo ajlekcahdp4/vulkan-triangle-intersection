@@ -245,15 +245,16 @@ int main(int argc, char *argv[]) {
   triangles::applicaton_platform platform = {std::move(instance), std::move(window), std::move(surface),
                                              std::move(p_device)};
 
-  triangles::application app = {std::move(platform)};
+  auto &app = triangles::application::instance().get(&platform);
 
   app.load_triangles(vertices);
 
-  app.init();
   while (!glfwWindowShouldClose(app.window())) {
     glfwPollEvents();
     app.loop();
   }
 
   app.shutdown();
+
+  triangles::application::instance().destroy();
 }

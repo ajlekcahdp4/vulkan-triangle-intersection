@@ -41,6 +41,7 @@
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <unordered_map>
 
 #if defined(VK_VALIDATION_LAYER) || !defined(NDEBUG)
@@ -184,13 +185,20 @@ private:
   std::size_t m_curr_frame = 0, m_verices_n = 0;
   camera      m_camera;
 
+  bool m_first_frame = true;
+
+private:
   friend class imgui_related_data;
+
   struct imgui_related_data {
+  private:
+    bool m_initialized = false;
+
+  public:
     vk::raii::DescriptorPool m_descriptor_pool = nullptr;
     ezvk::render_pass        m_imgui_render_pass;
     vk::raii::CommandBuffers m_imgui_command_buffers = nullptr;
     ezvk::framebuffers       m_imgui_framebuffers;
-    application             *m_app;
 
     imgui_related_data() = default;
 
@@ -251,6 +259,54 @@ private:
       m_imgui_command_buffers = vk::raii::CommandBuffers{app.m_l_device(), alloc_info};
       m_imgui_framebuffers = {app.m_l_device(), app.m_swapchain.image_views(), app.m_swapchain.extent(),
                               m_imgui_render_pass()};
+
+      IMGUI_CHECKVERSION(); // Verify that compiled imgui binary matches the header
+      ImGui::CreateContext();
+
+      ImGui_ImplGlfw_InitForVulkan(app.m_platform.window()(), true);
+      ImGui_ImplVulkan_InitInfo info = {.Instance = *app.m_platform.instance(),
+                                        .PhysicalDevice = *app.m_platform.p_device(),
+                                        .Device = *app.m_l_device(),
+                                        .QueueFamily = app.m_graphics_present->graphics().family_index(),
+                                        .Queue = *app.m_graphics_present->graphics().queue(),
+                                        .PipelineCache = VK_NULL_HANDLE,
+                                        .DescriptorPool = *m_descriptor_pool,
+                                        .Subpass = 0,
+                                        .MinImageCount = app.m_swapchain.min_image_count(),
+                                        .ImageCount = static_cast<uint32_t>(app.m_swapchain.images().size()),
+                                        .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
+
+      ImGui_ImplVulkan_Init(&info, *m_imgui_render_pass());
+      // Here we should create a render pass specific to Dear ImGui
+      app.m_oneshot_upload.immediate_submit(
+          [](vk::raii::CommandBuffer &cmd) { ImGui_ImplVulkan_CreateFontsTexture(*cmd); });
+
+      m_initialized = true;
+    }
+
+    imgui_related_data(const imgui_related_data &rhs) = delete;
+    imgui_related_data &operator=(const imgui_related_data &rhs) = delete;
+
+    void swap(imgui_related_data &rhs) {
+      std::swap(m_descriptor_pool, rhs.m_descriptor_pool);
+      std::swap(m_imgui_render_pass, rhs.m_imgui_render_pass);
+      std::swap(m_imgui_command_buffers, rhs.m_imgui_command_buffers);
+      std::swap(m_imgui_framebuffers, rhs.m_imgui_framebuffers);
+      std::swap(m_initialized, rhs.m_initialized);
+    }
+
+    imgui_related_data(imgui_related_data &&rhs) { swap(rhs); }
+
+    imgui_related_data &operator=(imgui_related_data &&rhs) {
+      swap(rhs);
+      return *this;
+    }
+
+    ~imgui_related_data() {
+      if (!m_initialized) return;
+      ImGui_ImplVulkan_Shutdown();
+      ImGui_ImplGlfw_Shutdown();
+      ImGui::DestroyContext();
     }
 
     void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
@@ -275,7 +331,7 @@ private:
   static constexpr float c_velocity = 100.0f;
   static constexpr float c_angular_velocity = glm::radians(30.0f);
 
-public:
+private:
   application(applicaton_platform platform) : m_platform{std::move(platform)} {
     initialize_logical_device_queues();
 
@@ -305,9 +361,42 @@ public:
     initilize_imgui();                 // Initialize GUI specific objects
   }
 
-  void init() { m_prev_frame_start = std::chrono::system_clock::now(); }
+private:
+  class singleton_helper {
+    std::unique_ptr<application> m_instance;
+
+  public:
+    application &get(applicaton_platform *platform = nullptr) {
+      if (platform) {
+        if (m_instance.get()) throw std::invalid_argument{"Application instance is already initialized"};
+        m_instance = std::unique_ptr<application>{new application{std::move(*platform)}};
+        return *m_instance.get();
+      }
+
+      if (!m_instance.get()) throw std::invalid_argument{"Application instance hasn't been initialized"};
+      return *m_instance.get();
+    }
+
+    void destroy() { m_instance.reset(); }
+  };
+
+public:
+  static singleton_helper &instance() {
+    static singleton_helper helper;
+    return helper;
+  }
 
   void loop() {
+    auto current_time = std::chrono::system_clock::now();
+
+    if (!m_first_frame) {
+      physics_loop(std::chrono::duration<float>{current_time - m_prev_frame_start}.count());
+    } else {
+      m_first_frame = false;
+    }
+
+    m_prev_frame_start = current_time;
+
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
@@ -316,42 +405,6 @@ public:
     ImGui::Render();
 
     render_frame();
-
-    auto  finish = std::chrono::system_clock::now();
-    float delta_t = std::chrono::duration<float>{finish - m_prev_frame_start}.count();
-
-    auto &handler = input_handler::instance();
-    auto  events = handler.poll();
-
-    const auto calculate_movement = [events](int plus, int minus) {
-      return (1.0f * events.count(plus)) - (1.0f * events.count(minus));
-    };
-
-    auto fwd_movement = calculate_movement(GLFW_KEY_W, GLFW_KEY_S);
-    auto side_movement = calculate_movement(GLFW_KEY_D, GLFW_KEY_A);
-    auto up_movement = calculate_movement(GLFW_KEY_SPACE, GLFW_KEY_C);
-
-    glm::vec3 dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways() +
-                             up_movement * m_camera.get_up();
-
-    if (throttle::geometry::is_definitely_greater(glm::length(dir_movement), 0.0f)) {
-      m_camera.translate(glm::normalize(dir_movement) * c_velocity * delta_t);
-    }
-
-    auto yaw_movement = calculate_movement(GLFW_KEY_RIGHT, GLFW_KEY_LEFT);
-    auto pitch_movement = calculate_movement(GLFW_KEY_DOWN, GLFW_KEY_UP);
-    auto roll_movement = calculate_movement(GLFW_KEY_Q, GLFW_KEY_E);
-
-    auto angular_per_delta_t = c_angular_velocity * delta_t;
-
-    glm::quat yaw_rotation = glm::angleAxis(yaw_movement * angular_per_delta_t, m_camera.get_up());
-    glm::quat pitch_rotation = glm::angleAxis(pitch_movement * angular_per_delta_t, m_camera.get_sideways());
-    glm::quat roll_rotation = glm::angleAxis(roll_movement * angular_per_delta_t, m_camera.get_direction());
-
-    glm::quat resulting_rotation = yaw_rotation * pitch_rotation * roll_rotation;
-    m_camera.rotate(resulting_rotation);
-
-    m_prev_frame_start = std::chrono::system_clock::now();
   }
 
   auto *window() const { return m_platform.window()(); }
@@ -380,14 +433,42 @@ public:
     m_triangles_loaded = true;
   }
 
-  void shutdown() {
-    m_l_device().waitIdle();
-    ImGui_ImplVulkan_Shutdown(); // This should probably go in the destructor or in a custom class. For now this will do
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-  }
+  void shutdown() { m_l_device().waitIdle(); }
 
 private:
+  void physics_loop(float delta) {
+    auto &handler = input_handler::instance();
+    auto  events = handler.poll();
+
+    const auto calculate_movement = [events](int plus, int minus) {
+      return (1.0f * events.count(plus)) - (1.0f * events.count(minus));
+    };
+
+    auto fwd_movement = calculate_movement(GLFW_KEY_W, GLFW_KEY_S);
+    auto side_movement = calculate_movement(GLFW_KEY_D, GLFW_KEY_A);
+    auto up_movement = calculate_movement(GLFW_KEY_SPACE, GLFW_KEY_C);
+
+    glm::vec3 dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways() +
+                             up_movement * m_camera.get_up();
+
+    if (throttle::geometry::is_definitely_greater(glm::length(dir_movement), 0.0f)) {
+      m_camera.translate(glm::normalize(dir_movement) * c_velocity * delta);
+    }
+
+    auto yaw_movement = calculate_movement(GLFW_KEY_RIGHT, GLFW_KEY_LEFT);
+    auto pitch_movement = calculate_movement(GLFW_KEY_DOWN, GLFW_KEY_UP);
+    auto roll_movement = calculate_movement(GLFW_KEY_Q, GLFW_KEY_E);
+
+    auto angular_per_delta_t = c_angular_velocity * delta;
+
+    glm::quat yaw_rotation = glm::angleAxis(yaw_movement * angular_per_delta_t, m_camera.get_up());
+    glm::quat pitch_rotation = glm::angleAxis(pitch_movement * angular_per_delta_t, m_camera.get_sideways());
+    glm::quat roll_rotation = glm::angleAxis(roll_movement * angular_per_delta_t, m_camera.get_direction());
+
+    glm::quat resulting_rotation = yaw_rotation * pitch_rotation * roll_rotation;
+    m_camera.rotate(resulting_rotation);
+  }
+
   void draw_gui() { ImGui::ShowDemoWindow(); }
 
   void initialize_input_hanlder() {
@@ -460,28 +541,8 @@ private:
   }
 
   void initilize_imgui() {
-    m_imgui_data = {*this};
-
-    IMGUI_CHECKVERSION(); // Verify that compiled imgui binary matches the header
-    ImGui::CreateContext();
+    m_imgui_data = imgui_related_data{*this};
     ImGui::StyleColorsDark(); // Blessed dark mode
-
-    ImGui_ImplGlfw_InitForVulkan(m_platform.window()(), true);
-    ImGui_ImplVulkan_InitInfo info = {.Instance = *m_platform.instance(),
-                                      .PhysicalDevice = *m_platform.p_device(),
-                                      .Device = *m_l_device(),
-                                      .QueueFamily = m_graphics_present->graphics().family_index(),
-                                      .Queue = *m_graphics_present->graphics().queue(),
-                                      .PipelineCache = VK_NULL_HANDLE,
-                                      .DescriptorPool = *m_imgui_data.m_descriptor_pool,
-                                      .Subpass = 0,
-                                      .MinImageCount = m_swapchain.min_image_count(),
-                                      .ImageCount = static_cast<uint32_t>(m_swapchain.images().size()),
-                                      .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
-
-    ImGui_ImplVulkan_Init(&info, *m_imgui_data.m_imgui_render_pass());
-    // Here we should create a render pass specific to Dear ImGui
-    m_oneshot_upload.immediate_submit([](vk::raii::CommandBuffer &cmd) { ImGui_ImplVulkan_CreateFontsTexture(*cmd); });
   }
 
   void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
