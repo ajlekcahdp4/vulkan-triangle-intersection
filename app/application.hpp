@@ -475,7 +475,7 @@ private:
                                       .PipelineCache = VK_NULL_HANDLE,
                                       .DescriptorPool = *m_imgui_data.m_descriptor_pool,
                                       .Subpass = 0,
-                                      m_swapchain.min_image_count(),
+                                      .MinImageCount = m_swapchain.min_image_count(),
                                       .ImageCount = static_cast<uint32_t>(m_swapchain.images().size()),
                                       .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
 
