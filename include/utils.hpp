@@ -14,6 +14,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -43,7 +44,7 @@ auto find_all_missing(auto all_start, auto all_finish, auto find_start, auto fin
 }
 
 auto find_all_that_satisfy(auto all_start, auto all_finish, auto pred) {
-  std::vector<typename decltype(all_start)::value_type> satisfy;
+  std::vector<typename std::iterator_traits<decltype(all_start)>::value_type> satisfy;
 
   for (; all_start != all_finish; ++all_start) {
     if (pred(*all_start)) satisfy.push_back(*all_start);

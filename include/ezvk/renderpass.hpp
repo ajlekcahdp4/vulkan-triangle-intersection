@@ -28,9 +28,9 @@
 
 namespace ezvk {
 
-static inline vk::AttachmentDescription create_depth_attachment(const vk::raii::PhysicalDevice &p_device) {
-  return {.flags = vk::AttachmentDescriptionFlags(),
-          .format = find_depth_format(p_device),
+static inline vk::AttachmentDescription create_depth_attachment(vk::Format depth_format) {
+  return {.flags = vk::AttachmentDescriptionFlags{},
+          .format = depth_format,
           .samples = vk::SampleCountFlagBits::e1,
           .loadOp = vk::AttachmentLoadOp::eClear,
           .storeOp = vk::AttachmentStoreOp::eDontCare,
@@ -46,21 +46,10 @@ class render_pass final {
 public:
   render_pass() = default;
 
-  static constexpr vk::AttachmentDescription default_color_attachment = {
-      .flags = vk::AttachmentDescriptionFlags(),
-      .format = vk::Format::eB8G8R8A8Unorm,
-      .samples = vk::SampleCountFlagBits::e1,
-      .loadOp = vk::AttachmentLoadOp::eClear,
-      .storeOp = vk::AttachmentStoreOp::eStore,
-      .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-      .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-      .initialLayout = vk::ImageLayout::eUndefined,
-      .finalLayout = vk::ImageLayout::ePresentSrcKHR};
-
   render_pass(const vk::raii::Device &device, const vk::SubpassDescription &subpass,
               std::span<vk::AttachmentDescription> attachments = {}, std::span<const vk::SubpassDependency> deps = {}) {
 
-    vk::RenderPassCreateInfo renderpass_info = {.attachmentCount = attachments.size(),
+    vk::RenderPassCreateInfo renderpass_info = {.attachmentCount = static_cast<uint32_t>(attachments.size()),
                                                 .pAttachments = attachments.data(),
                                                 .subpassCount = 1,
                                                 .pSubpasses = &subpass,

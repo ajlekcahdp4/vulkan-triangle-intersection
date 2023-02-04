@@ -13,6 +13,7 @@
 #include "equal.hpp"
 
 #include "camera.hpp"
+#include "ezvk/depth_buffer.hpp"
 #include "misc.hpp"
 #include "pipeline.hpp"
 #include "ubo.hpp"
@@ -187,6 +188,7 @@ private:
   camera      m_camera;
 
   bool m_first_frame = true;
+  bool m_triangles_loaded = false;
 
 private:
   friend class imgui_related_data;
@@ -284,10 +286,14 @@ private:
                                         .Subpass = 0,
                                         .MinImageCount = app.m_swapchain.min_image_count(),
                                         .ImageCount = static_cast<uint32_t>(app.m_swapchain.images().size()),
+                                        .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+                                        .Allocator = nullptr,
                                         .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
 
       ImGui_ImplVulkan_Init(&info, *m_imgui_render_pass());
       // Here we should create a render pass specific to Dear ImGui
+
+      // Upload font textures to the GPU via oneshot immediate submit
       app.m_oneshot_upload.immediate_submit(
           [](vk::raii::CommandBuffer &cmd) { ImGui_ImplVulkan_CreateFontsTexture(*cmd); });
 
@@ -344,8 +350,6 @@ private:
     static void render_frame() { ImGui::Render(); }
   } m_imgui_data;
 
-  bool m_triangles_loaded = false;
-
   static constexpr float c_velocity = 100.0f;
   static constexpr float c_angular_velocity = glm::radians(30.0f);
 
@@ -371,35 +375,7 @@ private:
     m_swapchain = {m_platform.p_device(), m_l_device(), m_platform.surface(), m_platform.window().extent(),
                    m_graphics_present.get()};
 
-    m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::uniform_buffer_object), m_platform.p_device(),
-                         m_l_device(), vk::BufferUsageFlagBits::eUniformBuffer};
-
-    m_descriptor_set = {m_l_device(), m_uniform_buffers};
-
-    vk::AttachmentReference color_attachment_ref = {.attachment = 0,
-                                                    .layout = vk::ImageLayout::eColorAttachmentOptimal};
-    vk::AttachmentReference depth_attachment_ref = {.attachment = 1,
-                                                    .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
-    vk::SubpassDescription  subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-                                       .inputAttachmentCount = 0,
-                                       .pInputAttachments = nullptr,
-                                       .colorAttachmentCount = 1,
-                                       .pColorAttachments = &color_attachment_ref,
-                                       .pResolveAttachments = nullptr,
-                                       .pDepthStencilAttachment = &depth_attachment_ref};
-
-    std::array<vk::AttachmentDescription, 2> attachments{primitives_renderpass_attachment_description,
-                                                         ezvk::create_depth_attachment(m_platform.m_p_device)};
-
-    m_primitives_render_pass = ezvk::render_pass{m_l_device(), subpass, attachments, depth_subpass_dependency};
-    m_depth_buffer = {m_platform.m_p_device, m_l_device(), m_swapchain.extent()};
-    m_primitives_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
-    m_triangle_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_primitives_pipeline_layout(),
-                           m_primitives_render_pass()};
-
-    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
-                      m_depth_buffer.m_image_view()};
-
+    initialize_primitives_pipeline();
     initialize_input_hanlder(); // Bind key strokes
 
     initialize_frame_rendering_info(); // Initialize data needed to render primitives
@@ -513,6 +489,42 @@ private:
   }
 
   void draw_gui() { ImGui::ShowDemoWindow(); }
+
+  void initialize_primitives_pipeline() {
+    m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::ubo), m_platform.p_device(), m_l_device(),
+                         vk::BufferUsageFlagBits::eUniformBuffer};
+
+    m_descriptor_set = {m_l_device(), m_uniform_buffers};
+
+    // clang-format off
+    constexpr vk::AttachmentReference 
+      color_attachment_ref = {.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal}, 
+      depth_attachment_ref = {.attachment = 1, .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
+    // clang-format on
+
+    vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+                                      .inputAttachmentCount = 0,
+                                      .pInputAttachments = nullptr,
+                                      .colorAttachmentCount = 1,
+                                      .pColorAttachments = &color_attachment_ref,
+                                      .pResolveAttachments = nullptr,
+                                      .pDepthStencilAttachment = &depth_attachment_ref};
+
+    const vk::Format depth_format = ezvk::find_depth_format(m_platform.p_device()).at(0);
+
+    std::array<vk::AttachmentDescription, 2> attachments = {primitives_renderpass_attachment_description,
+                                                            ezvk::create_depth_attachment(depth_format)};
+
+    m_primitives_render_pass = ezvk::render_pass{m_l_device(), subpass, attachments, depth_subpass_dependency};
+    m_depth_buffer = {m_platform.m_p_device, m_l_device(), depth_format, m_swapchain.extent()};
+    m_primitives_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
+
+    m_triangle_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_primitives_pipeline_layout(),
+                           m_primitives_render_pass()};
+
+    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
+                      m_depth_buffer.m_image_view()};
+  }
 
   void initialize_input_hanlder() {
     auto &handler = input_handler::instance();
@@ -646,7 +658,7 @@ private:
 
     // Minimum number of images may have changed during swapchain recreation
     ImGui_ImplVulkan_SetMinImageCount(m_swapchain.min_image_count());
-    m_depth_buffer = {m_platform.m_p_device, m_l_device(), m_swapchain.extent()};
+    m_depth_buffer = {m_platform.m_p_device, m_l_device(), m_depth_buffer.depth_format(), m_swapchain.extent()};
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
                       m_depth_buffer.m_image_view()};
     m_imgui_data.m_imgui_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(),
@@ -656,7 +668,8 @@ private:
   // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
   void render_frame() {
     auto &current_frame_data = m_rendering_info.at(m_curr_frame);
-    m_l_device().waitForFences({*current_frame_data.in_flight_fence}, VK_TRUE, UINT64_MAX);
+    static_cast<void>(m_l_device().waitForFences({*current_frame_data.in_flight_fence}, VK_TRUE, UINT64_MAX));
+    // Static cast to silence warning
 
     vk::AcquireNextImageInfoKHR acquire_info = {.swapchain = *m_swapchain(),
                                                 .timeout = UINT64_MAX,

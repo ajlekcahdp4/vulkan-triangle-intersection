@@ -15,10 +15,8 @@
 
 namespace triangles {
 
-struct uniform_buffer_object {
-  glm::mat4 model;
-  glm::mat4 view;
-  glm::mat4 proj;
+struct ubo {
+  glm::mat4 vp;
 };
 
 } // namespace triangles

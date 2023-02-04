@@ -226,9 +226,11 @@ public:
     m_command_buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     cmd_buffer_creation_func(m_command_buffer);
     m_command_buffer.end();
+
     vk::SubmitInfo submit_info = {.commandBufferCount = 1, .pCommandBuffers = &(*m_command_buffer)};
     m_transfer_queue->queue().submit(submit_info, *m_upload_fence);
-    m_device_ptr->waitForFences(*m_upload_fence, true, UINT64_MAX);
+
+    static_cast<void>(m_device_ptr->waitForFences(*m_upload_fence, true, UINT64_MAX));
     m_device_ptr->resetFences(*m_upload_fence);
     m_command_buffer.reset();
   };

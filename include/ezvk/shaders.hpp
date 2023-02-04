@@ -14,6 +14,7 @@
 #include <iostream>
 #include <string>
 
+#include "utils.hpp"
 #include "vulkan_hpp_include.hpp"
 
 namespace ezvk {
