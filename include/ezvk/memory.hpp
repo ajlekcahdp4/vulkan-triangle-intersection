@@ -64,7 +64,7 @@ public:
   framebuffers() = default;
 
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
-               const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) {
+               const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) { // add depth image arg
     uint32_t n_framebuffers = image_views.size();
     m_vector.reserve(n_framebuffers);
 
