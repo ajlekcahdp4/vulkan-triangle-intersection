@@ -64,7 +64,7 @@ public:
   framebuffers() = default;
 
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
-               const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) { // add depth image arg
+               const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) {
     uint32_t n_framebuffers = image_views.size();
     m_vector.reserve(n_framebuffers);
 
@@ -75,6 +75,24 @@ public:
                                                     .width = extent.width,
                                                     .height = extent.height,
                                                     .layers = 1};
+      m_vector.emplace_back(l_device, framebuffer_info);
+    }
+  }
+
+  framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
+               const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass,
+               const vk::raii::ImageView &depth_image_view) {
+    uint32_t n_framebuffers = image_views.size();
+    m_vector.reserve(n_framebuffers);
+
+    for (const auto &view : image_views) {
+      std::array<vk::ImageView, 2> attachments{*view, *depth_image_view};
+      vk::FramebufferCreateInfo    framebuffer_info = {.renderPass = *render_pass,
+                                                       .attachmentCount = attachments.size(),
+                                                       .pAttachments = attachments.data(),
+                                                       .width = extent.width,
+                                                       .height = extent.height,
+                                                       .layers = 1};
       m_vector.emplace_back(l_device, framebuffer_info);
     }
   }

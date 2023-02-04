@@ -167,6 +167,7 @@ private:
 
   ezvk::render_pass      m_primitives_render_pass;
   ezvk::pipeline_layout  m_primitives_pipeline_layout;
+  ezvk::depth_buffer     m_depth_buffer;
   triangle_pipeline_data m_triangle_pipeline;
 
   ezvk::framebuffers  m_framebuffers;
@@ -250,7 +251,16 @@ private:
                                                       .pPoolSizes = imgui_pool_sizes.data()};
 
       m_descriptor_pool = vk::raii::DescriptorPool{app.m_l_device(), descriptor_info};
-      m_imgui_render_pass = {app.m_l_device(), imgui_renderpass_attachment_description, imgui_subpass_dependency};
+
+      vk::AttachmentReference color_attachment_ref = {.attachment = 0,
+                                                      .layout = vk::ImageLayout::eColorAttachmentOptimal};
+
+      vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+                                        .colorAttachmentCount = 1,
+                                        .pColorAttachments = &color_attachment_ref};
+
+      std::array<vk::AttachmentDescription, 1> attachments{imgui_renderpass_attachment_description};
+      m_imgui_render_pass = ezvk::render_pass(app.m_l_device(), subpass, attachments, imgui_subpass_dependency);
 
       vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *app.m_command_pool,
                                                   .level = vk::CommandBufferLevel::ePrimary,
@@ -339,6 +349,16 @@ private:
   static constexpr float c_velocity = 100.0f;
   static constexpr float c_angular_velocity = glm::radians(30.0f);
 
+  static constexpr std::array<vk::SubpassDependency, 1> depth_subpass_dependency = {vk::SubpassDependency{
+      .srcSubpass = VK_SUBPASS_EXTERNAL,
+      .dstSubpass = 0,
+      .srcStageMask =
+          vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+      .dstStageMask =
+          vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+      .srcAccessMask = vk::AccessFlagBits::eNone,
+      .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite}};
+
 private:
   application(applicaton_platform platform) : m_platform{std::move(platform)} {
     initialize_logical_device_queues();
@@ -356,12 +376,29 @@ private:
 
     m_descriptor_set = {m_l_device(), m_uniform_buffers};
 
-    m_primitives_render_pass = {m_l_device(), primitives_renderpass_attachment_description};
+    vk::AttachmentReference color_attachment_ref = {.attachment = 0,
+                                                    .layout = vk::ImageLayout::eColorAttachmentOptimal};
+    vk::AttachmentReference depth_attachment_ref = {.attachment = 1,
+                                                    .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
+    vk::SubpassDescription  subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+                                       .inputAttachmentCount = 0,
+                                       .pInputAttachments = nullptr,
+                                       .colorAttachmentCount = 1,
+                                       .pColorAttachments = &color_attachment_ref,
+                                       .pResolveAttachments = nullptr,
+                                       .pDepthStencilAttachment = &depth_attachment_ref};
+
+    std::array<vk::AttachmentDescription, 2> attachments{primitives_renderpass_attachment_description,
+                                                         ezvk::create_depth_attachment(m_platform.m_p_device)};
+
+    m_primitives_render_pass = ezvk::render_pass{m_l_device(), subpass, attachments, depth_subpass_dependency};
+    m_depth_buffer = {m_platform.m_p_device, m_l_device(), m_swapchain.extent()};
     m_primitives_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
     m_triangle_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_primitives_pipeline_layout(),
                            m_primitives_render_pass()};
 
-    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass()};
+    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
+                      m_depth_buffer.m_image_view()};
 
     initialize_input_hanlder(); // Bind key strokes
 
@@ -555,12 +592,15 @@ private:
     cmd.reset();
     cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
 
-    vk::ClearValue          clear_color = {std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f}};
+    std::array<vk::ClearValue, 2> clear_values{};
+    clear_values[0].color = std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f};
+    clear_values[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
+
     vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_primitives_render_pass(),
                                                 .framebuffer = *m_framebuffers[image_index],
                                                 .renderArea = {vk::Offset2D{0, 0}, extent},
-                                                .clearValueCount = 1,
-                                                .pClearValues = &clear_color};
+                                                .clearValueCount = static_cast<uint32_t>(clear_values.size()),
+                                                .pClearValues = clear_values.data()};
 
     cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
 
@@ -606,7 +646,9 @@ private:
 
     // Minimum number of images may have changed during swapchain recreation
     ImGui_ImplVulkan_SetMinImageCount(m_swapchain.min_image_count());
-    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass()};
+    m_depth_buffer = {m_platform.m_p_device, m_l_device(), m_swapchain.extent()};
+    m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
+                      m_depth_buffer.m_image_view()};
     m_imgui_data.m_imgui_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(),
                                          m_imgui_data.m_imgui_render_pass()};
   }

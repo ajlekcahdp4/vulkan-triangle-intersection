@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "depth_buffer.hpp"
 #include "ezvk/error.hpp"
 #include "ezvk/queues.hpp"
 #include "utils.hpp"
@@ -26,6 +27,18 @@
 #include <vector>
 
 namespace ezvk {
+
+static inline vk::AttachmentDescription create_depth_attachment(const vk::raii::PhysicalDevice &p_device) {
+  return {.flags = vk::AttachmentDescriptionFlags(),
+          .format = find_depth_format(p_device),
+          .samples = vk::SampleCountFlagBits::e1,
+          .loadOp = vk::AttachmentLoadOp::eClear,
+          .storeOp = vk::AttachmentStoreOp::eDontCare,
+          .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+          .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+          .initialLayout = vk::ImageLayout::eUndefined,
+          .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
+}
 
 class render_pass final {
   vk::raii::RenderPass m_render_pass = nullptr;
@@ -44,18 +57,11 @@ public:
       .initialLayout = vk::ImageLayout::eUndefined,
       .finalLayout = vk::ImageLayout::ePresentSrcKHR};
 
-  render_pass(const vk::raii::Device &device, vk::AttachmentDescription color_attachment = default_color_attachment,
-              std::span<const vk::SubpassDependency> deps = {}) {
+  render_pass(const vk::raii::Device &device, const vk::SubpassDescription &subpass,
+              std::span<vk::AttachmentDescription> attachments = {}, std::span<const vk::SubpassDependency> deps = {}) {
 
-    vk::AttachmentReference color_attachment_ref = {.attachment = 0,
-                                                    .layout = vk::ImageLayout::eColorAttachmentOptimal};
-
-    vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-                                      .colorAttachmentCount = 1,
-                                      .pColorAttachments = &color_attachment_ref};
-
-    vk::RenderPassCreateInfo renderpass_info = {.attachmentCount = 1,
-                                                .pAttachments = &color_attachment,
+    vk::RenderPassCreateInfo renderpass_info = {.attachmentCount = attachments.size(),
+                                                .pAttachments = attachments.data(),
                                                 .subpassCount = 1,
                                                 .pSubpasses = &subpass,
                                                 .dependencyCount = static_cast<uint32_t>(deps.size()),

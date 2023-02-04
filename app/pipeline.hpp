@@ -67,6 +67,15 @@ public:
         .stage = vk::ShaderStageFlagBits::eFragment, .module = *fragment_shader, .pName = "main"};
     shader_stages.push_back(fragment_shader_info);
 
+    vk::PipelineDepthStencilStateCreateInfo depth_stencil = {.depthTestEnable = VK_TRUE,
+                                                             .depthWriteEnable = VK_TRUE,
+                                                             .depthCompareOp = vk::CompareOp::eLess,
+                                                             .depthBoundsTestEnable = VK_FALSE,
+                                                             .stencilTestEnable = VK_FALSE,
+                                                             .minDepthBounds = 0.0f,
+                                                             .maxDepthBounds = 1.0f
+                                                             };
+
     vk::GraphicsPipelineCreateInfo pipeline_info = {.stageCount = static_cast<uint32_t>(shader_stages.size()),
                                                     .pStages = shader_stages.data(),
                                                     .pVertexInputState = &vertex_input_info,
@@ -74,12 +83,14 @@ public:
                                                     .pViewportState = &viewport_info,
                                                     .pRasterizationState = &rasterization_info,
                                                     .pMultisampleState = &multisampling,
+                                                    .pDepthStencilState = &depth_stencil,
                                                     .pColorBlendState = &color_blend_info,
                                                     .pDynamicState = &dynamic_state_info,
                                                     .layout = *p_pipeline_layout,
                                                     .renderPass = *p_render_pass,
                                                     .subpass = 0,
-                                                    .basePipelineHandle = nullptr};
+                                                    .basePipelineHandle = nullptr
+                                                    };
 
     m_pipeline = p_device.createGraphicsPipeline(nullptr, pipeline_info);
   }

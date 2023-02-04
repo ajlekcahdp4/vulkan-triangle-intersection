@@ -17,6 +17,20 @@
 #include "utils.hpp"
 namespace ezvk {
 
+static inline vk::Format find_depth_format(const vk::raii::PhysicalDevice &p_device) {
+  auto predicate = [&p_device](const auto &candidate) -> bool {
+    auto props = p_device.getFormatProperties(candidate);
+    if ((props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) ==
+        vk::FormatFeatureFlagBits::eDepthStencilAttachment)
+      return true;
+    return false;
+  };
+  std::vector<vk::Format> candidates = {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint,
+                                        vk::Format::eD24UnormS8Uint};
+
+  return utils::find_all_that_satisfy(candidates.begin(), candidates.end(), predicate).front();
+}
+
 struct depth_buffer final {
 public:
   image      m_image;
@@ -29,29 +43,14 @@ public:
     auto depth_format = find_depth_format(p_device);
     m_image = {p_device,
                l_device,
-               vk::Extent3D{extent2d, 1},
+               vk::Extent3D{.width = extent2d.width, .height = extent2d.height, .depth = 1},
                depth_format,
                vk::ImageTiling::eOptimal,
                vk::ImageUsageFlagBits::eDepthStencilAttachment,
                vk::MemoryPropertyFlagBits::eDeviceLocal};
 
-    m_image_view = {l_device, m_image(), depth_format};
+    m_image_view = {l_device, m_image(), depth_format, vk::ImageAspectFlagBits::eDepth};
   }
+};
 
-  static vk::Format find_depth_format(const vk::raii::PhysicalDevice &p_device) {
-    auto predicate = [&p_device](const auto &candidate) -> bool {
-      auto props = p_device.getFormatProperties(candidate);
-      if ((props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) ==
-          vk::FormatFeatureFlagBits::eDepthStencilAttachment)
-        return true;
-      return false;
-    };
-    std::vector<vk::Format> candidates = {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT,
-                                          VK_FORMAT_D24_UNORM_S8_UINT};
-
-    return utils::find_all_that_satisfy(candidates.begin(), candidates.end(), predicate,
-                                        vk::ImageAspectFlagBits::eDepth)
-        .front();
-  }
-}; // namespace ezvk
 } // namespace ezvk
