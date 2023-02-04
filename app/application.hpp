@@ -324,6 +324,14 @@ private:
       cmd.endRenderPass();
       cmd.end();
     }
+
+    static void new_frame() {
+      ImGui_ImplVulkan_NewFrame();
+      ImGui_ImplGlfw_NewFrame();
+      ImGui::NewFrame();
+    }
+
+    static void render_frame() { ImGui::Render(); }
   } m_imgui_data;
 
   bool m_triangles_loaded = false;
@@ -397,13 +405,9 @@ public:
 
     m_prev_frame_start = current_time;
 
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-
+    imgui_related_data::new_frame();
     draw_gui();
-    ImGui::Render();
-
+    imgui_related_data::render_frame();
     render_frame();
   }
 
@@ -439,6 +443,8 @@ private:
   void physics_loop(float delta) {
     auto &handler = input_handler::instance();
     auto  events = handler.poll();
+
+    if (ImGui::GetIO().WantCaptureKeyboard) return;
 
     const auto calculate_movement = [events](int plus, int minus) {
       return (1.0f * events.count(plus)) - (1.0f * events.count(minus));
