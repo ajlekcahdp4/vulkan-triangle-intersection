@@ -17,20 +17,24 @@
 
 namespace triangles {
 
-struct vertex_type {
+struct triangle_vertex_type {
   glm::vec3 pos;
-  glm::vec3 color;
+  uint32_t  color_index;
 
 public:
   static constexpr vk::VertexInputBindingDescription get_binding_description() {
-    return {.binding = 0, .stride = sizeof(vertex_type), .inputRate = vk::VertexInputRate::eVertex};
+    return {.binding = 0, .stride = sizeof(triangle_vertex_type), .inputRate = vk::VertexInputRate::eVertex};
   }
 
   static constexpr std::array<vk::VertexInputAttributeDescription, 2> get_attribute_description() {
-    auto first = vk::VertexInputAttributeDescription{
-        .location = 0, .binding = 0, .format = vk::Format::eR32G32B32Sfloat, .offset = offsetof(vertex_type, pos)};
-    auto second = vk::VertexInputAttributeDescription{
-        .location = 1, .binding = 0, .format = vk::Format::eR32G32B32Sfloat, .offset = offsetof(vertex_type, color)};
+    auto first = vk::VertexInputAttributeDescription{.location = 0,
+                                                     .binding = 0,
+                                                     .format = vk::Format::eR32G32B32Sfloat,
+                                                     .offset = offsetof(triangle_vertex_type, pos)};
+    auto second = vk::VertexInputAttributeDescription{.location = 1,
+                                                      .binding = 0,
+                                                      .format = vk::Format::eR32Uint,
+                                                      .offset = offsetof(triangle_vertex_type, color_index)};
     return {first, second};
   }
 };

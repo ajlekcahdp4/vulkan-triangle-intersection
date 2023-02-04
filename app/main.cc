@@ -90,7 +90,7 @@ static unsigned apporoximate_optimal_depth(unsigned number) {
 
 template <typename broad>
 bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
-                      std::vector<triangles::vertex_type> &vertices, unsigned n, bool hide = false) {
+                      std::vector<triangles::triangle_vertex_type> &vertices, unsigned n, bool hide = false) {
   using point_type = typename throttle::geometry::point3<float>;
   std::vector<point_type> points;
   points.reserve(n);
@@ -111,18 +111,17 @@ bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_ge
 
   unsigned point_ind = 0;
 
+  static constexpr uint32_t intersect_index = 1u, regular_index = 0u;
+
   std::transform(points.begin(), points.end(), std::back_inserter(vertices), [&result, &point_ind](auto &point) {
-    triangles::vertex_type vertex;
+    triangles::triangle_vertex_type vertex;
     vertex.pos = {point[0], point[1], point[2]};
 
     auto found =
         std::find_if(result.begin(), result.end(), [point_ind](auto shape) { return shape->index == point_ind / 3; });
     point_ind += 1;
-    if (found == result.end()) {
-      vertex.color = {0.0f, 0.0f, 1.0f};
-    } else {
-      vertex.color = {1.0f, 0.0f, 0.0f};
-    }
+
+    vertex.color_index = (found == result.end() ? regular_index : intersect_index);
 
     return vertex;
   });
@@ -168,7 +167,7 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  std::vector<triangles::vertex_type> vertices;
+  std::vector<triangles::triangle_vertex_type> vertices;
   vertices.reserve(3 * n);
 
 #ifdef BOOST_FOUND__

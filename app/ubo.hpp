@@ -16,7 +16,8 @@
 namespace triangles {
 
 struct ubo {
-  glm::mat4 vp;
+  glm::mat4                vp;
+  std::array<glm::vec4, 2> colors;
 };
 
 } // namespace triangles

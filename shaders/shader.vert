@@ -5,13 +5,15 @@
 
 layout (std140, binding = 0) uniform buffer {
   mat4 mvp;
-} uniformBuffer;
+  vec4 colors[2];
+} uniform_buffer;
 
 layout (location = 0) in vec4 pos;
-layout (location = 1) in vec4 inColor;
+layout (location = 1) in uint color_index;
+
 layout (location = 0) out vec4 outColor;
 
 void main() {
-  outColor = inColor;
-  gl_Position = uniformBuffer.mvp * pos;
+  outColor = uniform_buffer.colors[color_index];
+  gl_Position = uniform_buffer.mvp * pos;
 }

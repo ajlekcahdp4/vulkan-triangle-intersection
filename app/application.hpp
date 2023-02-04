@@ -190,6 +190,17 @@ private:
   bool m_first_frame = true;
   bool m_triangles_loaded = false;
 
+  struct {
+    float linear_velocity = 500.0f;
+    float angular_velocity = 30.0f;
+    float render_distance = 30000.0f;
+    float fov = 90.0f;
+
+    std::array<float, 4> intersecting_color = hex_to_rgba(0xff4c29ff);
+    std::array<float, 4> regular_color = hex_to_rgba(0x89c4e1ff);
+    std::array<float, 4> clear_color = hex_to_rgba(0x181818ff);
+  } m_configurable_parameters;
+
 private:
   friend class imgui_related_data;
 
@@ -350,9 +361,6 @@ private:
     static void render_frame() { ImGui::Render(); }
   } m_imgui_data;
 
-  static constexpr float c_velocity = 100.0f;
-  static constexpr float c_angular_velocity = glm::radians(30.0f);
-
   static constexpr std::array<vk::SubpassDependency, 1> depth_subpass_dependency = {vk::SubpassDependency{
       .srcSubpass = VK_SUBPASS_EXTERNAL,
       .dstSubpass = 0,
@@ -421,12 +429,17 @@ public:
     imgui_related_data::new_frame();
     draw_gui();
     imgui_related_data::render_frame();
+
+    // Here we update the camera parameters
+    m_camera.set_far_z_clip(m_configurable_parameters.render_distance);
+    m_camera.set_fov_degrees(m_configurable_parameters.fov);
+
     render_frame();
   }
 
   auto *window() const { return m_platform.window()(); }
 
-  void load_triangles(const std::vector<vertex_type> &vertices) {
+  void load_triangles(const auto &vertices) {
     m_verices_n = vertices.size();
 
     auto size = ezvk::utils::sizeof_container(vertices);
@@ -471,14 +484,14 @@ private:
                              up_movement * m_camera.get_up();
 
     if (throttle::geometry::is_definitely_greater(glm::length(dir_movement), 0.0f)) {
-      m_camera.translate(glm::normalize(dir_movement) * c_velocity * delta);
+      m_camera.translate(glm::normalize(dir_movement) * m_configurable_parameters.linear_velocity * delta);
     }
 
     auto yaw_movement = calculate_movement(GLFW_KEY_RIGHT, GLFW_KEY_LEFT);
     auto pitch_movement = calculate_movement(GLFW_KEY_DOWN, GLFW_KEY_UP);
     auto roll_movement = calculate_movement(GLFW_KEY_Q, GLFW_KEY_E);
 
-    auto angular_per_delta_t = c_angular_velocity * delta;
+    auto angular_per_delta_t = glm::radians(m_configurable_parameters.angular_velocity) * delta;
 
     glm::quat yaw_rotation = glm::angleAxis(yaw_movement * angular_per_delta_t, m_camera.get_up());
     glm::quat pitch_rotation = glm::angleAxis(pitch_movement * angular_per_delta_t, m_camera.get_sideways());
@@ -488,7 +501,49 @@ private:
     m_camera.rotate(resulting_rotation);
   }
 
-  void draw_gui() { ImGui::ShowDemoWindow(); }
+  struct gui_runtime_persistent_state {
+    bool controls_help = true;
+  } m_gui_runtime;
+
+  void draw_gui() {
+    ImGui::Begin("Triangles with Vulkan");
+
+    if (ImGui::CollapsingHeader("Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
+      ImGui::Text("Move the camera:");
+      ImGui::BulletText("Forwards/Backwards with W/S");
+      ImGui::BulletText("Sideways to the Left/Right with A/D");
+      ImGui::BulletText("Up/Down with Space/C");
+
+      ImGui::Text("Rotate the camera:");
+      ImGui::BulletText("Yaw with Left/Right Arrows");
+      ImGui::BulletText("Pitch with Up/Down Arrows");
+      ImGui::BulletText("Roll with Q/E");
+    }
+
+    if (ImGui::CollapsingHeader("Movement", ImGuiTreeNodeFlags_DefaultOpen)) {
+      ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
+      ImGui::DragFloat("Linear velocity", &m_configurable_parameters.linear_velocity, 10.0f);
+      ImGui::DragFloat("Angular velocity", &m_configurable_parameters.angular_velocity, 0.1f);
+      ImGui::PopItemWidth();
+    }
+
+    if (ImGui::CollapsingHeader("Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
+      ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
+      ImGui::DragFloat("Rendering distance", &m_configurable_parameters.render_distance, 50.0f);
+      ImGui::DragFloat("Fov", &m_configurable_parameters.fov, 0.1f, 45.0f, 175.0f, "%.3f",
+                       ImGuiSliderFlags_AlwaysClamp);
+
+      ImGui::BulletText("Color configuration");
+      ImGui::ColorEdit4("Intersecting", m_configurable_parameters.intersecting_color.data());
+      ImGui::ColorEdit4("Regular", m_configurable_parameters.regular_color.data());
+      ImGui::ColorEdit4("Clear Color", m_configurable_parameters.clear_color.data());
+      ImGui::PopItemWidth();
+    }
+
+    ImGui::End();
+
+    ImGui::ShowDemoWindow();
+  }
 
   void initialize_primitives_pipeline() {
     m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::ubo), m_platform.p_device(), m_l_device(),
@@ -604,8 +659,8 @@ private:
     cmd.reset();
     cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
 
-    std::array<vk::ClearValue, 2> clear_values{};
-    clear_values[0].color = std::array<float, 4>{0.2f, 0.3f, 0.3f, 1.0f};
+    std::array<vk::ClearValue, 2> clear_values;
+    clear_values[0].color = m_configurable_parameters.clear_color;
     clear_values[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
 
     vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_primitives_render_pass(),
@@ -692,8 +747,14 @@ private:
     std::array<vk::CommandBuffer, 2> cmds = {*m_primitives_command_buffers[m_curr_frame],
                                              *m_imgui_data.m_imgui_command_buffers[m_curr_frame]};
 
-    m_uniform_buffers[m_curr_frame].copy_to_device(
-        m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height));
+    auto     &inter_arr = m_configurable_parameters.intersecting_color;
+    glm::vec4 intersecting_color = {inter_arr[0], inter_arr[1], inter_arr[2], inter_arr[3]};
+    auto     &reg_arr = m_configurable_parameters.regular_color;
+    glm::vec4 regular_color = {reg_arr[0], reg_arr[1], reg_arr[2], reg_arr[3]};
+
+    ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height),
+                          {regular_color, intersecting_color}};
+    m_uniform_buffers[m_curr_frame].copy_to_device(uniform_buffer);
 
     vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 

@@ -48,6 +48,9 @@ public:
     auto proj = glm::perspective(fov, static_cast<float>(width) / height, z_near_clip, z_far_clip);
     return proj * view;
   }
+
+  void set_near_z_clip(float near) { z_near_clip = near; }
+  void set_far_z_clip(float far) { z_far_clip = far; }
 };
 
 } // namespace triangles

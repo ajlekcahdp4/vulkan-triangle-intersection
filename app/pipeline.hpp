@@ -33,8 +33,8 @@ public:
   triangle_pipeline_data(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
                          const std::string &p_fragment_file_path, const vk::raii::PipelineLayout &p_pipeline_layout,
                          const vk::raii::RenderPass &p_render_pass) {
-    auto binding_description = vertex_type::get_binding_description();
-    auto attribute_description = vertex_type::get_attribute_description();
+    auto binding_description = triangle_vertex_type::get_binding_description();
+    auto attribute_description = triangle_vertex_type::get_attribute_description();
     auto vertex_input_info = vertex_input_state_create_info(binding_description, attribute_description);
     auto rasterization_info = rasterization_state_create_info();
     auto color_attachments = color_blend_attachments();
@@ -73,8 +73,7 @@ public:
                                                              .depthBoundsTestEnable = VK_FALSE,
                                                              .stencilTestEnable = VK_FALSE,
                                                              .minDepthBounds = 0.0f,
-                                                             .maxDepthBounds = 1.0f
-                                                             };
+                                                             .maxDepthBounds = 1.0f};
 
     vk::GraphicsPipelineCreateInfo pipeline_info = {.stageCount = static_cast<uint32_t>(shader_stages.size()),
                                                     .pStages = shader_stages.data(),
@@ -89,8 +88,7 @@ public:
                                                     .layout = *p_pipeline_layout,
                                                     .renderPass = *p_render_pass,
                                                     .subpass = 0,
-                                                    .basePipelineHandle = nullptr
-                                                    };
+                                                    .basePipelineHandle = nullptr};
 
     m_pipeline = p_device.createGraphicsPipeline(nullptr, pipeline_info);
   }
