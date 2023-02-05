@@ -169,7 +169,7 @@ private:
   ezvk::render_pass      m_primitives_render_pass;
   ezvk::pipeline_layout  m_primitives_pipeline_layout;
   ezvk::depth_buffer     m_depth_buffer;
-  triangle_pipeline_data m_triangle_pipeline;
+  pipeline_data          m_triangle_pipeline;
 
   ezvk::framebuffers  m_framebuffers;
   ezvk::device_buffer m_vertex_buffer;
@@ -574,8 +574,12 @@ private:
     m_depth_buffer = {m_platform.m_p_device, m_l_device(), depth_format, m_swapchain.extent()};
     m_primitives_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
 
-    m_triangle_pipeline = {m_l_device(), "shaders/vertex.spv", "shaders/fragment.spv", m_primitives_pipeline_layout(),
-                           m_primitives_render_pass()};
+    m_triangle_pipeline = {m_l_device(),
+                           "shaders/vertex.spv",
+                           "shaders/fragment.spv",
+                           m_primitives_pipeline_layout(),
+                           m_primitives_render_pass(),
+                           pipeline_data::triangle_rasterization_state_create_info};
 
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
                       m_depth_buffer.m_image_view()};
