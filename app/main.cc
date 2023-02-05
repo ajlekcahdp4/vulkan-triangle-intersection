@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
 
   std::vector<triangles::triangle_vertex_type> vertices;
   std::vector<triangles::triangle_vertex_type> wireframe_vertices{
-      {{0.0f, 0.0f, 0.0f}, 0u}, {{1.0f, 1.0f, 1.0f}, 0u}, {{1.0f, 0.0f, 1.0f}, 0u}};
+      {{0.0f, 0.0f, 0.0f}, 0u}, {{1.0f, 1.0f, 1.0f}, 0u}, {{1.0f, 0.0f, 1.0f}, 0u}, {{0.0f, 1.0f, 0.0f}, 1u}};
   vertices.reserve(3 * n);
 
 #ifdef BOOST_FOUND__

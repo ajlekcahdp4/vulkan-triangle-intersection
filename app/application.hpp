@@ -621,13 +621,15 @@ private:
                            "shaders/fragment.spv",
                            m_primitives_pipeline_layout(),
                            m_primitives_render_pass(),
-                           triangles::triangle_rasterization_state_create_info};
+                           triangles::triangle_rasterization_state_create_info,
+                           vk::PrimitiveTopology::eTriangleList};
     m_wireframe_pipeline = {m_l_device(),
                             "shaders/vertex.spv",
                             "shaders/fragment.spv",
                             m_primitives_pipeline_layout(),
                             m_primitives_render_pass(),
-                            triangles::wireframe_rasterization_state_create_info};
+                            triangles::wireframe_rasterization_state_create_info,
+                            vk::PrimitiveTopology::eLineList};
 
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
                       m_depth_buffer.m_image_view()};

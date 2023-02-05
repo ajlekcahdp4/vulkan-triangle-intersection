@@ -33,7 +33,8 @@ public:
   pipeline_data(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
                 const std::string &p_fragment_file_path, const vk::raii::PipelineLayout &p_pipeline_layout,
                 const vk::raii::RenderPass                     &p_render_pass,
-                const vk::PipelineRasterizationStateCreateInfo &rasterization_state_info) {
+                const vk::PipelineRasterizationStateCreateInfo &rasterization_state_info,
+                const vk::PrimitiveTopology                     primitive_topology) {
     auto binding_description = triangle_vertex_type::get_binding_description();
     auto attribute_description = triangle_vertex_type::get_attribute_description();
     auto vertex_input_info = vertex_input_state_create_info(binding_description, attribute_description);
@@ -43,7 +44,7 @@ public:
                           vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
     auto                                     color_blend_info = color_blend_state_create_info(color_attachments);
     vk::PipelineInputAssemblyStateCreateInfo input_asm_info{.flags = vk::PipelineInputAssemblyStateCreateFlags(),
-                                                            .topology = vk::PrimitiveTopology::eTriangleList};
+                                                            .topology = primitive_topology};
 
     auto             dynamic_state_viewport = vk::DynamicState::eViewport;
     auto             dynamic_state_scissor = vk::DynamicState::eScissor;
