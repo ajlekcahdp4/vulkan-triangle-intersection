@@ -127,20 +127,19 @@ set(APPLICATION_SOURCES
   imgui/backends/imgui_impl_vulkan.cpp
 )
 
-add_spirv_shader(vertex shaders/shader.vert)
-add_spirv_shader(fragment shaders/shader.frag)
-add_custom_target(shaders ALL DEPENDS vertex fragment)
+add_spirv_shader(triangles_vert shaders/triangles.vert)
+add_spirv_shader(triangles_frag shaders/triangles.frag)
+add_spirv_shader(wireframe_vert shaders/wireframe.vert)
+add_spirv_shader(wireframe_frag shaders/wireframe.frag)
+add_custom_target(shaders ALL DEPENDS triangles_vert triangles_frag wireframe_vert wireframe_frag)
 
 add_executable(triangles ${APPLICATION_SOURCES})
 target_include_directories(triangles PUBLIC imgui imgui/backends)
 
 add_custom_command(TARGET triangles POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:triangles>/shaders
-  COMMAND ${CMAKE_COMMAND} -E copy ${vertex_OUTPUTS} ${fragment_OUTPUTS} $<TARGET_FILE_DIR:triangles>/shaders/
+  COMMAND ${CMAKE_COMMAND} -E copy ${triangles_vert_OUTPUTS} ${triangles_frag_OUTPUTS} ${wireframe_vert_OUTPUTS} ${wireframe_frag_OUTPUTS} $<TARGET_FILE_DIR:triangles>/shaders/
 )
 
 target_link_libraries(triangles PUBLIC glfw Vulkan::Vulkan ezvk glm throttle Boost::program_options)
 add_dependencies(triangles shaders)
-
-install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)
-install(FILES ${vertex_OUTPUTS} ${fragment_OUTPUTS} DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin/shaders/)

@@ -101,8 +101,8 @@ public:
   }
 
   static vk::PipelineVertexInputStateCreateInfo
-  vertex_input_state_create_info(vk::VertexInputBindingDescription                  &binding_description,
-                                 std::array<vk::VertexInputAttributeDescription, 2> &attribute_description) {
+  vertex_input_state_create_info(vk::VertexInputBindingDescription &binding_description,
+                                 const auto                        &attribute_description) {
     return vk::PipelineVertexInputStateCreateInfo{.flags = vk::PipelineVertexInputStateCreateFlags(),
                                                   .vertexBindingDescriptionCount = 1,
                                                   .pVertexBindingDescriptions = &binding_description,

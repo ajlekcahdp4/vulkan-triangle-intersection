@@ -38,6 +38,7 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "application.hpp"
@@ -90,8 +91,10 @@ template <typename broad>
 bool application_loop(std::istream &is, throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
                       std::vector<triangles::triangle_vertex_type> &vertices, unsigned n, bool hide = false) {
   using point_type = typename throttle::geometry::point3<float>;
-  std::vector<point_type> points;
-  points.reserve(n);
+  using triangle_type = typename throttle::geometry::triangle3<float>;
+  std::vector<triangle_type> triangles;
+
+  triangles.reserve(n);
   for (unsigned i = 0; i < n; ++i) {
     point_type a, b, c;
     if (!(is >> a[0] >> a[1] >> a[2] >> b[0] >> b[1] >> b[2] >> c[0] >> c[1] >> c[2])) {
@@ -99,33 +102,41 @@ bool application_loop(std::istream &is, throttle::geometry::broadphase_structure
       return false;
     }
     cont.add_collision_shape({i, shape_from_three_points(a, b, c)});
-    points.push_back(a);
-    points.push_back(b);
-    points.push_back(c);
+    triangles.push_back({a, b, c});
   }
 
   auto result = cont.many_to_many();
   if (hide) return true;
 
-  unsigned point_ind = 0;
+  std::unordered_set<unsigned> intersecting;
+
+  for (const auto &v : result) {
+    intersecting.insert(v->index);
+  }
 
   constexpr uint32_t intersect_index = 1u, regular_index = 0u;
 
-  std::transform(points.begin(), points.end(), std::back_inserter(vertices), [&result, &point_ind](auto &point) {
+  vertices.reserve(6 * n);
+  std::for_each(triangles.begin(), triangles.end(), [i = 0, &intersecting, &vertices](auto triangle) mutable {
     triangles::triangle_vertex_type vertex;
-    vertex.pos = {point[0], point[1], point[2]};
 
-    auto found =
-        std::find_if(result.begin(), result.end(), [point_ind](auto shape) { return shape->index == point_ind / 3; });
-    point_ind += 1;
+    auto norm = triangle.norm();
+    vertex.color_index = (intersecting.contains(i) ? intersect_index : regular_index);
+    vertex.norm = {norm[0], norm[1], norm[2]};
 
-    vertex.color_index = (found == result.end() ? regular_index : intersect_index);
+    vertex.pos = {triangle.a[0], triangle.a[1], triangle.a[2]};
+    vertices.push_back(vertex);
+    vertex.pos = {triangle.b[0], triangle.b[1], triangle.b[2]};
+    vertices.push_back(vertex);
+    vertex.pos = {triangle.c[0], triangle.c[1], triangle.c[2]};
+    vertices.push_back(vertex);
 
-    return vertex;
+    ++i;
   });
 
   // Here we add triangles oriented in the opposite direction to light them differently
-  for (unsigned i = 0; i < 3 * n; i += 3) {
+  auto sz = vertices.size();
+  for (unsigned i = 0; i < sz; i += 3) {
     vertices.push_back(vertices[i]);
     vertices.push_back(vertices[i + 2]);
     vertices.push_back(vertices[i + 1]);
@@ -171,10 +182,9 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  std::vector<triangles::triangle_vertex_type> vertices;
-  std::vector<triangles::triangle_vertex_type> wireframe_vertices{
+  std::vector<triangles::triangle_vertex_type>  vertices;
+  std::vector<triangles::wireframe_vertex_type> wireframe_vertices{
       {{0.0f, 0.0f, 0.0f}, 0u}, {{1.0f, 1.0f, 1.0f}, 0u}, {{1.0f, 0.0f, 1.0f}, 0u}, {{0.0f, 1.0f, 0.0f}, 1u}};
-  vertices.reserve(3 * n);
 
   auto start = std::chrono::high_resolution_clock::now();
 

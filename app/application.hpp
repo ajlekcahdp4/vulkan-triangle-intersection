@@ -161,8 +161,7 @@ private:
 
   vk::raii::CommandPool m_command_pool = nullptr;
   ezvk::upload_context  m_oneshot_upload;
-
-  ezvk::swapchain m_swapchain;
+  ezvk::swapchain       m_swapchain;
 
   vk::raii::DescriptorPool m_descriptor_pool = nullptr;
 
@@ -171,7 +170,8 @@ private:
 
   ezvk::render_pass     m_primitives_render_pass;
   ezvk::pipeline_layout m_primitives_pipeline_layout;
-  ezvk::depth_buffer    m_depth_buffer;
+
+  ezvk::depth_buffer m_depth_buffer;
 
   pipeline<triangle_vertex_type>  m_triangle_pipeline;
   pipeline<wireframe_vertex_type> m_wireframe_pipeline;
@@ -452,11 +452,6 @@ public:
 
   auto *window() const { return m_platform.window()(); }
 
-  // struct triangles_load_info {
-  //   std::span<triangle_vertex_type> triangle_vertices;
-  //   bool
-  // };
-
   void load_triangles(const auto &vertices) {
     m_verices_n = vertices.size();
 
@@ -493,12 +488,15 @@ public:
     m_wireframe_vertex_buffer = {m_platform.p_device(), m_l_device(), size,
                                  vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
                                  vk::MemoryPropertyFlagBits::eDeviceLocal};
+
     auto &src_buffer = staging_buffer.buffer();
     auto &dst_buffer = m_wireframe_vertex_buffer.buffer();
+
     m_oneshot_upload.immediate_submit([size, &src_buffer, &dst_buffer](vk::raii::CommandBuffer &cmd) {
       vk::BufferCopy copy = {0, 0, size};
       cmd.copyBuffer(*src_buffer, *dst_buffer, copy);
     });
+
     m_wireframe_loaded = true;
   }
 
@@ -630,16 +628,16 @@ private:
     m_primitives_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
 
     m_triangle_pipeline = {m_l_device(),
-                           "shaders/vertex.spv",
-                           "shaders/fragment.spv",
+                           "shaders/triangles_vert.spv",
+                           "shaders/triangles_frag.spv",
                            m_primitives_pipeline_layout(),
                            m_primitives_render_pass(),
                            triangles::triangle_rasterization_state_create_info,
                            vk::PrimitiveTopology::eTriangleList};
 
     m_wireframe_pipeline = {m_l_device(),
-                            "shaders/vertex.spv",
-                            "shaders/fragment.spv",
+                            "shaders/wireframe_vert.spv",
+                            "shaders/wireframe_frag.spv",
                             m_primitives_pipeline_layout(),
                             m_primitives_render_pass(),
                             triangles::wireframe_rasterization_state_create_info,

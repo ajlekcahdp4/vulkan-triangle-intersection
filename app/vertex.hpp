@@ -19,23 +19,32 @@ namespace triangles {
 
 struct triangle_vertex_type {
   glm::vec3 pos;
-  uint32_t  color_index;
+  glm::vec3 norm;
+
+  uint32_t color_index;
 
 public:
   static constexpr vk::VertexInputBindingDescription get_binding_description() {
     return {.binding = 0, .stride = sizeof(triangle_vertex_type), .inputRate = vk::VertexInputRate::eVertex};
   }
 
-  static constexpr std::array<vk::VertexInputAttributeDescription, 2> get_attribute_description() {
+  static constexpr std::array<vk::VertexInputAttributeDescription, 3> get_attribute_description() {
     auto first = vk::VertexInputAttributeDescription{.location = 0,
                                                      .binding = 0,
                                                      .format = vk::Format::eR32G32B32Sfloat,
                                                      .offset = offsetof(triangle_vertex_type, pos)};
+
     auto second = vk::VertexInputAttributeDescription{.location = 1,
                                                       .binding = 0,
-                                                      .format = vk::Format::eR32Uint,
-                                                      .offset = offsetof(triangle_vertex_type, color_index)};
-    return {first, second};
+                                                      .format = vk::Format::eR32G32B32Sfloat,
+                                                      .offset = offsetof(triangle_vertex_type, norm)};
+
+    auto third = vk::VertexInputAttributeDescription{.location = 2,
+                                                     .binding = 0,
+                                                     .format = vk::Format::eR32Uint,
+                                                     .offset = offsetof(triangle_vertex_type, color_index)};
+
+    return {first, second, third};
   }
 };
 
@@ -45,7 +54,7 @@ struct wireframe_vertex_type {
 
 public:
   static constexpr vk::VertexInputBindingDescription get_binding_description() {
-    return {.binding = 0, .stride = sizeof(triangle_vertex_type), .inputRate = vk::VertexInputRate::eVertex};
+    return {.binding = 0, .stride = sizeof(wireframe_vertex_type), .inputRate = vk::VertexInputRate::eVertex};
   }
 
   static constexpr std::array<vk::VertexInputAttributeDescription, 2> get_attribute_description() {
@@ -53,10 +62,12 @@ public:
                                                      .binding = 0,
                                                      .format = vk::Format::eR32G32B32Sfloat,
                                                      .offset = offsetof(triangle_vertex_type, pos)};
+
     auto second = vk::VertexInputAttributeDescription{.location = 1,
                                                       .binding = 0,
                                                       .format = vk::Format::eR32Uint,
                                                       .offset = offsetof(triangle_vertex_type, color_index)};
+
     return {first, second};
   }
 };
