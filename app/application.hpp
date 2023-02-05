@@ -171,6 +171,8 @@ private:
   ezvk::depth_buffer     m_depth_buffer;
   pipeline_data          m_triangle_pipeline;
 
+  pipeline_data m_wireframe_pipeline;
+
   ezvk::framebuffers  m_framebuffers;
   ezvk::device_buffer m_vertex_buffer;
 
@@ -580,6 +582,12 @@ private:
                            m_primitives_pipeline_layout(),
                            m_primitives_render_pass(),
                            pipeline_data::triangle_rasterization_state_create_info};
+    m_wireframe_pipeline = {m_l_device(),
+                            "shaders/vertex.spv",
+                            "shaders/fragment.spv",
+                            m_primitives_pipeline_layout(),
+                            m_primitives_render_pass(),
+                            pipeline_data::wireframe_rasterization_state_create_info};
 
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
                       m_depth_buffer.m_image_view()};
@@ -685,14 +693,17 @@ private:
     cmd.setViewport(0, {viewport});
     cmd.setScissor(0, {{vk::Offset2D{0, 0}, extent}});
 
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_triangle_pipeline());
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_primitives_pipeline_layout(), 0,
                            {*m_descriptor_set.m_descriptor_set}, nullptr);
+
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_triangle_pipeline());
 
     if (m_triangles_loaded) {
       cmd.bindVertexBuffers(0, *m_vertex_buffer.buffer(), {0});
       cmd.draw(m_verices_n, 1, 0, 0);
     }
+
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_wireframe_pipeline());
 
     cmd.endRenderPass();
     cmd.end();
