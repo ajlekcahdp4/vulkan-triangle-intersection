@@ -55,7 +55,7 @@ public:
 
   using device_queue_create_infos = std::vector<vk::DeviceQueueCreateInfo>;
   logical_device(const vk::raii::PhysicalDevice &p_device, device_queue_create_infos requested_queues, auto ext_start,
-                 auto ext_finish, vk::PhysicalDeviceFeatures features = {}) {
+                 auto ext_finish, vk::PhysicalDeviceFeatures features = {.fillModeNonSolid = VK_TRUE}) {
     // TODO[Sergei]: finish refactoring this
     std::vector<const char *> extensions, layers;
     // For now we ignore device layers completely, this is a dummy vector
