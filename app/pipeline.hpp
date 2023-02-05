@@ -24,39 +24,42 @@
 
 namespace triangles {
 
-class pipeline_data final {
+template <typename t_vertex_type> class pipeline final {
   vk::raii::Pipeline m_pipeline = nullptr;
 
 public:
-  pipeline_data() = default;
+  pipeline() = default;
 
-  pipeline_data(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
-                const std::string &p_fragment_file_path, const vk::raii::PipelineLayout &p_pipeline_layout,
-                const vk::raii::RenderPass                     &p_render_pass,
-                const vk::PipelineRasterizationStateCreateInfo &rasterization_state_info,
-                const vk::PrimitiveTopology                     primitive_topology) {
-    auto binding_description = triangle_vertex_type::get_binding_description();
-    auto attribute_description = triangle_vertex_type::get_attribute_description();
+  pipeline(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
+           const std::string &p_fragment_file_path, const vk::raii::PipelineLayout &p_pipeline_layout,
+           const vk::raii::RenderPass                     &p_render_pass,
+           const vk::PipelineRasterizationStateCreateInfo &rasterization_state_info,
+           const vk::PrimitiveTopology                     primitive_topology) {
+    auto binding_description = t_vertex_type::get_binding_description();
+    auto attribute_description = t_vertex_type::get_attribute_description();
+
     auto vertex_input_info = vertex_input_state_create_info(binding_description, attribute_description);
     vk::PipelineColorBlendAttachmentState color_attachments = {
         .blendEnable = VK_FALSE,
         .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
                           vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
-    auto                                     color_blend_info = color_blend_state_create_info(color_attachments);
-    vk::PipelineInputAssemblyStateCreateInfo input_asm_info{.flags = vk::PipelineInputAssemblyStateCreateFlags(),
-                                                            .topology = primitive_topology};
 
-    auto             dynamic_state_viewport = vk::DynamicState::eViewport;
-    auto             dynamic_state_scissor = vk::DynamicState::eScissor;
-    vk::DynamicState dynamic_states[] = {dynamic_state_viewport, dynamic_state_scissor};
+    const auto color_blend_info = color_blend_state_create_info(color_attachments);
+
+    vk::PipelineInputAssemblyStateCreateInfo input_asm_info = {.flags = vk::PipelineInputAssemblyStateCreateFlags(),
+                                                               .topology = primitive_topology};
+
+    std::array<vk::DynamicState, 2> dynamic_states = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
 
     vk::PipelineViewportStateCreateInfo viewport_info = {
         .viewportCount = 1, .pViewports = nullptr, .scissorCount = 1, .pScissors = nullptr};
 
-    vk::PipelineDynamicStateCreateInfo dynamic_state_info = {.dynamicStateCount = 2, .pDynamicStates = dynamic_states};
+    vk::PipelineDynamicStateCreateInfo dynamic_state_info = {
+        .dynamicStateCount = static_cast<uint32_t>(dynamic_states.size()), .pDynamicStates = dynamic_states.data()};
 
-    vk::PipelineMultisampleStateCreateInfo         multisampling = {.rasterizationSamples = vk::SampleCountFlagBits::e1,
-                                                                    .sampleShadingEnable = VK_FALSE};
+    vk::PipelineMultisampleStateCreateInfo multisampling = {.rasterizationSamples = vk::SampleCountFlagBits::e1,
+                                                            .sampleShadingEnable = VK_FALSE};
+
     std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
 
     // vertex shader

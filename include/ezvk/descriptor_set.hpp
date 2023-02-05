@@ -21,9 +21,21 @@
 
 namespace ezvk {
 
+inline vk::raii::DescriptorPool create_descriptor_pool(const vk::raii::Device                 &p_device,
+                                                       std::span<const vk::DescriptorPoolSize> p_pool_sizes) {
+  const auto accum_func = [](uint32_t sum, vk::DescriptorPoolSize const &dps) { return sum + dps.descriptorCount; };
+  uint32_t   max_sets = std::accumulate(p_pool_sizes.begin(), p_pool_sizes.end(), 0, accum_func);
+
+  vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+                                                  .maxSets = max_sets,
+                                                  .poolSizeCount = static_cast<uint32_t>(p_pool_sizes.size()),
+                                                  .pPoolSizes = p_pool_sizes.data()};
+
+  return vk::raii::DescriptorPool(p_device, descriptor_info);
+}
+
 struct descriptor_set {
   vk::raii::DescriptorSetLayout m_layout = nullptr;
-  vk::raii::DescriptorPool      m_pool = nullptr;
   vk::raii::DescriptorSet       m_descriptor_set = nullptr;
 
 private:
@@ -44,16 +56,14 @@ private:
 public:
   descriptor_set() = default;
 
-  descriptor_set(const vk::raii::Device &p_device, const ezvk::device_buffers &p_uniform_buffers) {
+  descriptor_set(const vk::raii::Device &p_device, const ezvk::device_buffers &p_uniform_buffers,
+                 const vk::raii::DescriptorPool &pool) {
     m_layout = create_decriptor_set_layout(
         p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
                    {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment}});
 
-    m_pool = create_descriptor_pool(p_device,
-                                    {{vk::DescriptorType::eUniformBuffer, 1}, {vk::DescriptorType::eUniformBuffer, 1}});
-
     auto set_alloc_info =
-        vk::DescriptorSetAllocateInfo{.descriptorPool = *m_pool, .descriptorSetCount = 1, .pSetLayouts = &(*m_layout)};
+        vk::DescriptorSetAllocateInfo{.descriptorPool = *pool, .descriptorSetCount = 1, .pSetLayouts = &(*m_layout)};
 
     m_descriptor_set = std::move((vk::raii::DescriptorSets{p_device, set_alloc_info}).front());
 
@@ -114,19 +124,6 @@ private:
                                                              .pBindings = bindings.data()};
 
     return vk::raii::DescriptorSetLayout{p_device, descriptor_set_info};
-  }
-
-  static vk::raii::DescriptorPool create_descriptor_pool(const vk::raii::Device                    &p_device,
-                                                         const std::vector<vk::DescriptorPoolSize> &p_pool_sizes) {
-    const auto accum_func = [](uint32_t sum, vk::DescriptorPoolSize const &dps) { return sum + dps.descriptorCount; };
-    uint32_t   max_sets = std::accumulate(p_pool_sizes.begin(), p_pool_sizes.end(), 0, accum_func);
-
-    vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-                                                    .maxSets = max_sets,
-                                                    .poolSizeCount = static_cast<uint32_t>(p_pool_sizes.size()),
-                                                    .pPoolSizes = p_pool_sizes.data()};
-
-    return vk::raii::DescriptorPool(p_device, descriptor_info);
   }
 };
 

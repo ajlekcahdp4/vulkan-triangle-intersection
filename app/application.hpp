@@ -14,6 +14,7 @@
 
 #include "camera.hpp"
 #include "ezvk/depth_buffer.hpp"
+#include "ezvk/descriptor_set.hpp"
 #include "misc.hpp"
 #include "pipeline.hpp"
 #include "ubo.hpp"
@@ -161,20 +162,23 @@ private:
   vk::raii::CommandPool m_command_pool = nullptr;
   ezvk::upload_context  m_oneshot_upload;
 
-  ezvk::swapchain      m_swapchain;
-  ezvk::device_buffers m_uniform_buffers;
+  ezvk::swapchain m_swapchain;
+
+  vk::raii::DescriptorPool m_descriptor_pool = nullptr;
 
   ezvk::descriptor_set m_descriptor_set;
+  ezvk::device_buffers m_uniform_buffers;
 
   ezvk::render_pass     m_primitives_render_pass;
   ezvk::pipeline_layout m_primitives_pipeline_layout;
   ezvk::depth_buffer    m_depth_buffer;
-  pipeline_data         m_triangle_pipeline;
 
-  pipeline_data m_wireframe_pipeline;
+  pipeline<triangle_vertex_type>  m_triangle_pipeline;
+  pipeline<wireframe_vertex_type> m_wireframe_pipeline;
 
-  ezvk::framebuffers  m_framebuffers;
-  ezvk::device_buffer m_vertex_buffer;
+  ezvk::framebuffers m_framebuffers;
+
+  ezvk::device_buffer m_triangles_vertex_buffer;
   ezvk::device_buffer m_wireframe_vertex_buffer;
 
   struct frame_rendering_info {
@@ -191,8 +195,8 @@ private:
   camera      m_camera;
 
   bool m_mod_speed = false;
-
   bool m_first_frame = true;
+
   bool m_triangles_loaded = false;
   bool m_wireframe_loaded = false;
 
@@ -448,6 +452,11 @@ public:
 
   auto *window() const { return m_platform.window()(); }
 
+  // struct triangles_load_info {
+  //   std::span<triangle_vertex_type> triangle_vertices;
+  //   bool
+  // };
+
   void load_triangles(const auto &vertices) {
     m_verices_n = vertices.size();
 
@@ -457,12 +466,12 @@ public:
         m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc, std::span{vertices},
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
-    m_vertex_buffer = {m_platform.p_device(), m_l_device(), size,
-                       vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                       vk::MemoryPropertyFlagBits::eDeviceLocal};
+    m_triangles_vertex_buffer = {m_platform.p_device(), m_l_device(), size,
+                                 vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+                                 vk::MemoryPropertyFlagBits::eDeviceLocal};
 
     auto &src_buffer = staging_buffer.buffer();
-    auto &dst_buffer = m_vertex_buffer.buffer();
+    auto &dst_buffer = m_triangles_vertex_buffer.buffer();
 
     m_oneshot_upload.immediate_submit([size, &src_buffer, &dst_buffer](vk::raii::CommandBuffer &cmd) {
       vk::BufferCopy copy = {0, 0, size};
@@ -587,11 +596,15 @@ private:
     ImGui::End();
   }
 
+  static constexpr std::array<vk::DescriptorPoolSize, 1> c_global_descriptor_pool_sizes = {
+      {{vk::DescriptorType::eUniformBuffer, 16}}};
+
   void initialize_primitives_pipeline() {
+    m_descriptor_pool = ezvk::create_descriptor_pool(m_l_device(), c_global_descriptor_pool_sizes);
+
     m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::ubo), m_platform.p_device(), m_l_device(),
                          vk::BufferUsageFlagBits::eUniformBuffer};
-
-    m_descriptor_set = {m_l_device(), m_uniform_buffers};
+    m_descriptor_set = {m_l_device(), m_uniform_buffers, m_descriptor_pool};
 
     // clang-format off
     constexpr vk::AttachmentReference 
@@ -623,6 +636,7 @@ private:
                            m_primitives_render_pass(),
                            triangles::triangle_rasterization_state_create_info,
                            vk::PrimitiveTopology::eTriangleList};
+
     m_wireframe_pipeline = {m_l_device(),
                             "shaders/vertex.spv",
                             "shaders/fragment.spv",
@@ -743,7 +757,7 @@ private:
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_triangle_pipeline());
 
     if (m_triangles_loaded) {
-      cmd.bindVertexBuffers(0, *m_vertex_buffer.buffer(), {0});
+      cmd.bindVertexBuffers(0, *m_triangles_vertex_buffer.buffer(), {0});
       cmd.draw(m_verices_n, 1, 0, 0);
     }
 
