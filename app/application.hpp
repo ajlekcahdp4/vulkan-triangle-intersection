@@ -175,6 +175,7 @@ private:
 
   ezvk::framebuffers  m_framebuffers;
   ezvk::device_buffer m_vertex_buffer;
+  ezvk::device_buffer m_wireframe_vertex_buffer;
 
   struct frame_rendering_info {
     vk::raii::Semaphore image_availible_semaphore, render_finished_semaphore;
@@ -186,13 +187,14 @@ private:
   std::vector<frame_rendering_info>                  m_rendering_info;
   std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;
 
-  std::size_t m_curr_frame = 0, m_verices_n = 0;
+  std::size_t m_curr_frame = 0, m_verices_n = 0, m_wirefram_vertices_n = 0;
   camera      m_camera;
 
   bool m_mod_speed = false;
 
   bool m_first_frame = true;
   bool m_triangles_loaded = false;
+  bool m_wireframe_loaded = false;
 
   struct {
     float linear_velocity_reg = 500.0f;
@@ -470,6 +472,27 @@ public:
     m_triangles_loaded = true;
   }
 
+  void load_wireframe(const auto &vertices) {
+    m_wirefram_vertices_n = vertices.size();
+
+    auto size = ezvk::utils::sizeof_container(vertices);
+
+    ezvk::device_buffer staging_buffer = {
+        m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc, std::span{vertices},
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
+
+    m_wireframe_vertex_buffer = {m_platform.p_device(), m_l_device(), size,
+                                 vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+                                 vk::MemoryPropertyFlagBits::eDeviceLocal};
+    auto &src_buffer = staging_buffer.buffer();
+    auto &dst_buffer = m_wireframe_vertex_buffer.buffer();
+    m_oneshot_upload.immediate_submit([size, &src_buffer, &dst_buffer](vk::raii::CommandBuffer &cmd) {
+      vk::BufferCopy copy = {0, 0, size};
+      cmd.copyBuffer(*src_buffer, *dst_buffer, copy);
+    });
+    m_wireframe_loaded = true;
+  }
+
   void shutdown() { m_l_device().waitIdle(); }
 
 private:
@@ -723,6 +746,11 @@ private:
     }
 
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_wireframe_pipeline());
+
+    if (m_wireframe_loaded) {
+      cmd.bindVertexBuffers(0, *m_wireframe_vertex_buffer.buffer(), {0});
+      cmd.draw(m_wirefram_vertices_n, 1, 0, 0);
+    }
 
     cmd.endRenderPass();
     cmd.end();

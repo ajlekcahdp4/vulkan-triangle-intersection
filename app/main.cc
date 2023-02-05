@@ -168,6 +168,8 @@ int main(int argc, char *argv[]) {
   }
 
   std::vector<triangles::triangle_vertex_type> vertices;
+  std::vector<triangles::triangle_vertex_type> wireframe_vertices{
+      {{0.0f, 0.0f, 0.0f}, 0u}, {{1.0f, 1.0f, 1.0f}, 0u}, {{1.0f, 0.0f, 1.0f}, 0u}};
   vertices.reserve(3 * n);
 
 #ifdef BOOST_FOUND__
@@ -247,6 +249,7 @@ int main(int argc, char *argv[]) {
   auto &app = triangles::application::instance().get(&platform);
 
   app.load_triangles(vertices);
+  app.load_wireframe(wireframe_vertices);
 
   while (!glfwWindowShouldClose(app.window())) {
     glfwPollEvents();
