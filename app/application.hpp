@@ -166,10 +166,10 @@ private:
 
   ezvk::descriptor_set m_descriptor_set;
 
-  ezvk::render_pass      m_primitives_render_pass;
-  ezvk::pipeline_layout  m_primitives_pipeline_layout;
-  ezvk::depth_buffer     m_depth_buffer;
-  pipeline_data          m_triangle_pipeline;
+  ezvk::render_pass     m_primitives_render_pass;
+  ezvk::pipeline_layout m_primitives_pipeline_layout;
+  ezvk::depth_buffer    m_depth_buffer;
+  pipeline_data         m_triangle_pipeline;
 
   pipeline_data m_wireframe_pipeline;
 
@@ -189,12 +189,17 @@ private:
   std::size_t m_curr_frame = 0, m_verices_n = 0;
   camera      m_camera;
 
+  bool m_mod_speed = false;
+
   bool m_first_frame = true;
   bool m_triangles_loaded = false;
 
   struct {
-    float linear_velocity = 500.0f;
-    float angular_velocity = 30.0f;
+    float linear_velocity_reg = 500.0f;
+    float angular_velocity_reg = 30.0f;
+
+    float linear_velocity_mod = 5000.0f;
+
     float render_distance = 30000.0f;
     float fov = 90.0f;
 
@@ -474,6 +479,8 @@ private:
 
     if (ImGui::GetIO().WantCaptureKeyboard) return;
 
+    if (events.contains(GLFW_KEY_LEFT_SHIFT)) m_mod_speed = !m_mod_speed;
+
     const auto calculate_movement = [events](int plus, int minus) {
       return (1.0f * events.count(plus)) - (1.0f * events.count(minus));
     };
@@ -485,15 +492,17 @@ private:
     glm::vec3 dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways() +
                              up_movement * m_camera.get_up();
 
+    float speed =
+        (m_mod_speed ? m_configurable_parameters.linear_velocity_mod : m_configurable_parameters.linear_velocity_reg);
     if (throttle::geometry::is_definitely_greater(glm::length(dir_movement), 0.0f)) {
-      m_camera.translate(glm::normalize(dir_movement) * m_configurable_parameters.linear_velocity * delta);
+      m_camera.translate(glm::normalize(dir_movement) * speed * delta);
     }
 
     auto yaw_movement = calculate_movement(GLFW_KEY_RIGHT, GLFW_KEY_LEFT);
     auto pitch_movement = calculate_movement(GLFW_KEY_DOWN, GLFW_KEY_UP);
     auto roll_movement = calculate_movement(GLFW_KEY_Q, GLFW_KEY_E);
 
-    auto angular_per_delta_t = glm::radians(m_configurable_parameters.angular_velocity) * delta;
+    auto angular_per_delta_t = glm::radians(m_configurable_parameters.angular_velocity_reg) * delta;
 
     glm::quat yaw_rotation = glm::angleAxis(yaw_movement * angular_per_delta_t, m_camera.get_up());
     glm::quat pitch_rotation = glm::angleAxis(pitch_movement * angular_per_delta_t, m_camera.get_sideways());
@@ -504,10 +513,12 @@ private:
   }
 
   struct gui_runtime_persistent_state {
-    bool controls_help = true;
+    bool metrics_window_open = false;
   } m_gui_runtime;
 
   void draw_gui() {
+    if (m_gui_runtime.metrics_window_open) ImGui::ShowMetricsWindow(&m_gui_runtime.metrics_window_open);
+
     ImGui::Begin("Triangles with Vulkan");
 
     if (ImGui::CollapsingHeader("Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -520,12 +531,15 @@ private:
       ImGui::BulletText("Yaw with Left/Right Arrows");
       ImGui::BulletText("Pitch with Up/Down Arrows");
       ImGui::BulletText("Roll with Q/E");
+
+      ImGui::Text("Press Left Shift to change between regular/fast speed");
     }
 
     if (ImGui::CollapsingHeader("Movement", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
-      ImGui::DragFloat("Linear velocity", &m_configurable_parameters.linear_velocity, 10.0f);
-      ImGui::DragFloat("Angular velocity", &m_configurable_parameters.angular_velocity, 0.1f);
+      ImGui::DragFloat("Linear velocity (regular)", &m_configurable_parameters.linear_velocity_reg, 1.0f);
+      ImGui::DragFloat("Linear velocity (mod)", &m_configurable_parameters.linear_velocity_mod, 10.0f);
+      ImGui::DragFloat("Angular velocity", &m_configurable_parameters.angular_velocity_reg, 0.1f);
       ImGui::PopItemWidth();
     }
 
@@ -539,12 +553,15 @@ private:
       ImGui::ColorEdit4("Intersecting", m_configurable_parameters.intersecting_color.data());
       ImGui::ColorEdit4("Regular", m_configurable_parameters.regular_color.data());
       ImGui::ColorEdit4("Clear Color", m_configurable_parameters.clear_color.data());
+
+      if (ImGui::Button("Open Metrics/Debug Window")) {
+        m_gui_runtime.metrics_window_open = true;
+      }
+
       ImGui::PopItemWidth();
     }
 
     ImGui::End();
-
-    ImGui::ShowDemoWindow();
   }
 
   void initialize_primitives_pipeline() {
@@ -613,6 +630,8 @@ private:
     handler.monitor(GLFW_KEY_LEFT, input_handler::button_state::e_held_down);
     handler.monitor(GLFW_KEY_UP, input_handler::button_state::e_held_down);
     handler.monitor(GLFW_KEY_DOWN, input_handler::button_state::e_held_down);
+
+    handler.monitor(GLFW_KEY_LEFT_SHIFT, input_handler::button_state::e_pressed);
 
     handler.bind(m_platform.window()());
   }
