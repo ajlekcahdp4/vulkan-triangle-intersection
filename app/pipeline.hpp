@@ -28,26 +28,6 @@ class pipeline_data final {
   vk::raii::Pipeline m_pipeline = nullptr;
 
 public:
-  static constexpr vk::PipelineRasterizationStateCreateInfo triangle_rasterization_state_create_info = {
-      .depthClampEnable = VK_FALSE,
-      .rasterizerDiscardEnable = VK_FALSE,
-      .polygonMode = vk::PolygonMode::eFill,
-      .cullMode = vk::CullModeFlagBits::eFront,
-      .frontFace = vk::FrontFace::eClockwise,
-      .depthBiasEnable = VK_FALSE,
-      .lineWidth = 1.0f,
-  };
-
-  static constexpr vk::PipelineRasterizationStateCreateInfo wireframe_rasterization_state_create_info = {
-      .depthClampEnable = VK_FALSE,
-      .rasterizerDiscardEnable = VK_FALSE,
-      .polygonMode = vk::PolygonMode::eLine,
-      .cullMode = vk::CullModeFlagBits::eNone,
-      .frontFace = vk::FrontFace::eClockwise,
-      .depthBiasEnable = VK_FALSE,
-      .lineWidth = 1.0f,
-  };
-
   pipeline_data() = default;
 
   pipeline_data(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,

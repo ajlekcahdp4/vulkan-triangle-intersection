@@ -111,7 +111,7 @@ bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_ge
 
   unsigned point_ind = 0;
 
-  static constexpr uint32_t intersect_index = 1u, regular_index = 0u;
+  constexpr uint32_t intersect_index = 1u, regular_index = 0u;
 
   std::transform(points.begin(), points.end(), std::back_inserter(vertices), [&result, &point_ind](auto &point) {
     triangles::triangle_vertex_type vertex;
