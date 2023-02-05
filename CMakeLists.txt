@@ -17,7 +17,7 @@ else()
   add_compile_options(-Wall -Wextra)
 endif()
 
-find_package(Boost COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS program_options)
 
 if(${Boost_FOUND})
   add_compile_definitions(BOOST_FOUND__)
@@ -139,11 +139,7 @@ add_custom_command(TARGET triangles POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy ${vertex_OUTPUTS} ${fragment_OUTPUTS} $<TARGET_FILE_DIR:triangles>/shaders/
 )
 
-target_link_libraries(triangles PUBLIC glfw Vulkan::Vulkan ezvk glm throttle)
-if (${BOOST_FOUND})
-  target_link_libraries(triangles PUBLIC Boost::program_options)
-endif()
-
+target_link_libraries(triangles PUBLIC glfw Vulkan::Vulkan ezvk glm throttle Boost::program_options)
 add_dependencies(triangles shaders)
 
 install(TARGETS triangles DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/bin)

@@ -17,10 +17,10 @@
 #include "vertex.hpp"
 #include "vulkan_hpp_include.hpp"
 
-#include "spdlog/cfg/env.h"
-#include <GLFW/glfw3.h>
 #include <algorithm>
+#include <fstream>
 #include <iterator>
+#include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
 #include "broadphase/broadphase_structure.hpp"
@@ -42,11 +42,9 @@
 
 #include "application.hpp"
 
-#ifdef BOOST_FOUND__
 #include <boost/program_options.hpp>
 #include <boost/program_options/option.hpp>
 namespace po = boost::program_options;
-#endif
 
 struct indexed_geom : public throttle::geometry::collision_shape<float> {
   unsigned index;
@@ -89,14 +87,14 @@ static unsigned apporoximate_optimal_depth(unsigned number) {
 }
 
 template <typename broad>
-bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
+bool application_loop(std::istream &is, throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
                       std::vector<triangles::triangle_vertex_type> &vertices, unsigned n, bool hide = false) {
   using point_type = typename throttle::geometry::point3<float>;
   std::vector<point_type> points;
   points.reserve(n);
   for (unsigned i = 0; i < n; ++i) {
     point_type a, b, c;
-    if (!(std::cin >> a[0] >> a[1] >> a[2] >> b[0] >> b[1] >> b[2] >> c[0] >> c[1] >> c[2])) {
+    if (!(is >> a[0] >> a[1] >> a[2] >> b[0] >> b[1] >> b[2] >> c[0] >> c[1] >> c[2])) {
       std::cout << "Can't read i-th = " << i << " triangle\n";
       return false;
     }
@@ -138,15 +136,15 @@ bool application_loop(throttle::geometry::broadphase_structure<broad, indexed_ge
 
 int main(int argc, char *argv[]) {
   // intersection
+  std::istream *isp = &std::cin;
+  bool          hide = false;
 
-  bool hide = false;
-
-#ifdef BOOST_FOUND__
-  std::string             opt;
+  std::string             opt, input;
   po::options_description desc("Available options");
   desc.add_options()("help,h", "Print this help message")("measure,m", "Print perfomance metrics")(
       "hide", "Hide output")("broad", po::value<std::string>(&opt)->default_value("octree"),
-                             "Algorithm for broad phase (bruteforce, octree, uniform-grid)");
+                             "Algorithm for broad phase (bruteforce, octree, uniform-grid)")(
+      "input,i", po::value<std::string>(&input), "Optional input file to use instead of stdin");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -157,12 +155,18 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
+  std::ifstream ifs;
+  ifs.exceptions(ifs.exceptions() | std::ifstream::badbit | std::ifstream::failbit);
+  if (vm.count("input")) {
+    ifs.open(input);
+    isp = &ifs;
+  }
+
   bool measure = vm.count("measure");
   hide = vm.count("hide");
-#endif
 
   unsigned n;
-  if (!(std::cin >> n)) {
+  if (!(*isp >> n)) {
     std::cout << "Can't read number of triangles\n";
     return 1;
   }
@@ -172,18 +176,17 @@ int main(int argc, char *argv[]) {
       {{0.0f, 0.0f, 0.0f}, 0u}, {{1.0f, 1.0f, 1.0f}, 0u}, {{1.0f, 0.0f, 1.0f}, 0u}, {{0.0f, 1.0f, 0.0f}, 1u}};
   vertices.reserve(3 * n);
 
-#ifdef BOOST_FOUND__
   auto start = std::chrono::high_resolution_clock::now();
 
   if (opt == "octree") {
     throttle::geometry::octree<float, indexed_geom> octree{apporoximate_optimal_depth(n)};
-    if (!application_loop(octree, vertices, n, hide)) return 1;
+    if (!application_loop(*isp, octree, vertices, n, hide)) return 1;
   } else if (opt == "bruteforce") {
     throttle::geometry::bruteforce<float, indexed_geom> bruteforce{n};
-    if (!application_loop(bruteforce, vertices, n, hide)) return 1;
+    if (!application_loop(*isp, bruteforce, vertices, n, hide)) return 1;
   } else if (opt == "uniform-grid") {
     throttle::geometry::uniform_grid<float, indexed_geom> uniform{n};
-    if (!application_loop(uniform, vertices, n, hide)) return 1;
+    if (!application_loop(*isp, uniform, vertices, n, hide)) return 1;
   }
 
   auto finish = std::chrono::high_resolution_clock::now();
@@ -193,12 +196,7 @@ int main(int argc, char *argv[]) {
     std::cout << opt << " took " << elapsed.count() << "ms to run\n";
   }
 
-#else
-  throttle::geometry::octree<float, indexed_geom> octree{apporoximate_optimal_depth(n)};
-  application_loop(octree, vertices, n, hide);
-#endif
-
-  // visualisations
+  // visualizations
 
   ezvk::enable_glfw_exceptions();
   spdlog::cfg::load_env_levels(); // Read logging level from environment variables
@@ -239,10 +237,6 @@ int main(int argc, char *argv[]) {
   auto p_device = std::move(suitable_physical_devices.front());
   auto window = ezvk::unique_glfw_window{"Triangles intersection", vk::Extent2D{800, 600}, true};
   auto surface = ezvk::surface{instance(), window};
-
-#if 0
-#endif
-
   triangles::applicaton_platform platform = {std::move(instance), std::move(window), std::move(surface),
                                              std::move(p_device)};
 

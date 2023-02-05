@@ -11,7 +11,7 @@ layout (std140, binding = 0) uniform buffer {
 layout (location = 0) in vec4 pos;
 layout (location = 1) in uint color_index;
 
-layout (location = 0) out vec4 outColor;
+layout (location = 0) flat out vec4 outColor;
 
 void main() {
   outColor = uniform_buffer.colors[color_index];
