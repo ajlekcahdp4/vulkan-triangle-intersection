@@ -17,26 +17,6 @@
 
 namespace triangles {
 
-constexpr vk::PipelineRasterizationStateCreateInfo triangle_rasterization_state_create_info = {
-    .depthClampEnable = VK_FALSE,
-    .rasterizerDiscardEnable = VK_FALSE,
-    .polygonMode = vk::PolygonMode::eFill,
-    .cullMode = vk::CullModeFlagBits::eFront,
-    .frontFace = vk::FrontFace::eClockwise,
-    .depthBiasEnable = VK_FALSE,
-    .lineWidth = 1.0f,
-};
-
-constexpr vk::PipelineRasterizationStateCreateInfo wireframe_rasterization_state_create_info = {
-    .depthClampEnable = VK_FALSE,
-    .rasterizerDiscardEnable = VK_FALSE,
-    .polygonMode = vk::PolygonMode::eLine,
-    .cullMode = vk::CullModeFlagBits::eNone,
-    .frontFace = vk::FrontFace::eClockwise,
-    .depthBiasEnable = VK_FALSE,
-    .lineWidth = 1.0f,
-};
-
 inline auto required_vk_extensions() {
   auto glfw_extensions = ezvk::glfw_required_vk_extensions();
   glfw_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);

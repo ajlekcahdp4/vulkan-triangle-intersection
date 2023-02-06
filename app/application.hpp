@@ -15,8 +15,6 @@
 #include "camera.hpp"
 #include "ezvk/depth_buffer.hpp"
 #include "ezvk/descriptor_set.hpp"
-#include "glm/gtc/quaternion.hpp"
-#include "glm/trigonometric.hpp"
 #include "misc.hpp"
 #include "pipeline.hpp"
 #include "ubo.hpp"
@@ -644,12 +642,39 @@ private:
   static constexpr std::array<vk::DescriptorPoolSize, 1> c_global_descriptor_pool_sizes = {
       {{vk::DescriptorType::eUniformBuffer, 16}}};
 
+  // We use two pipelines with the same descriptor set, so we should allocate a descriptor set with 2 binding points for
+  // a uniform buffer.
+  static constexpr std::array<ezvk::descriptor_set::binding_description, 2> descriptor_set_bindings = {
+      {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics},
+       {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics}}};
+
+  static constexpr vk::PipelineRasterizationStateCreateInfo triangle_rasterization_state_create_info = {
+      .depthClampEnable = VK_FALSE,
+      .rasterizerDiscardEnable = VK_FALSE,
+      .polygonMode = vk::PolygonMode::eFill,
+      .cullMode = vk::CullModeFlagBits::eFront,
+      .frontFace = vk::FrontFace::eClockwise,
+      .depthBiasEnable = VK_FALSE,
+      .lineWidth = 1.0f,
+  };
+
+  static constexpr vk::PipelineRasterizationStateCreateInfo wireframe_rasterization_state_create_info = {
+      .depthClampEnable = VK_FALSE,
+      .rasterizerDiscardEnable = VK_FALSE,
+      .polygonMode = vk::PolygonMode::eLine,
+      .cullMode = vk::CullModeFlagBits::eNone,
+      .frontFace = vk::FrontFace::eClockwise,
+      .depthBiasEnable = VK_FALSE,
+      .lineWidth = 1.0f,
+  };
+
   void initialize_primitives_pipeline() {
     m_descriptor_pool = ezvk::create_descriptor_pool(m_l_device(), c_global_descriptor_pool_sizes);
 
     m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::ubo), m_platform.p_device(), m_l_device(),
                          vk::BufferUsageFlagBits::eUniformBuffer};
-    m_descriptor_set = {m_l_device(), m_uniform_buffers, m_descriptor_pool};
+
+    m_descriptor_set = {m_l_device(), m_uniform_buffers, m_descriptor_pool, descriptor_set_bindings};
 
     // clang-format off
     constexpr vk::AttachmentReference 
@@ -658,11 +683,8 @@ private:
     // clang-format on
 
     vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-                                      .inputAttachmentCount = 0,
-                                      .pInputAttachments = nullptr,
                                       .colorAttachmentCount = 1,
                                       .pColorAttachments = &color_attachment_ref,
-                                      .pResolveAttachments = nullptr,
                                       .pDepthStencilAttachment = &depth_attachment_ref};
 
     const vk::Format depth_format = ezvk::find_depth_format(m_platform.p_device()).at(0);
@@ -679,7 +701,7 @@ private:
                            "shaders/triangles_frag.spv",
                            m_primitives_pipeline_layout(),
                            m_primitives_render_pass(),
-                           triangles::triangle_rasterization_state_create_info,
+                           triangle_rasterization_state_create_info,
                            vk::PrimitiveTopology::eTriangleList};
 
     m_wireframe_pipeline = {m_l_device(),
@@ -687,7 +709,7 @@ private:
                             "shaders/wireframe_frag.spv",
                             m_primitives_pipeline_layout(),
                             m_primitives_render_pass(),
-                            triangles::wireframe_rasterization_state_create_info,
+                            wireframe_rasterization_state_create_info,
                             vk::PrimitiveTopology::eLineList};
 
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),

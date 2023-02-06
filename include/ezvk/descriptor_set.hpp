@@ -21,17 +21,17 @@
 
 namespace ezvk {
 
-inline vk::raii::DescriptorPool create_descriptor_pool(const vk::raii::Device                 &p_device,
-                                                       std::span<const vk::DescriptorPoolSize> p_pool_sizes) {
+inline vk::raii::DescriptorPool create_descriptor_pool(const vk::raii::Device                 &l_device,
+                                                       std::span<const vk::DescriptorPoolSize> pool_sizes) {
   const auto accum_func = [](uint32_t sum, vk::DescriptorPoolSize const &dps) { return sum + dps.descriptorCount; };
-  uint32_t   max_sets = std::accumulate(p_pool_sizes.begin(), p_pool_sizes.end(), 0, accum_func);
+  uint32_t   max_sets = std::accumulate(pool_sizes.begin(), pool_sizes.end(), 0, accum_func);
 
   vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
                                                   .maxSets = max_sets,
-                                                  .poolSizeCount = static_cast<uint32_t>(p_pool_sizes.size()),
-                                                  .pPoolSizes = p_pool_sizes.data()};
+                                                  .poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
+                                                  .pPoolSizes = pool_sizes.data()};
 
-  return vk::raii::DescriptorPool(p_device, descriptor_info);
+  return vk::raii::DescriptorPool(l_device, descriptor_info);
 }
 
 struct descriptor_set {
@@ -47,35 +47,33 @@ private:
     const vk::raii::BufferView *buf_view = nullptr;
   };
 
+public:
   struct binding_description {
     vk::DescriptorType   type;
     uint32_t             count;
     vk::ShaderStageFlags flags;
   };
 
-public:
   descriptor_set() = default;
 
-  descriptor_set(const vk::raii::Device &p_device, const ezvk::device_buffers &p_uniform_buffers,
-                 const vk::raii::DescriptorPool &pool) {
-    m_layout = create_decriptor_set_layout(
-        p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics},
-                   {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics}});
+  descriptor_set(const vk::raii::Device &l_device, const ezvk::device_buffers &uniform_buffers,
+                 const vk::raii::DescriptorPool &pool, std::span<const binding_description> bindings) {
+    m_layout = create_decriptor_set_layout(l_device, bindings);
 
     auto set_alloc_info =
         vk::DescriptorSetAllocateInfo{.descriptorPool = *pool, .descriptorSetCount = 1, .pSetLayouts = &(*m_layout)};
 
-    m_descriptor_set = std::move((vk::raii::DescriptorSets{p_device, set_alloc_info}).front());
+    m_descriptor_set = std::move((vk::raii::DescriptorSets{l_device, set_alloc_info}).front());
 
     std::vector<buffer_description> buffer_data;
-    buffer_data.reserve(p_uniform_buffers.size());
+    buffer_data.reserve(uniform_buffers.size());
 
-    for (unsigned i = 0; i < p_uniform_buffers.size(); ++i) {
-      buffer_description temp = {vk::DescriptorType::eUniformBuffer, VK_WHOLE_SIZE, p_uniform_buffers[i].buffer()};
+    for (unsigned i = 0; i < uniform_buffers.size(); ++i) {
+      buffer_description temp = {vk::DescriptorType::eUniformBuffer, VK_WHOLE_SIZE, uniform_buffers[i].buffer()};
       buffer_data.push_back(temp);
     }
 
-    update(p_device, buffer_data);
+    update(l_device, buffer_data);
   }
 
   void update(const vk::raii::Device &l_device, const std::vector<buffer_description> &buffer_data,
@@ -98,7 +96,6 @@ public:
                                     .dstArrayElement = 0,
                                     .descriptorCount = 1,
                                     .descriptorType = bd.type,
-                                    .pImageInfo = nullptr,
                                     .pBufferInfo = &buffer_infos.back(),
                                     .pTexelBufferView = (bd.buf_view ? &buffer_view : nullptr)};
 
@@ -109,13 +106,12 @@ public:
   }
 
 private:
-  static vk::raii::DescriptorSetLayout
-  create_decriptor_set_layout(const vk::raii::Device                 &p_device,
-                              const std::vector<binding_description> &p_binding_data) {
+  static vk::raii::DescriptorSetLayout create_decriptor_set_layout(const vk::raii::Device              &l_device,
+                                                                   std::span<const binding_description> binding_data) {
     std::vector<vk::DescriptorSetLayoutBinding> bindings;
-    bindings.reserve(p_binding_data.size());
+    bindings.reserve(binding_data.size());
 
-    std::transform(p_binding_data.begin(), p_binding_data.end(), std::back_inserter(bindings),
+    std::transform(binding_data.begin(), binding_data.end(), std::back_inserter(bindings),
                    [i = uint32_t{0}](auto &elem) mutable {
                      return vk::DescriptorSetLayoutBinding{i++, elem.type, elem.count, elem.flags};
                    });
@@ -123,7 +119,7 @@ private:
     vk::DescriptorSetLayoutCreateInfo descriptor_set_info = {.bindingCount = static_cast<uint32_t>(bindings.size()),
                                                              .pBindings = bindings.data()};
 
-    return vk::raii::DescriptorSetLayout{p_device, descriptor_set_info};
+    return vk::raii::DescriptorSetLayout{l_device, descriptor_set_info};
   }
 };
 
