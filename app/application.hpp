@@ -454,6 +454,7 @@ public:
   auto *window() const { return m_platform.window()(); }
 
   void load_triangles(const auto &vertices) {
+    if (vertices.empty()) return;
     m_verices_n = vertices.size();
 
     auto size = ezvk::utils::sizeof_container(vertices);
@@ -478,6 +479,7 @@ public:
   }
 
   void load_wireframe(const auto &vertices) {
+    if (vertices.empty()) return;
     m_wirefram_vertices_n = vertices.size();
 
     auto size = ezvk::utils::sizeof_container(vertices);

@@ -114,14 +114,17 @@ template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, co
 }
 
 template <typename T>
-void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::bruteforce<T, indexed_geom> &) {}
+void fill_wireframe_vertices(wireframe_vertices_t &, throttle::geometry::bruteforce<T, indexed_geom> &) {
+  // Do nothing
+}
 
 template <typename T>
 void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::octree<T, indexed_geom> &octree) {
   for (const auto &elem : octree) {
+    if (elem.m_contained_shape_indexes.empty()) continue;
     glm::vec3 min_corner = {elem.m_center[0] - elem.m_halfwidth, elem.m_center[1] - elem.m_halfwidth,
                             elem.m_center[2] - elem.m_halfwidth};
-    auto      vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2);
+    auto      vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2, wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 }
