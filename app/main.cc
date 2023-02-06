@@ -90,44 +90,27 @@ static unsigned apporoximate_optimal_depth(unsigned number) {
 
 using wireframe_vertices_t = std::vector<triangles::wireframe_vertex_type>;
 
-template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, const T width) {
+constexpr uint32_t intersect_index = 1u, regular_index = 0u, wiremesh_index = 2u;
+
+template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, const T width, uint32_t color_index) {
+  // Here's the cube:
+  //
+  //    f -- g     b -- c
+  //    -    -     -    -  (bottom layer)
+  //    e -- h     a -- d
+  //
+
+  const auto a = min_corner, b = a + glm::vec3{0, width, 0};
+  const auto d = a + glm::vec3{width, 0, 0}, c = a + glm::vec3{width, width, 0};
+
+  const auto e = a + glm::vec3{0, 0, width}, f = e + glm::vec3{0, width, 0};
+  const auto h = e + glm::vec3{width, 0, 0}, g = e + glm::vec3{width, width, 0};
+
   return std::array<triangles::wireframe_vertex_type, 24>{
-      // 1 - 2
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2]}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2]}, 0u},
-      // 2 - 3
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2]}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2]}, 0u},
-      // 3 - 4
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2]}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2]}, 0u},
-      // 4 - 1
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2]}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2]}, 0u},
-      // 5 - 6
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2] + width}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2] + width}, 0u},
-      // 6 - 7
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2] + width}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2] + width}, 0u},
-      // 7 - 8
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2] + width}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2] + width}, 0u},
-      // 8 - 5
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2] + width}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2] + width}, 0u},
-      // 1 - 5
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2]}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2] + width}, 0u},
-      // 2 - 6
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2]}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2] + width}, 0u},
-      // 3 - 7
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2]}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2] + width}, 0u},
-      // 4 - 8
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2]}, 0u},
-      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2] + width}, 0u}};
+      {{a, color_index}, {b, color_index}, {a, color_index}, {d, color_index}, {b, color_index}, {c, color_index},
+       {d, color_index}, {c, color_index}, {e, color_index}, {f, color_index}, {e, color_index}, {h, color_index},
+       {f, color_index}, {g, color_index}, {g, color_index}, {h, color_index}, {a, color_index}, {e, color_index},
+       {b, color_index}, {f, color_index}, {c, color_index}, {g, color_index}, {d, color_index}, {h, color_index}}};
 }
 
 template <typename T>
@@ -149,7 +132,7 @@ void fill_wireframe_vertices(wireframe_vertices_t                              &
   auto cell_size = uniform.cell_size();
   for (const auto &elem : uniform) {
     glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
-    auto      vertices_arr = convert_to_cube_edges(cell, cell_size);
+    auto      vertices_arr = convert_to_cube_edges(cell, cell_size, wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 }
@@ -181,8 +164,6 @@ bool application_loop(std::istream &is, throttle::geometry::broadphase_structure
   for (const auto &v : result) {
     intersecting.insert(v->index);
   }
-
-  constexpr uint32_t intersect_index = 1u, regular_index = 0u;
 
   vertices.reserve(6 * n);
   std::for_each(triangles.begin(), triangles.end(), [i = 0, &intersecting, &vertices](auto triangle) mutable {

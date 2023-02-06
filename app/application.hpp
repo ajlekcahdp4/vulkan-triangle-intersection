@@ -212,6 +212,7 @@ private:
     std::array<float, 4> intersecting_color = hex_to_rgba(0xff4c29ff);
     std::array<float, 4> regular_color = hex_to_rgba(0x89c4e1ff);
     std::array<float, 4> clear_color = hex_to_rgba(0x181818ff);
+    std::array<float, 4> wireframe_color = hex_to_rgba(0x2f363aff);
   } m_configurable_parameters;
 
 private:
@@ -582,6 +583,7 @@ private:
       ImGui::BulletText("Color configuration");
       ImGui::ColorEdit4("Intersecting", m_configurable_parameters.intersecting_color.data());
       ImGui::ColorEdit4("Regular", m_configurable_parameters.regular_color.data());
+      ImGui::ColorEdit4("Wiremesh", m_configurable_parameters.wireframe_color.data());
       ImGui::ColorEdit4("Clear Color", m_configurable_parameters.clear_color.data());
 
       if (ImGui::Button("Open Metrics/Debug Window")) {
@@ -823,13 +825,12 @@ private:
     std::array<vk::CommandBuffer, 2> cmds = {*m_primitives_command_buffers[m_curr_frame],
                                              *m_imgui_data.m_imgui_command_buffers[m_curr_frame]};
 
-    auto     &inter_arr = m_configurable_parameters.intersecting_color;
-    glm::vec4 intersecting_color = {inter_arr[0], inter_arr[1], inter_arr[2], inter_arr[3]};
-    auto     &reg_arr = m_configurable_parameters.regular_color;
-    glm::vec4 regular_color = {reg_arr[0], reg_arr[1], reg_arr[2], reg_arr[3]};
+    glm::vec4 intersecting_color = glm_vec_from_array(m_configurable_parameters.intersecting_color);
+    glm::vec4 regular_color = glm_vec_from_array(m_configurable_parameters.regular_color);
+    glm::vec4 wireframe_color = glm_vec_from_array(m_configurable_parameters.wireframe_color);
 
     ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height),
-                          {regular_color, intersecting_color}};
+                          {regular_color, intersecting_color, wireframe_color}};
     m_uniform_buffers[m_curr_frame].copy_to_device(uniform_buffer);
 
     vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;

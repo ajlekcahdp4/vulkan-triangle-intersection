@@ -15,9 +15,12 @@
 
 namespace triangles {
 
+static constexpr uint32_t c_color_count = 4;
+
 struct ubo {
-  glm::mat4                vp;
-  std::array<glm::vec4, 4> colors;
+  glm::mat4 vp;
+
+  std::array<glm::vec4, c_color_count> colors;
 };
 
 } // namespace triangles
