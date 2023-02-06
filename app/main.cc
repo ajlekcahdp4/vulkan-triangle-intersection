@@ -137,14 +137,11 @@ template <typename T>
 void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::bruteforce<T, indexed_geom> &) {}
 
 template <typename T>
-void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::octree<T, indexed_geom> &octree) {
-  vertices.reserve(vertices.size() * 24);
-}
+void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::octree<T, indexed_geom> &octree) {}
 
 template <typename T>
 void fill_wireframe_vertices(wireframe_vertices_t                              &vertices,
                              throttle::geometry::uniform_grid<T, indexed_geom> &uniform) {
-  vertices.reserve(vertices.size() * 24);
   auto cell_size = uniform.cell_size();
   for (const auto &elem : uniform) {
     glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
