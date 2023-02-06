@@ -60,6 +60,9 @@ using throttle::geometry::segment3;
 using throttle::geometry::triangle3;
 using throttle::geometry::vec3;
 
+using point_type = typename throttle::geometry::point3<float>;
+using triangle_type = typename throttle::geometry::triangle3<float>;
+
 template <typename T>
 throttle::geometry::collision_shape<T> shape_from_three_points(const point3<T> &a, const point3<T> &b,
                                                                const point3<T> &c) {
@@ -91,9 +94,7 @@ static unsigned apporoximate_optimal_depth(unsigned number) {
 using triangles_vertices_type = std::vector<triangles::triangle_vertex_type>;
 using wireframe_vertices_type = std::vector<triangles::wireframe_vertex_type>;
 
-constexpr uint32_t intersect_index = 1u, regular_index = 0u, wiremesh_index = 2u;
-
-template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, const T width, uint32_t color_index) {
+template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, T width, uint32_t color_index) {
   // Here's the cube:
   //
   //    f -- g     b -- c
@@ -106,6 +107,28 @@ template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, co
 
   const auto e = a + glm::vec3{0, 0, width}, f = e + glm::vec3{0, width, 0};
   const auto h = e + glm::vec3{width, 0, 0}, g = e + glm::vec3{width, width, 0};
+
+  return std::array<triangles::wireframe_vertex_type, 24>{
+      {{a, color_index}, {b, color_index}, {a, color_index}, {d, color_index}, {b, color_index}, {c, color_index},
+       {d, color_index}, {c, color_index}, {e, color_index}, {f, color_index}, {e, color_index}, {h, color_index},
+       {f, color_index}, {g, color_index}, {g, color_index}, {h, color_index}, {a, color_index}, {e, color_index},
+       {b, color_index}, {f, color_index}, {c, color_index}, {g, color_index}, {d, color_index}, {h, color_index}}};
+}
+
+template <typename T>
+auto convert_to_cube_edges(const glm::vec3 &min_corner, T width_x, T width_y, T width_z, uint32_t color_index) {
+  // Here's the cube:
+  //
+  //    f -- g     b -- c
+  //    -    -     -    -  (bottom layer)
+  //    e -- h     a -- d
+  //
+
+  const auto a = min_corner, b = a + glm::vec3{0, width_y, 0};
+  const auto d = a + glm::vec3{width_x, 0, 0}, c = a + glm::vec3{width_x, width_y, 0};
+
+  const auto e = a + glm::vec3{0, 0, width_z}, f = e + glm::vec3{0, width_y, 0};
+  const auto h = e + glm::vec3{width_x, 0, 0}, g = e + glm::vec3{width_x, width_y, 0};
 
   return std::array<triangles::wireframe_vertex_type, 24>{
       {{a, color_index}, {b, color_index}, {a, color_index}, {d, color_index}, {b, color_index}, {c, color_index},
@@ -128,7 +151,7 @@ wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::octree<T, in
     if (elem.m_contained_shape_indexes.empty()) continue;
     glm::vec3 min_corner = {elem.m_center[0] - elem.m_halfwidth, elem.m_center[1] - elem.m_halfwidth,
                             elem.m_center[2] - elem.m_halfwidth};
-    auto      vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2, wiremesh_index);
+    auto      vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2, triangles::wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 
@@ -142,7 +165,24 @@ wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::uniform_grid
 
   for (const auto &elem : uniform) {
     glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
-    auto      vertices_arr = convert_to_cube_edges(cell, cell_size, wiremesh_index);
+    auto      vertices_arr = convert_to_cube_edges(cell, cell_size, triangles::wiremesh_index);
+    std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
+  }
+
+  return vertices;
+}
+
+wireframe_vertices_type fill_bounding_box_vertices(std::span<const triangle_type> triangles) {
+  wireframe_vertices_type vertices;
+
+  for (const auto &tr : triangles) {
+    auto box = throttle::geometry::axis_aligned_bb<float>{tr.a, tr.b, tr.c};
+    auto min_corner = box.minimum_corner();
+
+    glm::vec3 cell = {min_corner[0], min_corner[1], min_corner[2]};
+    auto vertices_arr = convert_to_cube_edges(cell, 2 * box.m_halfwidth_x, 2 * box.m_halfwidth_y, 2 * box.m_halfwidth_z,
+                                              triangles::bbox_index);
+
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 
@@ -158,9 +198,6 @@ struct input_result {
 template <typename broad>
 input_result application_loop(std::istream &is, throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
                               unsigned n) {
-  using point_type = typename throttle::geometry::point3<float>;
-  using triangle_type = typename throttle::geometry::triangle3<float>;
-
   triangles_vertices_type    vertices;
   std::vector<triangle_type> triangles;
 
@@ -187,7 +224,7 @@ input_result application_loop(std::istream &is, throttle::geometry::broadphase_s
     triangles::triangle_vertex_type vertex;
 
     auto norm = triangle.norm();
-    vertex.color_index = (intersecting.contains(i) ? intersect_index : regular_index);
+    vertex.color_index = (intersecting.contains(i) ? triangles::intersect_index : triangles::regular_index);
     vertex.norm = {norm[0], norm[1], norm[2]};
 
     vertex.pos = {triangle.a[0], triangle.a[1], triangle.a[2]};
@@ -209,8 +246,9 @@ input_result application_loop(std::istream &is, throttle::geometry::broadphase_s
   }
 
   wireframe_vertices_type mesh_vertices = fill_wireframe_vertices(cont.impl());
+  wireframe_vertices_type bboxes_vertices = fill_bounding_box_vertices(triangles);
 
-  return {true, vertices, mesh_vertices};
+  return {true, vertices, mesh_vertices, bboxes_vertices};
 }
 
 int main(int argc, char *argv[]) {
@@ -304,7 +342,7 @@ int main(int argc, char *argv[]) {
 
   auto &app = triangles::application::instance().get(&platform);
 
-  triangles::input_data data{!res.broad_vert.empty(), res.tr_vert, res.broad_vert};
+  triangles::input_data data = {res.tr_vert, res.broad_vert, res.bbox_vert};
 
   app.load_input_data(data);
 

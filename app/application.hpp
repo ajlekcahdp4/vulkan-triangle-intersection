@@ -40,9 +40,11 @@
 #include "backends/imgui_impl_vulkan.h"
 #include "imgui.h"
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <memory>
+#include <span>
 #include <stdexcept>
 #include <unordered_map>
 
@@ -52,10 +54,10 @@
 
 namespace triangles {
 
+constexpr uint32_t intersect_index = 1u, regular_index = 0u, wiremesh_index = 2u, bbox_index = 3u;
 struct input_data {
-  bool                                          wireframe_is_drawable = false;
-  std::vector<triangles::triangle_vertex_type>  tr_vert;
-  std::vector<triangles::wireframe_vertex_type> broad_vert, bbox_vert;
+  std::span<const triangles::triangle_vertex_type>  tr_vert;
+  std::span<const triangles::wireframe_vertex_type> broad_vert, bbox_vert;
 };
 
 struct applicaton_platform {
@@ -184,8 +186,19 @@ private:
 
   ezvk::framebuffers m_framebuffers;
 
-  ezvk::device_buffer m_triangles_vertex_buffer;
-  ezvk::device_buffer m_wireframe_vertex_buffer;
+  struct vertex_draw_info {
+    ezvk::device_buffer buf;
+
+    bool     loaded = false;
+    uint32_t count = 0;
+
+  public:
+    operator bool() const { return loaded; }
+  };
+
+  vertex_draw_info m_triangle_draw_info;
+  vertex_draw_info m_wireframe_broad_draw_info;
+  vertex_draw_info m_wireframe_bbox_draw_info;
 
   struct frame_rendering_info {
     vk::raii::Semaphore image_availible_semaphore, render_finished_semaphore;
@@ -197,15 +210,13 @@ private:
   std::vector<frame_rendering_info>                  m_rendering_info;
   std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;
 
-  std::size_t m_curr_frame = 0, m_vertices_n = 0, m_wireframe_vertices_n = 0;
+  std::size_t m_curr_frame = 0;
   camera      m_camera;
 
   bool m_mod_speed = false;
   bool m_first_frame = true;
 
-  bool m_triangles_loaded = false;
-  bool m_wireframe_loaded = false;
-
+  using array_color4 = std::array<float, 4>;
   struct {
     float linear_velocity_reg = 500.0f;
     float angular_velocity_reg = 30.0f;
@@ -213,12 +224,11 @@ private:
     float render_distance = 30000.0f;
     float fov = 90.0f;
 
-    std::array<float, 4> intersecting_color = hex_to_rgba(0xff4c29ff);
-    std::array<float, 4> regular_color = hex_to_rgba(0x89c4e1ff);
-    std::array<float, 4> clear_color = hex_to_rgba(0x181818ff);
-    std::array<float, 4> wireframe_color = hex_to_rgba(0x2f363aff);
+    std::array<float, 4>                    clear_color = hex_to_rgba(0x181818ff);
+    std::array<array_color4, c_color_count> colors = {hex_to_rgba(0x89c4e1ff), hex_to_rgba(0xff4c29ff),
+                                                      hex_to_rgba(0x2f363aff), hex_to_rgba(0x338568ff)};
 
-    bool draw_broad_phase = false;
+    bool draw_broad_phase = false, draw_bbox = false;
   } m_configurable_parameters;
 
 private:
@@ -482,23 +492,21 @@ public:
   }
 
   void load_input_data(const input_data &data) {
-    m_vertices_n = data.tr_vert.size();
-    m_triangles_vertex_buffer = copy_to_device_memory(data.tr_vert);
-    m_triangles_loaded = true;
-
-    if (data.wireframe_is_drawable) {
-      m_wireframe_vertices_n = data.broad_vert.size();
-      m_wireframe_vertex_buffer = copy_to_device_memory(data.broad_vert);
-      m_wireframe_loaded = true;
-    }
-
-    std::cout << m_triangles_loaded << " " << m_vertices_n << " " << m_wireframe_loaded << " " << m_wireframe_vertices_n
-              << std::endl;
+    if (!data.tr_vert.empty()) load_draw_info(data.tr_vert, m_triangle_draw_info);
+    if (!data.broad_vert.empty()) load_draw_info(data.broad_vert, m_wireframe_broad_draw_info);
+    if (!data.bbox_vert.empty()) load_draw_info(data.bbox_vert, m_wireframe_bbox_draw_info);
   }
 
   void shutdown() { m_l_device().waitIdle(); }
 
 private:
+  void load_draw_info(const auto &vertices, vertex_draw_info &info) {
+    assert(!vertices.empty());
+    info.count = vertices.size();
+    info.buf = copy_to_device_memory(vertices);
+    info.loaded = true;
+  }
+
   void physics_loop(float delta) {
     auto &handler = input_handler::instance();
     auto  events = handler.poll();
@@ -576,11 +584,14 @@ private:
                        ImGuiSliderFlags_AlwaysClamp);
 
       ImGui::Checkbox("Visualize broad phase", &m_configurable_parameters.draw_broad_phase);
+      ImGui::Checkbox("Draw bounding boxes", &m_configurable_parameters.draw_bbox);
 
       ImGui::BulletText("Color configuration");
-      ImGui::ColorEdit4("Intersecting", m_configurable_parameters.intersecting_color.data());
-      ImGui::ColorEdit4("Regular", m_configurable_parameters.regular_color.data());
-      ImGui::ColorEdit4("Wiremesh", m_configurable_parameters.wireframe_color.data());
+
+      ImGui::ColorEdit4("Regular", m_configurable_parameters.colors[regular_index].data());
+      ImGui::ColorEdit4("Intersecting", m_configurable_parameters.colors[intersect_index].data());
+      ImGui::ColorEdit4("Wiremesh", m_configurable_parameters.colors[wiremesh_index].data());
+      ImGui::ColorEdit4("Bounding box", m_configurable_parameters.colors[bbox_index].data());
       ImGui::ColorEdit4("Clear Color", m_configurable_parameters.clear_color.data());
 
       if (ImGui::Button("Open Metrics/Debug Window")) {
@@ -753,16 +764,21 @@ private:
 
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_triangle_pipeline());
 
-    if (m_triangles_loaded) {
-      cmd.bindVertexBuffers(0, *m_triangles_vertex_buffer.buffer(), {0});
-      cmd.draw(m_vertices_n, 1, 0, 0);
-    }
+    const auto submit_draw_info = [&cmd](const auto &info) -> void {
+      if (!info) return;
+      cmd.bindVertexBuffers(0, *info.buf.buffer(), {0});
+      cmd.draw(info.count, 1, 0, 0);
+    };
 
+    submit_draw_info(m_triangle_draw_info);
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_wireframe_pipeline());
 
-    if (m_wireframe_loaded && m_configurable_parameters.draw_broad_phase) {
-      cmd.bindVertexBuffers(0, *m_wireframe_vertex_buffer.buffer(), {0});
-      cmd.draw(m_wireframe_vertices_n, 1, 0, 0);
+    if (m_configurable_parameters.draw_broad_phase) {
+      submit_draw_info(m_wireframe_broad_draw_info);
+    }
+
+    if (m_configurable_parameters.draw_bbox) {
+      submit_draw_info(m_wireframe_bbox_draw_info);
     }
 
     cmd.endRenderPass();
@@ -822,12 +838,10 @@ private:
     std::array<vk::CommandBuffer, 2> cmds = {*m_primitives_command_buffers[m_curr_frame],
                                              *m_imgui_data.m_imgui_command_buffers[m_curr_frame]};
 
-    glm::vec4 intersecting_color = glm_vec_from_array(m_configurable_parameters.intersecting_color);
-    glm::vec4 regular_color = glm_vec_from_array(m_configurable_parameters.regular_color);
-    glm::vec4 wireframe_color = glm_vec_from_array(m_configurable_parameters.wireframe_color);
+    ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height), {}};
+    std::transform(m_configurable_parameters.colors.begin(), m_configurable_parameters.colors.end(),
+                   uniform_buffer.colors.begin(), [](auto a) { return glm_vec_from_array(a); });
 
-    ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height),
-                          {regular_color, intersecting_color, wireframe_color}};
     m_uniform_buffers[m_curr_frame].copy_to_device(uniform_buffer);
 
     vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
