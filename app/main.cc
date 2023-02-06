@@ -91,54 +91,64 @@ static unsigned apporoximate_optimal_depth(unsigned number) {
 using wireframe_vertices_t = std::vector<triangles::wireframe_vertex_type>;
 
 template <typename T>
-void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::octree<T, indexed_geom> &) {}
+void convert_to_cube_edges(wireframe_vertices_t &vertices, const glm::vec3 &min_corner, const T width) {
+  std::array<triangles::wireframe_vertex_type, 24> vertices_arr{
+      // 1 - 2
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2]}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2]}, 0u},
+      // 2 - 3
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2]}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2]}, 0u},
+      // 3 - 4
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2]}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2]}, 0u},
+      // 4 - 1
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2]}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2]}, 0u},
+      // 5 - 6
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2] + width}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2] + width}, 0u},
+      // 6 - 7
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2] + width}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2] + width}, 0u},
+      // 7 - 8
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2] + width}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2] + width}, 0u},
+      // 8 - 5
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2] + width}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2] + width}, 0u},
+      // 1 - 5
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2]}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2] + width}, 0u},
+      // 2 - 6
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2]}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2] + width}, 0u},
+      // 3 - 7
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2]}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1] + width, min_corner[2] + width}, 0u},
+      // 4 - 8
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2]}, 0u},
+      triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2] + width}, 0u}};
+
+  vertices.insert(vertices.end(), vertices_arr.begin(), vertices_arr.end());
+}
 
 template <typename T>
 void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::bruteforce<T, indexed_geom> &) {}
 
 template <typename T>
+void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::octree<T, indexed_geom> &octree) {
+  vertices.reserve(vertices.size() * 24);
+}
+
+template <typename T>
 void fill_wireframe_vertices(wireframe_vertices_t                              &vertices,
                              throttle::geometry::uniform_grid<T, indexed_geom> &uniform) {
-  vertices.reserve(vertices.size() * 12);
+  vertices.reserve(vertices.size() * 24);
   auto cell_size = uniform.cell_size();
   for (const auto &elem : uniform) {
     glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
-    // 1 - 2
-    vertices.push_back({{cell[0], cell[1], cell[2]}, 0u});
-    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2]}, 0u});
-    // 2 - 3
-    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2]}, 0u});
-    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2]}, 0u});
-    // 3 - 4
-    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2]}, 0u});
-    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2]}, 0u});
-    // 4 - 1
-    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2]}, 0u});
-    vertices.push_back({{cell[0], cell[1], cell[2]}, 0u});
-    // 5 - 6
-    vertices.push_back({{cell[0], cell[1], cell[2] + cell_size}, 0u});
-    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2] + cell_size}, 0u});
-    // 6 - 7
-    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2] + cell_size}, 0u});
-    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2] + cell_size}, 0u});
-    // 7 - 8
-    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2] + cell_size}, 0u});
-    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2] + cell_size}, 0u});
-    // 8 - 5
-    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2] + cell_size}, 0u});
-    vertices.push_back({{cell[0], cell[1], cell[2] + cell_size}, 0u});
-    // 1 - 5
-    vertices.push_back({{cell[0], cell[1], cell[2]}, 0u});
-    vertices.push_back({{cell[0], cell[1], cell[2] + cell_size}, 0u});
-    // 2 - 6
-    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2]}, 0u});
-    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2] + cell_size}, 0u});
-    // 3 - 7
-    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2]}, 0u});
-    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2] + cell_size}, 0u});
-    // 4 - 8
-    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2]}, 0u});
-    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2] + cell_size}, 0u});
+    convert_to_cube_edges(vertices, cell, cell_size);
   }
 }
 
