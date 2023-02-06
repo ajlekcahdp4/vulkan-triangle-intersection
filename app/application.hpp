@@ -400,7 +400,7 @@ private:
     initialize_input_hanlder(); // Bind key strokes
 
     initialize_frame_rendering_info(); // Initialize data needed to render primitives
-    initilize_imgui();                 // Initialize GUI specific objects
+    initialize_imgui();                // Initialize GUI specific objects
   }
 
 private:
@@ -718,7 +718,7 @@ private:
     m_primitives_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
   }
 
-  void initilize_imgui() {
+  void initialize_imgui() {
     m_imgui_data = imgui_related_data{*this};
     ImGui::StyleColorsDark(); // Blessed dark mode
   }
