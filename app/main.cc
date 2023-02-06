@@ -304,8 +304,9 @@ int main(int argc, char *argv[]) {
 
   auto &app = triangles::application::instance().get(&platform);
 
-  app.load_triangles(res.tr_vert);
-  app.load_wireframe(res.broad_vert);
+  triangles::input_data data{!res.broad_vert.empty(), res.tr_vert, res.broad_vert};
+
+  app.load_input_data(data);
 
   while (!glfwWindowShouldClose(app.window())) {
     glfwPollEvents();

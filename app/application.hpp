@@ -52,6 +52,12 @@
 
 namespace triangles {
 
+struct input_data {
+  bool                                          wireframe_is_drawable = false;
+  std::vector<triangles::triangle_vertex_type>  tr_vert;
+  std::vector<triangles::wireframe_vertex_type> broad_vert, bbox_vert;
+};
+
 struct applicaton_platform {
   ezvk::generic_instance   m_instance;
   ezvk::unique_glfw_window m_window = nullptr;
@@ -191,7 +197,7 @@ private:
   std::vector<frame_rendering_info>                  m_rendering_info;
   std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;
 
-  std::size_t m_curr_frame = 0, m_verices_n = 0, m_wirefram_vertices_n = 0;
+  std::size_t m_curr_frame = 0, m_vertices_n = 0, m_wireframe_vertices_n = 0;
   camera      m_camera;
 
   bool m_mod_speed = false;
@@ -453,54 +459,41 @@ public:
 
   auto *window() const { return m_platform.window()(); }
 
-  void load_triangles(const auto &vertices) {
-    if (vertices.empty()) return;
-    m_verices_n = vertices.size();
-
-    auto size = ezvk::utils::sizeof_container(vertices);
+  ezvk::device_buffer copy_to_device_memory(const auto &container) {
+    assert(!container.empty());
+    auto size = ezvk::utils::sizeof_container(container);
 
     ezvk::device_buffer staging_buffer = {
-        m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc, std::span{vertices},
+        m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc, std::span{container},
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
-    m_triangles_vertex_buffer = {m_platform.p_device(), m_l_device(), size,
-                                 vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                                 vk::MemoryPropertyFlagBits::eDeviceLocal};
+    ezvk::device_buffer dst = {m_platform.p_device(), m_l_device(), size,
+                               vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+                               vk::MemoryPropertyFlagBits::eDeviceLocal};
 
     auto &src_buffer = staging_buffer.buffer();
-    auto &dst_buffer = m_triangles_vertex_buffer.buffer();
+    auto &dst_buffer = dst.buffer();
 
     m_oneshot_upload.immediate_submit([size, &src_buffer, &dst_buffer](vk::raii::CommandBuffer &cmd) {
       vk::BufferCopy copy = {0, 0, size};
       cmd.copyBuffer(*src_buffer, *dst_buffer, copy);
     });
-
-    m_triangles_loaded = true;
+    return dst;
   }
 
-  void load_wireframe(const auto &vertices) {
-    if (vertices.empty()) return;
-    m_wirefram_vertices_n = vertices.size();
+  void load_input_data(const input_data &data) {
+    m_vertices_n = data.tr_vert.size();
+    m_triangles_vertex_buffer = copy_to_device_memory(data.tr_vert);
+    m_triangles_loaded = true;
 
-    auto size = ezvk::utils::sizeof_container(vertices);
+    if (data.wireframe_is_drawable) {
+      m_wireframe_vertices_n = data.broad_vert.size();
+      m_wireframe_vertex_buffer = copy_to_device_memory(data.broad_vert);
+      m_wireframe_loaded = true;
+    }
 
-    ezvk::device_buffer staging_buffer = {
-        m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc, std::span{vertices},
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
-
-    m_wireframe_vertex_buffer = {m_platform.p_device(), m_l_device(), size,
-                                 vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                                 vk::MemoryPropertyFlagBits::eDeviceLocal};
-
-    auto &src_buffer = staging_buffer.buffer();
-    auto &dst_buffer = m_wireframe_vertex_buffer.buffer();
-
-    m_oneshot_upload.immediate_submit([size, &src_buffer, &dst_buffer](vk::raii::CommandBuffer &cmd) {
-      vk::BufferCopy copy = {0, 0, size};
-      cmd.copyBuffer(*src_buffer, *dst_buffer, copy);
-    });
-
-    m_wireframe_loaded = true;
+    std::cout << m_triangles_loaded << " " << m_vertices_n << " " << m_wireframe_loaded << " " << m_wireframe_vertices_n
+              << std::endl;
   }
 
   void shutdown() { m_l_device().waitIdle(); }
@@ -762,14 +755,14 @@ private:
 
     if (m_triangles_loaded) {
       cmd.bindVertexBuffers(0, *m_triangles_vertex_buffer.buffer(), {0});
-      cmd.draw(m_verices_n, 1, 0, 0);
+      cmd.draw(m_vertices_n, 1, 0, 0);
     }
 
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_wireframe_pipeline());
 
     if (m_wireframe_loaded && m_configurable_parameters.draw_broad_phase) {
       cmd.bindVertexBuffers(0, *m_wireframe_vertex_buffer.buffer(), {0});
-      cmd.draw(m_wirefram_vertices_n, 1, 0, 0);
+      cmd.draw(m_wireframe_vertices_n, 1, 0, 0);
     }
 
     cmd.endRenderPass();
