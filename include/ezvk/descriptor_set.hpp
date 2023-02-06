@@ -59,8 +59,8 @@ public:
   descriptor_set(const vk::raii::Device &p_device, const ezvk::device_buffers &p_uniform_buffers,
                  const vk::raii::DescriptorPool &pool) {
     m_layout = create_decriptor_set_layout(
-        p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
-                   {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eFragment}});
+        p_device, {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics},
+                   {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics}});
 
     auto set_alloc_info =
         vk::DescriptorSetAllocateInfo{.descriptorPool = *pool, .descriptorSetCount = 1, .pSetLayouts = &(*m_layout)};

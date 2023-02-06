@@ -18,9 +18,19 @@ namespace triangles {
 static constexpr uint32_t c_color_count = 4;
 
 struct ubo {
-  glm::mat4 vp;
+  glm::mat4 vp; // 1. View-Projection matrix
 
+  // 2. Color pallete for runtime configurable colors
   std::array<glm::vec4, c_color_count> colors;
+
+  // 3. Light color
+  glm::vec4 light_color;
+
+  // 4. Diffuse direction
+  glm::vec4 light_direction;
+
+  // 5. Ambient strength, so that there are no padding elements with std140
+  float ambient_light_strength;
 };
 
 } // namespace triangles

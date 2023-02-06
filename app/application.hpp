@@ -15,6 +15,8 @@
 #include "camera.hpp"
 #include "ezvk/depth_buffer.hpp"
 #include "ezvk/descriptor_set.hpp"
+#include "glm/gtc/quaternion.hpp"
+#include "glm/trigonometric.hpp"
 #include "misc.hpp"
 #include "pipeline.hpp"
 #include "ubo.hpp"
@@ -42,6 +44,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <immintrin.h>
 #include <iostream>
 #include <memory>
 #include <span>
@@ -224,7 +227,14 @@ private:
     float render_distance = 30000.0f;
     float fov = 90.0f;
 
-    std::array<float, 4>                    clear_color = hex_to_rgba(0x181818ff);
+    float light_dir_yaw = 0.0f, light_dir_pitch = 0.0f;
+    float ambient_strength = 0.1f;
+
+    glm::vec4 light_dir;
+
+    std::array<float, 4> light_color = hex_to_rgba(0xffffffff);
+    std::array<float, 4> clear_color = hex_to_rgba(0x181818ff);
+
     std::array<array_color4, c_color_count> colors = {hex_to_rgba(0x89c4e1ff), hex_to_rgba(0xff4c29ff),
                                                       hex_to_rgba(0x2f363aff), hex_to_rgba(0x338568ff)};
 
@@ -601,6 +611,33 @@ private:
       ImGui::PopItemWidth();
     }
 
+    if (ImGui::CollapsingHeader("Color", ImGuiTreeNodeFlags_DefaultOpen)) {
+      ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
+
+      ImGui::DragFloat("Ambient Strength", &m_configurable_parameters.ambient_strength, 0.001f, 0.0f, 1.0f, "%.3f",
+                       ImGuiSliderFlags_AlwaysClamp);
+
+      ImGui::ColorEdit4("Light Color", m_configurable_parameters.light_color.data());
+
+      ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.35f);
+      ImGui::BulletText("Light direction");
+      ImGui::DragFloat("Yaw", &m_configurable_parameters.light_dir_yaw, 0.1f, 0.0f, 360.0f, "%.3f",
+                       ImGuiSliderFlags_AlwaysClamp);
+      ImGui::SameLine();
+      ImGui::DragFloat("Pitch", &m_configurable_parameters.light_dir_pitch, 0.1f, 0.0f, 360.0f, "%.3f",
+                       ImGuiSliderFlags_AlwaysClamp);
+
+      m_configurable_parameters.light_dir = glm::eulerAngleYX(glm::radians(m_configurable_parameters.light_dir_yaw),
+                                                              glm::radians(m_configurable_parameters.light_dir_pitch)) *
+                                            glm::vec4{0, 0, 1, 0};
+
+      auto light_dir = m_configurable_parameters.light_dir;
+      ImGui::Text("Light direction: x = %.3f, y = %.3f, z = %.3f", light_dir.x, light_dir.y, light_dir.z);
+
+      ImGui::PopItemWidth();
+      ImGui::PopItemWidth();
+    }
+
     ImGui::End();
   }
 
@@ -838,7 +875,12 @@ private:
     std::array<vk::CommandBuffer, 2> cmds = {*m_primitives_command_buffers[m_curr_frame],
                                              *m_imgui_data.m_imgui_command_buffers[m_curr_frame]};
 
-    ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height), {}};
+    ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height),
+                          {},
+                          glm_vec_from_array(m_configurable_parameters.light_color),
+                          m_configurable_parameters.light_dir,
+                          m_configurable_parameters.ambient_strength};
+
     std::transform(m_configurable_parameters.colors.begin(), m_configurable_parameters.colors.end(),
                    uniform_buffer.colors.begin(), [](auto a) { return glm_vec_from_array(a); });
 
