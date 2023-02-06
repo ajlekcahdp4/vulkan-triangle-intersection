@@ -1,5 +1,5 @@
 # 3D Triangle intersection Visualization with Vulkan in C++ 
-
+![](images/triangles.gif)
 # 1. How to build
 ## Linux
 ```sh
