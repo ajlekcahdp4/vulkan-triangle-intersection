@@ -38,3 +38,5 @@ Variables such as colors of different objects, lighting intensity as well as col
 ```
 
 ![](images/medium0.png)
+
+![](images/triangles.gif)
