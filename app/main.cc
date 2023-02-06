@@ -35,6 +35,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <concepts>
 #include <iostream>
 #include <set>
 #include <string>
@@ -87,9 +88,64 @@ static unsigned apporoximate_optimal_depth(unsigned number) {
   return std::min(max_depth, log_num);
 }
 
+using wireframe_vertices_t = std::vector<triangles::wireframe_vertex_type>;
+
+template <typename T>
+void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::octree<T, indexed_geom> &) {}
+
+template <typename T>
+void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::bruteforce<T, indexed_geom> &) {}
+
+template <typename T>
+void fill_wireframe_vertices(wireframe_vertices_t                              &vertices,
+                             throttle::geometry::uniform_grid<T, indexed_geom> &uniform) {
+  vertices.reserve(vertices.size() * 12);
+  auto cell_size = uniform.cell_size();
+  for (const auto &elem : uniform) {
+    glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
+    // 1 - 2
+    vertices.push_back({{cell[0], cell[1], cell[2]}, 0u});
+    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2]}, 0u});
+    // 2 - 3
+    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2]}, 0u});
+    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2]}, 0u});
+    // 3 - 4
+    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2]}, 0u});
+    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2]}, 0u});
+    // 4 - 1
+    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2]}, 0u});
+    vertices.push_back({{cell[0], cell[1], cell[2]}, 0u});
+    // 5 - 6
+    vertices.push_back({{cell[0], cell[1], cell[2] + cell_size}, 0u});
+    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2] + cell_size}, 0u});
+    // 6 - 7
+    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2] + cell_size}, 0u});
+    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2] + cell_size}, 0u});
+    // 7 - 8
+    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2] + cell_size}, 0u});
+    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2] + cell_size}, 0u});
+    // 8 - 5
+    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2] + cell_size}, 0u});
+    vertices.push_back({{cell[0], cell[1], cell[2] + cell_size}, 0u});
+    // 1 - 5
+    vertices.push_back({{cell[0], cell[1], cell[2]}, 0u});
+    vertices.push_back({{cell[0], cell[1], cell[2] + cell_size}, 0u});
+    // 2 - 6
+    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2]}, 0u});
+    vertices.push_back({{cell[0] + cell_size, cell[1], cell[2] + cell_size}, 0u});
+    // 3 - 7
+    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2]}, 0u});
+    vertices.push_back({{cell[0] + cell_size, cell[1] + cell_size, cell[2] + cell_size}, 0u});
+    // 4 - 8
+    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2]}, 0u});
+    vertices.push_back({{cell[0], cell[1] + cell_size, cell[2] + cell_size}, 0u});
+  }
+}
+
 template <typename broad>
 bool application_loop(std::istream &is, throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
-                      std::vector<triangles::triangle_vertex_type> &vertices, unsigned n, bool hide = false) {
+                      std::vector<triangles::triangle_vertex_type> &vertices, wireframe_vertices_t &wireframe_vertices,
+                      unsigned n, bool hide = false) {
   using point_type = typename throttle::geometry::point3<float>;
   using triangle_type = typename throttle::geometry::triangle3<float>;
   std::vector<triangle_type> triangles;
@@ -142,6 +198,8 @@ bool application_loop(std::istream &is, throttle::geometry::broadphase_structure
     vertices.push_back(vertices[i + 1]);
   }
 
+  fill_wireframe_vertices(wireframe_vertices, cont.impl());
+
   return true;
 }
 
@@ -183,20 +241,19 @@ int main(int argc, char *argv[]) {
   }
 
   std::vector<triangles::triangle_vertex_type>  vertices;
-  std::vector<triangles::wireframe_vertex_type> wireframe_vertices{
-      {{0.0f, 0.0f, 0.0f}, 0u}, {{1.0f, 1.0f, 1.0f}, 0u}, {{1.0f, 0.0f, 1.0f}, 0u}, {{0.0f, 1.0f, 0.0f}, 1u}};
+  wireframe_vertices_t                          wireframe_vertices;
 
   auto start = std::chrono::high_resolution_clock::now();
 
   if (opt == "octree") {
     throttle::geometry::octree<float, indexed_geom> octree{apporoximate_optimal_depth(n)};
-    if (!application_loop(*isp, octree, vertices, n, hide)) return 1;
+    if (!application_loop(*isp, octree, vertices, wireframe_vertices, n, hide)) return 1;
   } else if (opt == "bruteforce") {
     throttle::geometry::bruteforce<float, indexed_geom> bruteforce{n};
-    if (!application_loop(*isp, bruteforce, vertices, n, hide)) return 1;
+    if (!application_loop(*isp, bruteforce, vertices, wireframe_vertices, n, hide)) return 1;
   } else if (opt == "uniform-grid") {
     throttle::geometry::uniform_grid<float, indexed_geom> uniform{n};
-    if (!application_loop(*isp, uniform, vertices, n, hide)) return 1;
+    if (!application_loop(*isp, uniform, vertices, wireframe_vertices, n, hide)) return 1;
   }
 
   auto finish = std::chrono::high_resolution_clock::now();
