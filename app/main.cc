@@ -90,9 +90,8 @@ static unsigned apporoximate_optimal_depth(unsigned number) {
 
 using wireframe_vertices_t = std::vector<triangles::wireframe_vertex_type>;
 
-template <typename T>
-void convert_to_cube_edges(wireframe_vertices_t &vertices, const glm::vec3 &min_corner, const T width) {
-  std::array<triangles::wireframe_vertex_type, 24> vertices_arr{
+template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, const T width) {
+  return std::array<triangles::wireframe_vertex_type, 24>{
       // 1 - 2
       triangles::wireframe_vertex_type{{min_corner[0], min_corner[1], min_corner[2]}, 0u},
       triangles::wireframe_vertex_type{{min_corner[0] + width, min_corner[1], min_corner[2]}, 0u},
@@ -129,8 +128,6 @@ void convert_to_cube_edges(wireframe_vertices_t &vertices, const glm::vec3 &min_
       // 4 - 8
       triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2]}, 0u},
       triangles::wireframe_vertex_type{{min_corner[0], min_corner[1] + width, min_corner[2] + width}, 0u}};
-
-  vertices.insert(vertices.end(), vertices_arr.begin(), vertices_arr.end());
 }
 
 template <typename T>
@@ -145,7 +142,8 @@ void fill_wireframe_vertices(wireframe_vertices_t                              &
   auto cell_size = uniform.cell_size();
   for (const auto &elem : uniform) {
     glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
-    convert_to_cube_edges(vertices, cell, cell_size);
+    auto      vertices_arr = convert_to_cube_edges(cell, cell_size);
+    std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 }
 
@@ -247,8 +245,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  std::vector<triangles::triangle_vertex_type>  vertices;
-  wireframe_vertices_t                          wireframe_vertices;
+  std::vector<triangles::triangle_vertex_type> vertices;
+  wireframe_vertices_t                         wireframe_vertices;
 
   auto start = std::chrono::high_resolution_clock::now();
 
