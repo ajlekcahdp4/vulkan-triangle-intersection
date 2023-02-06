@@ -203,9 +203,7 @@ private:
   struct {
     float linear_velocity_reg = 500.0f;
     float angular_velocity_reg = 30.0f;
-
     float linear_velocity_mod = 5000.0f;
-
     float render_distance = 30000.0f;
     float fov = 90.0f;
 
@@ -213,6 +211,8 @@ private:
     std::array<float, 4> regular_color = hex_to_rgba(0x89c4e1ff);
     std::array<float, 4> clear_color = hex_to_rgba(0x181818ff);
     std::array<float, 4> wireframe_color = hex_to_rgba(0x2f363aff);
+
+    bool draw_broad_phase = false;
   } m_configurable_parameters;
 
 private:
@@ -582,6 +582,8 @@ private:
       ImGui::DragFloat("Fov", &m_configurable_parameters.fov, 0.1f, 45.0f, 175.0f, "%.3f",
                        ImGuiSliderFlags_AlwaysClamp);
 
+      ImGui::Checkbox("Visualize broad phase", &m_configurable_parameters.draw_broad_phase);
+
       ImGui::BulletText("Color configuration");
       ImGui::ColorEdit4("Intersecting", m_configurable_parameters.intersecting_color.data());
       ImGui::ColorEdit4("Regular", m_configurable_parameters.regular_color.data());
@@ -765,7 +767,7 @@ private:
 
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_wireframe_pipeline());
 
-    if (m_wireframe_loaded) {
+    if (m_wireframe_loaded && m_configurable_parameters.draw_broad_phase) {
       cmd.bindVertexBuffers(0, *m_wireframe_vertex_buffer.buffer(), {0});
       cmd.draw(m_wirefram_vertices_n, 1, 0, 0);
     }

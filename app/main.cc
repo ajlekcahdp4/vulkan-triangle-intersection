@@ -88,7 +88,8 @@ static unsigned apporoximate_optimal_depth(unsigned number) {
   return std::min(max_depth, log_num);
 }
 
-using wireframe_vertices_t = std::vector<triangles::wireframe_vertex_type>;
+using triangles_vertices_type = std::vector<triangles::triangle_vertex_type>;
+using wireframe_vertices_type = std::vector<triangles::wireframe_vertex_type>;
 
 constexpr uint32_t intersect_index = 1u, regular_index = 0u, wiremesh_index = 2u;
 
@@ -114,12 +115,15 @@ template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, co
 }
 
 template <typename T>
-void fill_wireframe_vertices(wireframe_vertices_t &, throttle::geometry::bruteforce<T, indexed_geom> &) {
+wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::bruteforce<T, indexed_geom> &) {
   // Do nothing
+  return {};
 }
 
 template <typename T>
-void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry::octree<T, indexed_geom> &octree) {
+wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::octree<T, indexed_geom> &octree) {
+  wireframe_vertices_type vertices;
+
   for (const auto &elem : octree) {
     if (elem.m_contained_shape_indexes.empty()) continue;
     glm::vec3 min_corner = {elem.m_center[0] - elem.m_halfwidth, elem.m_center[1] - elem.m_halfwidth,
@@ -127,25 +131,37 @@ void fill_wireframe_vertices(wireframe_vertices_t &vertices, throttle::geometry:
     auto      vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2, wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
+
+  return vertices;
 }
 
 template <typename T>
-void fill_wireframe_vertices(wireframe_vertices_t                              &vertices,
-                             throttle::geometry::uniform_grid<T, indexed_geom> &uniform) {
-  auto cell_size = uniform.cell_size();
+wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::uniform_grid<T, indexed_geom> &uniform) {
+  wireframe_vertices_type vertices;
+  auto                    cell_size = uniform.cell_size();
+
   for (const auto &elem : uniform) {
     glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
     auto      vertices_arr = convert_to_cube_edges(cell, cell_size, wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
+
+  return vertices;
 }
 
+struct input_result {
+  bool                                          success = false;
+  std::vector<triangles::triangle_vertex_type>  tr_vert;
+  std::vector<triangles::wireframe_vertex_type> broad_vert, bbox_vert;
+};
+
 template <typename broad>
-bool application_loop(std::istream &is, throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
-                      std::vector<triangles::triangle_vertex_type> &vertices, wireframe_vertices_t &wireframe_vertices,
-                      unsigned n, bool hide = false) {
+input_result application_loop(std::istream &is, throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
+                              unsigned n) {
   using point_type = typename throttle::geometry::point3<float>;
   using triangle_type = typename throttle::geometry::triangle3<float>;
+
+  triangles_vertices_type    vertices;
   std::vector<triangle_type> triangles;
 
   triangles.reserve(n);
@@ -153,17 +169,15 @@ bool application_loop(std::istream &is, throttle::geometry::broadphase_structure
     point_type a, b, c;
     if (!(is >> a[0] >> a[1] >> a[2] >> b[0] >> b[1] >> b[2] >> c[0] >> c[1] >> c[2])) {
       std::cout << "Can't read i-th = " << i << " triangle\n";
-      return false;
+      return {};
     }
     cont.add_collision_shape({i, shape_from_three_points(a, b, c)});
     triangles.push_back({a, b, c});
   }
 
   auto result = cont.many_to_many();
-  if (hide) return true;
 
   std::unordered_set<unsigned> intersecting;
-
   for (const auto &v : result) {
     intersecting.insert(v->index);
   }
@@ -194,22 +208,21 @@ bool application_loop(std::istream &is, throttle::geometry::broadphase_structure
     vertices.push_back(vertices[i + 1]);
   }
 
-  fill_wireframe_vertices(wireframe_vertices, cont.impl());
+  wireframe_vertices_type mesh_vertices = fill_wireframe_vertices(cont.impl());
 
-  return true;
+  return {true, vertices, mesh_vertices};
 }
 
 int main(int argc, char *argv[]) {
-  // intersection
+  // Intersection
   std::istream *isp = &std::cin;
-  bool          hide = false;
 
   std::string             opt, input;
   po::options_description desc("Available options");
-  desc.add_options()("help,h", "Print this help message")("measure,m", "Print perfomance metrics")(
-      "hide", "Hide output")("broad", po::value<std::string>(&opt)->default_value("octree"),
-                             "Algorithm for broad phase (bruteforce, octree, uniform-grid)")(
-      "input,i", po::value<std::string>(&input), "Optional input file to use instead of stdin");
+  desc.add_options()("help,h", "Print this help message")(
+      "broad", po::value<std::string>(&opt)->default_value("octree"),
+      "Algorithm for broad phase (bruteforce, octree, uniform-grid)")("input,i", po::value<std::string>(&input),
+                                                                      "Optional input file to use instead of stdin");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -227,39 +240,25 @@ int main(int argc, char *argv[]) {
     isp = &ifs;
   }
 
-  bool measure = vm.count("measure");
-  hide = vm.count("hide");
-
   unsigned n;
   if (!(*isp >> n)) {
     std::cout << "Can't read number of triangles\n";
     return 1;
   }
 
-  std::vector<triangles::triangle_vertex_type> vertices;
-  wireframe_vertices_t                         wireframe_vertices;
-
-  auto start = std::chrono::high_resolution_clock::now();
-
+  input_result res;
   if (opt == "octree") {
     throttle::geometry::octree<float, indexed_geom> octree{apporoximate_optimal_depth(n)};
-    if (!application_loop(*isp, octree, vertices, wireframe_vertices, n, hide)) return 1;
+    if (!(res = application_loop(*isp, octree, n)).success) return 1;
   } else if (opt == "bruteforce") {
     throttle::geometry::bruteforce<float, indexed_geom> bruteforce{n};
-    if (!application_loop(*isp, bruteforce, vertices, wireframe_vertices, n, hide)) return 1;
+    if (!(res = application_loop(*isp, bruteforce, n)).success) return 1;
   } else if (opt == "uniform-grid") {
     throttle::geometry::uniform_grid<float, indexed_geom> uniform{n};
-    if (!application_loop(*isp, uniform, vertices, wireframe_vertices, n, hide)) return 1;
+    if (!(res = application_loop(*isp, uniform, n)).success) return 1;
   }
 
-  auto finish = std::chrono::high_resolution_clock::now();
-  auto elapsed = std::chrono::duration<double, std::milli>(finish - start);
-
-  if (measure) {
-    std::cout << opt << " took " << elapsed.count() << "ms to run\n";
-  }
-
-  // visualizations
+  // Visualizations
 
   ezvk::enable_glfw_exceptions();
   spdlog::cfg::load_env_levels(); // Read logging level from environment variables
@@ -305,8 +304,8 @@ int main(int argc, char *argv[]) {
 
   auto &app = triangles::application::instance().get(&platform);
 
-  app.load_triangles(vertices);
-  app.load_wireframe(wireframe_vertices);
+  app.load_triangles(res.tr_vert);
+  app.load_wireframe(res.broad_vert);
 
   while (!glfwWindowShouldClose(app.window())) {
     glfwPollEvents();
