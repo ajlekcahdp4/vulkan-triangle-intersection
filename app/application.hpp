@@ -10,9 +10,8 @@
 
 #pragma once
 
-#include "equal.hpp"
-
 #include "camera.hpp"
+#include "equal.hpp"
 #include "ezvk/depth_buffer.hpp"
 #include "ezvk/descriptor_set.hpp"
 #include "misc.hpp"
@@ -200,8 +199,10 @@ private:
   struct vertex_draw_info {
     ezvk::device_buffer buf;
 
-    std::atomic_bool loaded = false;
-    uint32_t         count = 0;
+    std::atomic_bool loaded = false, in_staging = false;
+    uint32_t         count = 0, size = 0;
+
+    ezvk::device_buffer staging_buffer;
 
   public:
     operator bool() const { return loaded.load(); }
@@ -487,26 +488,37 @@ public:
 
   auto *window() const { return m_platform.window()(); }
 
-  ezvk::device_buffer copy_to_device_memory(const auto &container) {
+  ezvk::device_buffer copy_to_staging_memory(const auto &container) {
     assert(!container.empty());
-    auto size = ezvk::utils::sizeof_container(container);
 
     ezvk::device_buffer staging_buffer = {
         m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc, std::span{container},
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
-    ezvk::device_buffer dst = {m_platform.p_device(), m_l_device(), size,
-                               vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                               vk::MemoryPropertyFlagBits::eDeviceLocal};
+    return staging_buffer;
+  }
 
-    auto &src_buffer = staging_buffer.buffer();
-    auto &dst_buffer = dst.buffer();
+  void copy_to_device_memory(vk::raii::CommandBuffer &cmd, vertex_draw_info &info) {
+    const auto size = info.size;
 
-    m_oneshot_upload.immediate_submit([size, &src_buffer, &dst_buffer](vk::raii::CommandBuffer &cmd) {
-      vk::BufferCopy copy = {0, 0, size};
-      cmd.copyBuffer(*src_buffer, *dst_buffer, copy);
-    });
-    return dst;
+    info.buf = {m_platform.p_device(), m_l_device(), size,
+                vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+                vk::MemoryPropertyFlagBits::eDeviceLocal};
+
+    auto &src_buffer = info.staging_buffer.buffer();
+    auto &dst_buffer = info.buf.buffer();
+
+    vk::BufferCopy copy = {0, 0, size};
+    cmd.copyBuffer(*src_buffer, *dst_buffer, copy);
+
+    vk::BufferMemoryBarrier barrier = {.srcAccessMask = vk::AccessFlagBits::eTransferWrite,
+                                       .dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead,
+                                       .buffer = *dst_buffer,
+                                       .offset = 0,
+                                       .size = info.size};
+
+    cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eVertexInput, {}, nullptr,
+                        barrier, nullptr);
   }
 
   void load_input_data(const input_data &data) {
@@ -525,8 +537,9 @@ private:
   void load_draw_info(const auto &vertices, vertex_draw_info &info) {
     assert(!vertices.empty());
     info.count = vertices.size();
-    info.buf = copy_to_device_memory(vertices);
-    info.loaded.store(true);
+    info.size = ezvk::utils::sizeof_container(vertices);
+    info.staging_buffer = copy_to_staging_memory(vertices);
+    info.in_staging.store(true);
   }
 
   void physics_loop(float delta) {
@@ -809,6 +822,17 @@ private:
   void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
     cmd.reset();
     cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
+
+    const auto submit_copy = [&](auto &info) -> void {
+      if (!info.in_staging) return;
+      copy_to_device_memory(cmd, info);
+      info.in_staging.store(false);
+      info.loaded.store(true);
+    };
+
+    submit_copy(m_triangle_draw_info);
+    submit_copy(m_wireframe_bbox_draw_info);
+    submit_copy(m_wireframe_broad_draw_info);
 
     std::array<vk::ClearValue, 2> clear_values;
     clear_values[0].color = m_configurable_parameters.clear_color;
