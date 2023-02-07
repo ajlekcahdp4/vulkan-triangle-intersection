@@ -17,14 +17,13 @@
 #include "vertex.hpp"
 #include "vulkan_hpp_include.hpp"
 
-#include <GLFW/glfw3.h>
 #include <algorithm>
 #include <atomic>
 #include <exception>
 #include <fstream>
 #include <iterator>
-#include <spdlog/cfg/env.h>
-#include <spdlog/spdlog.h>
+#include <mutex>
+#include <thread>
 
 #include "broadphase/broadphase_structure.hpp"
 #include "broadphase/bruteforce.hpp"
@@ -51,6 +50,7 @@
 #include <boost/program_options/option.hpp>
 namespace po = boost::program_options;
 
+#include <spdlog/cfg/env.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 

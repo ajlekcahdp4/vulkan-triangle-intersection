@@ -49,6 +49,7 @@
 #include <mutex>
 #include <span>
 #include <stdexcept>
+#include <thread>
 #include <unordered_map>
 
 #if defined(VK_VALIDATION_LAYER) || !defined(NDEBUG)
