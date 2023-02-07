@@ -41,10 +41,12 @@
 #include "imgui.h"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <immintrin.h>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <span>
 #include <stdexcept>
 #include <unordered_map>
@@ -99,10 +101,14 @@ private:
 
   std::unordered_map<key_index, tracked_key_info> m_tracked_keys;
 
+  std::mutex m_mx; // I'm not sure about the efficiency of a mutex in input.
+
   input_handler() {}
 
   static void key_callback(GLFWwindow *, int key, int, int action, int) {
     auto &me = instance();
+
+    std::lock_guard guard{me.m_mx};
 
     auto found = me.m_tracked_keys.find(key);
     if (found == me.m_tracked_keys.end()) return;
@@ -124,6 +130,7 @@ public:
 
 public:
   void monitor(key_index key, button_state state_to_notify) {
+    std::lock_guard guard{m_mx};
     m_tracked_keys[key] = tracked_key_info{button_state::e_idle, state_to_notify};
   }
 
@@ -132,6 +139,7 @@ public:
   std::unordered_map<key_index, button_state> poll() {
     std::unordered_map<key_index, button_state> result;
 
+    std::lock_guard guard{m_mx};
     for (auto &v : m_tracked_keys) {
       if (v.second.current_state != v.second.look_for) continue;
 
@@ -186,15 +194,16 @@ private:
   pipeline<wireframe_vertex_type> m_wireframe_pipeline;
 
   ezvk::framebuffers m_framebuffers;
+  std::atomic_bool   m_data_loaded = false;
 
   struct vertex_draw_info {
     ezvk::device_buffer buf;
 
-    bool     loaded = false;
-    uint32_t count = 0;
+    std::atomic_bool loaded = false;
+    uint32_t         count = 0;
 
   public:
-    operator bool() const { return loaded; }
+    operator bool() const { return loaded.load(); }
   };
 
   vertex_draw_info m_triangle_draw_info;
@@ -500,9 +509,13 @@ public:
   }
 
   void load_input_data(const input_data &data) {
+    if (m_data_loaded.load()) throw std::invalid_argument{"For now you can't load vertex data more than once"};
+
     if (!data.tr_vert.empty()) load_draw_info(data.tr_vert, m_triangle_draw_info);
     if (!data.broad_vert.empty()) load_draw_info(data.broad_vert, m_wireframe_broad_draw_info);
     if (!data.bbox_vert.empty()) load_draw_info(data.bbox_vert, m_wireframe_bbox_draw_info);
+
+    m_data_loaded.store(true);
   }
 
   void shutdown() { m_l_device().waitIdle(); }
@@ -512,7 +525,7 @@ private:
     assert(!vertices.empty());
     info.count = vertices.size();
     info.buf = copy_to_device_memory(vertices);
-    info.loaded = true;
+    info.loaded.store(true);
   }
 
   void physics_loop(float delta) {

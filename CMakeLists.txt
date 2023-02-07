@@ -70,8 +70,8 @@ endif()
 
 option(SANITIZE OFF)
 if (SANITIZE)
-  add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-  add_link_options(-fsanitize=address -fno-omit-frame-pointer)
+  add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=undefined -fno-omit-frame-pointer)
 endif()
 
 add_subdirectory(spdlog EXCLUDE_FROM_ALL)
@@ -116,6 +116,8 @@ endif()
 target_include_directories(ezvk PUBLIC include)
 target_link_libraries(ezvk INTERFACE spdlog_header_only)
 
+find_package(Threads REQUIRED)
+
 set(APPLICATION_SOURCES
   app/main.cc
   imgui/imgui.cpp
@@ -141,5 +143,5 @@ add_custom_command(TARGET triangles POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy ${triangles_vert_OUTPUTS} ${triangles_frag_OUTPUTS} ${wireframe_vert_OUTPUTS} ${wireframe_frag_OUTPUTS} $<TARGET_FILE_DIR:triangles>/shaders/
 )
 
-target_link_libraries(triangles PUBLIC glfw Vulkan::Vulkan ezvk glm throttle Boost::program_options)
+target_link_libraries(triangles PUBLIC glfw Vulkan::Vulkan ezvk glm throttle Boost::program_options Threads::Threads)
 add_dependencies(triangles shaders)

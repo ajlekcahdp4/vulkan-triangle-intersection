@@ -17,7 +17,10 @@
 #include "vertex.hpp"
 #include "vulkan_hpp_include.hpp"
 
+#include <GLFW/glfw3.h>
 #include <algorithm>
+#include <atomic>
+#include <exception>
 #include <fstream>
 #include <iterator>
 #include <spdlog/cfg/env.h>
@@ -47,6 +50,9 @@
 #include <boost/program_options.hpp>
 #include <boost/program_options/option.hpp>
 namespace po = boost::program_options;
+
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 
 struct indexed_geom : public throttle::geometry::collision_shape<float> {
   unsigned index;
@@ -205,7 +211,7 @@ input_result application_loop(std::istream &is, throttle::geometry::broadphase_s
   for (unsigned i = 0; i < n; ++i) {
     point_type a, b, c;
     if (!(is >> a[0] >> a[1] >> a[2] >> b[0] >> b[1] >> b[2] >> c[0] >> c[1] >> c[2])) {
-      std::cout << "Can't read i-th = " << i << " triangle\n";
+      spdlog::error("Can't read i-th = {} triangle out of {}", i, n);
       return {};
     }
     cont.add_collision_shape({i, shape_from_three_points(a, b, c)});
@@ -251,7 +257,14 @@ input_result application_loop(std::istream &is, throttle::geometry::broadphase_s
   return {true, vertices, mesh_vertices, bboxes_vertices};
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) try {
+  auto err_logger = spdlog::stderr_color_mt("stderr");
+  spdlog::set_default_logger(err_logger);
+  spdlog::set_pattern("[%H:%M:%S %z] [%n] [%^---%L---%$] [thread %t] %v");
+
+  ezvk::enable_glfw_exceptions();
+  spdlog::cfg::load_env_levels(); // Read logging level from environment variables
+
   // Intersection
   std::istream *isp = &std::cin;
 
@@ -278,30 +291,10 @@ int main(int argc, char *argv[]) {
     isp = &ifs;
   }
 
-  unsigned n;
-  if (!(*isp >> n)) {
-    std::cout << "Can't read number of triangles\n";
-    return 1;
-  }
-
-  input_result res;
-  if (opt == "octree") {
-    throttle::geometry::octree<float, indexed_geom> octree{apporoximate_optimal_depth(n)};
-    if (!(res = application_loop(*isp, octree, n)).success) return 1;
-  } else if (opt == "bruteforce") {
-    throttle::geometry::bruteforce<float, indexed_geom> bruteforce{n};
-    if (!(res = application_loop(*isp, bruteforce, n)).success) return 1;
-  } else if (opt == "uniform-grid") {
-    throttle::geometry::uniform_grid<float, indexed_geom> uniform{n};
-    if (!(res = application_loop(*isp, uniform, n)).success) return 1;
-  }
-
-  // Visualizations
-
-  ezvk::enable_glfw_exceptions();
-  spdlog::cfg::load_env_levels(); // Read logging level from environment variables
   glfwInit();
 
+  constexpr float glfw_timeout = 0.25f;
+  glfwWaitEventsTimeout(glfw_timeout);
   static constexpr auto app_info = vk::ApplicationInfo{.pApplicationName = "Hello, World!",
                                                        .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
                                                        .pEngineName = "Junk Inc.",
@@ -340,18 +333,92 @@ int main(int argc, char *argv[]) {
   triangles::applicaton_platform platform = {std::move(instance), std::move(window), std::move(surface),
                                              std::move(p_device)};
 
-  auto &app = triangles::application::instance().get(&platform);
+  auto            &app = triangles::application::instance().get(&platform);
+  std::atomic_bool should_close = false;
+  std::atomic_bool should_kill = false;
 
-  triangles::input_data data = {res.tr_vert, res.broad_vert, res.bbox_vert};
+  auto rendering_thread = std::thread{[&app, &should_close, &should_kill]() {
+    try {
+      while (!should_close.load()) {
+        app.loop();
+      }
 
-  app.load_input_data(data);
+      app.shutdown();
+      return;
+    } catch (ezvk::error &e) {
+      spdlog::error("Application encountered an error: {}", e.what());
+    } catch (vk::SystemError &e) {
+      spdlog::error("Vulkan error: {}", e.what());
+    } catch (std::exception &e) {
+      spdlog::error("Other error: {}", e.what());
+    } catch (...) {
+      spdlog::error("Unknown error, bailing out...");
+    }
+
+    should_kill.store(true);
+  }};
+
+  auto intersecting_thread = std::thread{[&app, opt, isp, &should_kill]() {
+    assert(isp);
+
+    const auto read_input = [&]() -> bool {
+      unsigned n;
+      if (!(*isp >> n)) {
+        spdlog::error("Can't read number of triangles");
+        return false;
+      }
+
+      input_result res;
+      if (opt == "octree") {
+        throttle::geometry::octree<float, indexed_geom> octree{apporoximate_optimal_depth(n)};
+        if (!(res = application_loop(*isp, octree, n)).success) return false;
+      } else if (opt == "bruteforce") {
+        throttle::geometry::bruteforce<float, indexed_geom> bruteforce{n};
+        if (!(res = application_loop(*isp, bruteforce, n)).success) return false;
+      } else if (opt == "uniform-grid") {
+        throttle::geometry::uniform_grid<float, indexed_geom> uniform{n};
+        if (!(res = application_loop(*isp, uniform, n)).success) return false;
+      }
+
+      triangles::input_data data = {res.tr_vert, res.broad_vert, res.bbox_vert};
+      app.load_input_data(data);
+
+      return true;
+    };
+
+    try {
+      if (!read_input()) should_kill.store(true);
+      return;
+    } catch (ezvk::error &e) {
+      spdlog::error("Application encountered an error: {}", e.what());
+    } catch (vk::SystemError &e) {
+      spdlog::error("Vulkan error: {}", e.what());
+    } catch (std::exception &e) {
+      spdlog::error("Other error: {}", e.what());
+    } catch (...) {
+      spdlog::error("Unknown error, bailing out...");
+    }
+
+    should_kill.store(true);
+  }};
 
   while (!glfwWindowShouldClose(app.window())) {
-    glfwPollEvents();
-    app.loop();
+    if (should_kill.load()) break;
+    glfwWaitEvents();
   }
 
-  app.shutdown();
+  should_close.store(true);
+  rendering_thread.join();
 
+  app.shutdown();
+  intersecting_thread.join();
   triangles::application::instance().destroy();
+} catch (ezvk::error &e) {
+  spdlog::error("Application encountered an error: {}", e.what());
+} catch (vk::SystemError &e) {
+  spdlog::error("Vulkan error: {}", e.what());
+} catch (std::exception &e) {
+  spdlog::error("Other error: {}", e.what());
+} catch (...) {
+  spdlog::error("Unknown error, bailing out...");
 }
