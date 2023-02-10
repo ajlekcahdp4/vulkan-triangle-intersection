@@ -246,9 +246,12 @@ input_result application_loop(std::istream &is, throttle::geometry::broadphase_s
   // Here we add triangles oriented in the opposite direction to light them differently
   auto sz = vertices.size();
   for (unsigned i = 0; i < sz; i += 3) {
-    vertices.push_back(vertices[i]);
-    vertices.push_back(vertices[i + 2]);
-    vertices.push_back(vertices[i + 1]);
+    const std::array<unsigned, 3> offsets = {0, 2, 1};
+    for (const auto &o : offsets) {
+      auto new_vertex = vertices[i + o];
+      new_vertex.norm *= -1;
+      vertices.push_back(new_vertex);
+    }
   }
 
   wireframe_vertices_type mesh_vertices = fill_wireframe_vertices(cont.impl());
