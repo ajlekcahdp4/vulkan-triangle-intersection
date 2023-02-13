@@ -79,8 +79,8 @@ add_subdirectory(glm EXCLUDE_FROM_ALL)
 add_subdirectory(hw3d EXCLUDE_FROM_ALL)
 
 find_package(glfw3 REQUIRED)
-find_package(Vulkan REQUIRED)
-find_program(glslc NAMES glslc HINTS Vulkan::glslc)
+find_package(Vulkan 1.3 REQUIRED)
+find_program(glslc NAMES glslc HINTS Vulkan::glslc REQUIRED)
 
 function(add_spirv_shader TARGET_NAME INPUT_FILE)
   add_custom_command(
@@ -95,7 +95,7 @@ function(add_spirv_shader TARGET_NAME INPUT_FILE)
 endfunction()
 
 if (NOT VulkanFOUND)
-  find_library(Vulkan_LIBRARY REQUIRED)
+  find_library(Vulkan_LIBRARY 1.3 REQUIRED)
   if (Vulkan_LIBRARY)
     set (Vulkan_FOUND ON)
   endif()
