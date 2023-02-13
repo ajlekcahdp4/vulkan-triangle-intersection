@@ -55,17 +55,14 @@ inline vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device &l_d
   return {l_device, mem_allocate_info};
 }
 
-class framebuffers final {
-private:
-  std::vector<vk::raii::Framebuffer> m_vector;
-
+class framebuffers final : private std::vector<vk::raii::Framebuffer> {
 public:
   framebuffers() = default;
 
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
       const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) {
     uint32_t n_framebuffers = image_views.size();
-    m_vector.reserve(n_framebuffers);
+    vector::reserve(n_framebuffers);
 
     for (const auto &view : image_views) {
       vk::FramebufferCreateInfo framebuffer_info = {.renderPass = *render_pass,
@@ -74,7 +71,7 @@ public:
           .width = extent.width,
           .height = extent.height,
           .layers = 1};
-      m_vector.emplace_back(l_device, framebuffer_info);
+      vector::emplace_back(l_device, framebuffer_info);
     }
   }
 
@@ -82,7 +79,7 @@ public:
       const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass,
       const vk::raii::ImageView &depth_image_view) {
     uint32_t n_framebuffers = image_views.size();
-    m_vector.reserve(n_framebuffers);
+    vector::reserve(n_framebuffers);
 
     for (const auto &view : image_views) {
       std::array<vk::ImageView, 2> attachments{*view, *depth_image_view};
@@ -92,25 +89,18 @@ public:
           .width = extent.width,
           .height = extent.height,
           .layers = 1};
-      m_vector.emplace_back(l_device, framebuffer_info);
+      vector::emplace_back(l_device, framebuffer_info);
     }
   }
 
-  auto &operator[](std::size_t pos) & { return m_vector.at(pos); }
-  const auto &operator[](std::size_t pos) const & { return m_vector.at(pos); }
-
-  auto &front() & { return m_vector.front(); }
-  const auto &front() const & { return m_vector.front(); }
-  auto &back() & { return m_vector.back(); }
-  const auto &back() const & { return m_vector.back(); }
-
-  auto size() const { return m_vector.size(); }
-  auto begin() { return m_vector.begin(); }
-  auto end() { return m_vector.end(); }
-  auto begin() const { return m_vector.begin(); }
-  auto end() const { return m_vector.end(); }
-  auto cbegin() const { return m_vector.cbegin(); }
-  auto cend() const { return m_vector.cend(); }
+  using vector::operator[];
+  using vector::back;
+  using vector::begin;
+  using vector::cbegin;
+  using vector::cend;
+  using vector::end;
+  using vector::front;
+  using vector::size;
 };
 
 class device_buffer final {
@@ -121,10 +111,10 @@ public:
   device_buffer() = default;
 
   // Sure, this is not encapsulation, but rather a consistent interface
-  auto &buffer() { return m_buffer; }
-  const auto &buffer() const { return m_buffer; }
-  auto &memory() { return m_memory; }
-  const auto &memory() const { return m_memory; }
+  auto &buffer() & { return m_buffer; }
+  const auto &buffer() const & { return m_buffer; }
+  auto &memory() & { return m_memory; }
+  const auto &memory() const & { return m_memory; }
 
   static constexpr auto default_property_flags =
       vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
@@ -166,36 +156,26 @@ public:
   template <typename T> void copy_to_device(const T &data) { copy_to_device<T>(std::span<const T>{&data, 1}); }
 };
 
-class device_buffers final {
-  std::vector<device_buffer> m_vector;
-
-public:
+struct device_buffers final : private std::vector<device_buffer> {
   device_buffers() = default;
 
   device_buffers(std::size_t count, std::size_t max_size, const vk::raii::PhysicalDevice &p_device,
       const vk::raii::Device &l_device, vk::BufferUsageFlags usage,
       vk::MemoryPropertyFlags property_flags = device_buffer::default_property_flags) {
-    m_vector.reserve(count);
+    vector::reserve(count);
     for (unsigned i = 0; i < count; i++) {
-      m_vector.emplace_back(p_device, l_device, max_size, usage, property_flags);
+      vector::emplace_back(p_device, l_device, max_size, usage, property_flags);
     }
   }
 
-  auto &operator[](std::size_t pos) & { return m_vector.at(pos); }
-  const auto &operator[](std::size_t pos) const & { return m_vector.at(pos); }
-
-  auto &front() & { return m_vector.front(); }
-  const auto &front() const & { return m_vector.front(); }
-  auto &back() & { return m_vector.back(); }
-  const auto &back() const & { return m_vector.back(); }
-
-  auto size() const { return m_vector.size(); }
-  auto begin() { return m_vector.begin(); }
-  auto end() { return m_vector.end(); }
-  auto begin() const { return m_vector.begin(); }
-  auto end() const { return m_vector.end(); }
-  auto cbegin() const { return m_vector.cbegin(); }
-  auto cend() const { return m_vector.cend(); }
+  using vector::operator[];
+  using vector::back;
+  using vector::begin;
+  using vector::cbegin;
+  using vector::cend;
+  using vector::end;
+  using vector::front;
+  using vector::size;
 };
 
 class upload_context {

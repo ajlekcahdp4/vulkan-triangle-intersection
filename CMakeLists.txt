@@ -94,13 +94,6 @@ function(add_spirv_shader TARGET_NAME INPUT_FILE)
   set(${TARGET_NAME}_OUTPUTS ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_NAME}.spv PARENT_SCOPE)
 endfunction()
 
-if (NOT VulkanFOUND)
-  find_library(Vulkan_LIBRARY 1.3 REQUIRED)
-  if (Vulkan_LIBRARY)
-    set (Vulkan_FOUND ON)
-  endif()
-endif()
-
 set(VK_VALIDATION_LAYER OFF CACHE BOOL "Enables Vulkan validation layer")
 
 set(EZVK_SOURCES
@@ -110,7 +103,7 @@ set(EZVK_SOURCES
 add_library(ezvk ${EZVK_SOURCES})
 if (VK_VALIDATION_LAYER)
   message("Vulkan validation layer enabled")
-  target_compile_definitions(ezvk PUBLIC VK_VALIDATION_LAYER)
+  add_compile_definitions(VK_VALIDATION_LAYER)
 endif()
 
 target_include_directories(ezvk PUBLIC include)
