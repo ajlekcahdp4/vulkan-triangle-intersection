@@ -360,7 +360,7 @@ int main(int argc, char *argv[]) try {
       spdlog::error("Unknown error, bailing out...");
     }
 
-    should_kill.store(true);
+    should_kill = true;
   }};
 
   auto intersecting_thread = std::thread{[&app, opt, isp, &should_kill]() {
@@ -392,7 +392,7 @@ int main(int argc, char *argv[]) try {
     };
 
     try {
-      if (!read_input()) should_kill.store(true);
+      if (!read_input()) should_kill = true;
       return;
     } catch (ezvk::error &e) {
       spdlog::error("Application encountered an error: {}", e.what());
@@ -404,15 +404,15 @@ int main(int argc, char *argv[]) try {
       spdlog::error("Unknown error, bailing out...");
     }
 
-    should_kill.store(true);
+    should_kill = true;
   }};
 
   while (!glfwWindowShouldClose(app.window())) {
-    if (should_kill.load()) break;
+    if (should_kill) break;
     glfwWaitEvents();
   }
 
-  should_close.store(true);
+  should_close = true;
   rendering_thread.join();
 
   app.shutdown();

@@ -144,7 +144,7 @@ private:
     ezvk::device_buffer staging_buffer;
 
   public:
-    operator bool() const { return loaded.load(); }
+    operator bool() const { return loaded; }
   };
 
   vertex_draw_info m_triangle_draw_info;
@@ -273,13 +273,13 @@ public:
   auto *window() const { return m_platform.window()(); }
 
   void load_input_data(const input_data &data) {
-    if (m_data_loaded.load()) throw std::invalid_argument{"For now you can't load vertex data more than once"};
+    if (m_data_loaded) throw std::invalid_argument{"For now you can't load vertex data more than once"};
 
     if (!data.tr_vert.empty()) load_draw_info(data.tr_vert, m_triangle_draw_info);
     if (!data.broad_vert.empty()) load_draw_info(data.broad_vert, m_wireframe_broad_draw_info);
     if (!data.bbox_vert.empty()) load_draw_info(data.bbox_vert, m_wireframe_bbox_draw_info);
 
-    m_data_loaded.store(true);
+    m_data_loaded = true;
   }
 
   void shutdown() { m_l_device().waitIdle(); }
@@ -322,7 +322,7 @@ private:
     info.count = vertices.size();
     info.size = ezvk::utils::sizeof_container(vertices);
     info.staging_buffer = copy_to_staging_memory(vertices);
-    info.in_staging.store(true);
+    info.in_staging = true;
   }
 
   void physics_loop(float delta) {
@@ -593,8 +593,8 @@ private:
     const auto submit_copy = [&](auto &info) -> void {
       if (!info.in_staging) return;
       copy_to_device_memory(cmd, info);
-      info.in_staging.store(false);
-      info.loaded.store(true);
+      info.in_staging = false;
+      info.loaded = true;
     };
 
     submit_copy(m_triangle_draw_info);
