@@ -12,10 +12,10 @@
 
 #include <spdlog/spdlog.h>
 
+#include "unified_includes/vulkan_hpp_include.hpp"
+
 #include "debug.hpp"
 #include "instance.hpp"
-#include "utils.hpp"
-#include "vulkan_hpp_include.hpp"
 
 #include <cstddef>
 #include <functional>

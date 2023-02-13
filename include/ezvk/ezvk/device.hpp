@@ -10,9 +10,12 @@
 
 #pragma once
 
+#include "unified_includes/vulkan_hpp_include.hpp"
+
 #include "queues.hpp"
-#include "utils.hpp"
-#include "vulkan_hpp_include.hpp"
+
+#include "utils/algorithm.hpp"
+#include "utils/utility.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -56,12 +59,8 @@ public:
   using device_queue_create_infos = std::vector<vk::DeviceQueueCreateInfo>;
   logical_device(const vk::raii::PhysicalDevice &p_device, device_queue_create_infos requested_queues, auto ext_start,
       auto ext_finish, vk::PhysicalDeviceFeatures features = {.fillModeNonSolid = VK_TRUE}) {
-    // TODO[Sergei]: finish refactoring this
-    std::vector<const char *> extensions, layers;
-    // For now we ignore device layers completely, this is a dummy vector
-    for (; ext_start != ext_finish; ++ext_start) {
-      extensions.push_back(ext_start->c_str());
-    }
+
+    std::vector<const char *> extensions = utils::to_c_strings(ext_start, ext_finish), layers;
 
     vk::DeviceCreateInfo device_create_info = {.queueCreateInfoCount = static_cast<uint32_t>(requested_queues.size()),
         .pQueueCreateInfos = requested_queues.data(),

@@ -10,10 +10,12 @@
 
 #pragma once
 
+#include "unified_includes/vulkan_hpp_include.hpp"
+
 #include "debug.hpp"
 #include "error.hpp"
-#include "utils.hpp"
-#include "vulkan_hpp_include.hpp"
+#include "utils/algorithm.hpp"
+#include "utils/utility.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -57,13 +59,8 @@ public:
           "Vulkan does not support some required extensions/layers", missing_ext.begin(), missing_ext.end()};
     }
 
-    std::vector<const char *> extensions, layers;
-    for (; ext_start != ext_finish; ++ext_start) {
-      extensions.push_back(ext_start->c_str());
-    }
-    for (; layers_start != layers_finish; ++layers_start) {
-      layers.push_back(layers_start->c_str());
-    }
+    std::vector<const char *> extensions = utils::to_c_strings(ext_start, ext_finish),
+                              layers = utils::to_c_strings(layers_start, layers_finish);
 
     vk::InstanceCreateInfo create_info = {.pApplicationInfo = &app_info,
         .enabledLayerCount = static_cast<uint32_t>(layers.size()),

@@ -10,8 +10,8 @@
 
 #pragma once
 
-#include "utils.hpp"
-#include "vulkan_hpp_include.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
+#include "utils/algorithm.hpp"
 
 #include <algorithm>
 #include <cstddef>

@@ -8,14 +8,16 @@
  * ----------------------------------------------------------------------------
  */
 
+#include "unified_includes/glfw_include.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
+
 #include "ezvk/debug.hpp"
 #include "ezvk/device.hpp"
 #include "ezvk/error.hpp"
 #include "ezvk/queues.hpp"
 #include "ezvk/window.hpp"
-#include "glfw_include.hpp"
+
 #include "vertex.hpp"
-#include "vulkan_hpp_include.hpp"
 
 #include <algorithm>
 #include <atomic>

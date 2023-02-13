@@ -8,7 +8,7 @@
  * ----------------------------------------------------------------------------
  */
 
-#include "vulkan_hpp_include.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
 
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
@@ -32,6 +32,7 @@
 namespace triangles::gui {
 
 constexpr uint32_t default_descriptor_count = 1000;
+
 constexpr std::array<vk::DescriptorPoolSize, 11> imgui_pool_sizes = {
     {{vk::DescriptorType::eSampler, default_descriptor_count},
         {vk::DescriptorType::eCombinedImageSampler, default_descriptor_count},

@@ -10,9 +10,10 @@
 
 #pragma once
 
+#include "unified_includes/glfw_include.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
+
 #include "error.hpp"
-#include "glfw_include.hpp"
-#include "vulkan_hpp_include.hpp"
 
 #include <cstddef>
 #include <iterator>

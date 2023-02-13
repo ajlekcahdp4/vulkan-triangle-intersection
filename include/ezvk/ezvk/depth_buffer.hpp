@@ -10,11 +10,11 @@
 
 #pragma once
 
-#include "vulkan_hpp_include.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
 
 #include "image.hpp"
 #include "memory.hpp"
-#include "utils.hpp"
+#include "utils/algorithm.hpp"
 
 namespace ezvk {
 

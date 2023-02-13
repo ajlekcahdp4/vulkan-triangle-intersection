@@ -106,13 +106,13 @@ if (VK_VALIDATION_LAYER)
   add_compile_definitions(VK_VALIDATION_LAYER)
 endif()
 
-target_include_directories(ezvk PUBLIC include)
+target_include_directories(ezvk PUBLIC include/ezvk include/unified_includes)
 target_link_libraries(ezvk INTERFACE spdlog_header_only)
 
 find_package(Threads REQUIRED)
 
 set(APPLICATION_SOURCES
-  app/main.cc
+  app/triangles.cc
   imgui/imgui.cpp
   imgui/imgui_demo.cpp
   imgui/imgui_draw.cpp
@@ -129,7 +129,7 @@ add_spirv_shader(wireframe_frag shaders/wireframe.frag)
 add_custom_target(shaders ALL DEPENDS triangles_vert triangles_frag wireframe_vert wireframe_frag)
 
 add_executable(triangles ${APPLICATION_SOURCES})
-target_include_directories(triangles PUBLIC imgui imgui/backends)
+target_include_directories(triangles PUBLIC imgui imgui/backends include/unified_includes include/app)
 
 add_custom_command(TARGET triangles POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:triangles>/shaders

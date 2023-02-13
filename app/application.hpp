@@ -10,12 +10,15 @@
 
 #pragma once
 
-#include "camera.hpp"
+#include "app/camera.hpp"
 #include "equal.hpp"
+
+#include "ezvk/utils/algorithm.hpp"
+#include "ezvk/utils/utility.hpp"
+
 #include "misc.hpp"
 #include "pipeline.hpp"
 #include "ubo.hpp"
-#include "utils.hpp"
 #include "vertex.hpp"
 
 #include "ezvk/debug.hpp"
@@ -31,18 +34,17 @@
 #include "ezvk/swapchain.hpp"
 #include "ezvk/window.hpp"
 
-#include "camera.hpp"
-#include "gui.hpp"
-#include "keyboard_handler.hpp"
+#include "app/camera.hpp"
+#include "app/gui.hpp"
+#include "app/keyboard_handler.hpp"
 
-#include "glfw_include.hpp"
-#include "glm_inlcude.hpp"
-#include "vulkan_hpp_include.hpp"
+#include "unified_includes/glfw_include.hpp"
+#include "unified_includes/glm_inlcude.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
-#include <immintrin.h>
 #include <iostream>
 #include <memory>
 #include <mutex>

@@ -10,12 +10,11 @@
 
 #pragma once
 
-#include "depth_buffer.hpp"
-#include "ezvk/error.hpp"
-#include "ezvk/queues.hpp"
-#include "utils.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
 
-#include "vulkan_hpp_include.hpp"
+#include "depth_buffer.hpp"
+#include "error.hpp"
+#include "queues.hpp"
 
 #include <cstddef>
 #include <cstdlib>

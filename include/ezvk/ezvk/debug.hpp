@@ -13,8 +13,8 @@
 #include <spdlog/spdlog.h>
 
 #include "instance.hpp"
-#include "utils.hpp"
-#include "vulkan_hpp_include.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
+#include "utils/utility.hpp"
 
 #include <cstddef>
 

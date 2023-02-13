@@ -10,13 +10,13 @@
 
 #pragma once
 
+#include "unified_includes/vulkan_hpp_include.hpp"
+
 #include "ezvk/error.hpp"
 #include "ezvk/memory.hpp"
 
 #include "ezvk/queues.hpp"
-#include "utils.hpp"
-
-#include "vulkan_hpp_include.hpp"
+#include "utils/utility.hpp"
 
 #include <cstddef>
 #include <cstdlib>
@@ -37,6 +37,7 @@ public:
 inline uint32_t find_memory_type(
     vk::PhysicalDeviceMemoryProperties mem_properties, uint32_t &type_filter, vk::MemoryPropertyFlags property_flags) {
   uint32_t i = 0;
+
   auto found = std::find_if(
       mem_properties.memoryTypes.begin(), mem_properties.memoryTypes.end(), [&i, property_flags, type_filter](auto a) {
         return (type_filter & (1 << i++)) && ((a.propertyFlags & property_flags) == property_flags);
@@ -51,7 +52,6 @@ inline vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device &l_d
     vk::MemoryPropertyFlags property_flags) {
   uint32_t mem_type_index = find_memory_type(properties, requirements.memoryTypeBits, property_flags);
   vk::MemoryAllocateInfo mem_allocate_info{.allocationSize = requirements.size, .memoryTypeIndex = mem_type_index};
-
   return {l_device, mem_allocate_info};
 }
 

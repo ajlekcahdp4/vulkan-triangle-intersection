@@ -10,8 +10,8 @@
 
 #pragma once
 
-#include "glm_inlcude.hpp"
-#include "vulkan_hpp_include.hpp"
+#include "unified_includes/glm_inlcude.hpp"
+#include "unified_includes/vulkan_hpp_include.hpp"
 
 #include <array>
 
