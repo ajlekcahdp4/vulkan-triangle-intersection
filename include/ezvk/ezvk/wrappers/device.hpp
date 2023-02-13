@@ -14,8 +14,8 @@
 
 #include "queues.hpp"
 
-#include "utils/algorithm.hpp"
-#include "utils/utility.hpp"
+#include "ezvk/utils/algorithm.hpp"
+#include "ezvk/utils/utility.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -73,7 +73,6 @@ public:
     m_device = p_device.createDevice(device_create_info);
   }
 
-  auto &operator()() & { return m_device; }
   const auto &operator()() const & { return m_device; }
 };
 

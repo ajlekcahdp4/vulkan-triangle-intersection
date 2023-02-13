@@ -22,21 +22,21 @@
 #include "vertex.hpp"
 
 #include "ezvk/debug.hpp"
-#include "ezvk/debugged_instance.hpp"
-#include "ezvk/depth_buffer.hpp"
-#include "ezvk/descriptor_set.hpp"
-#include "ezvk/device.hpp"
-#include "ezvk/instance.hpp"
-#include "ezvk/memory.hpp"
-#include "ezvk/queues.hpp"
-#include "ezvk/renderpass.hpp"
-#include "ezvk/shaders.hpp"
-#include "ezvk/swapchain.hpp"
 #include "ezvk/window.hpp"
+#include "ezvk/wrappers/debugged_instance.hpp"
+#include "ezvk/wrappers/depth_buffer.hpp"
+#include "ezvk/wrappers/descriptor_set.hpp"
+#include "ezvk/wrappers/device.hpp"
+#include "ezvk/wrappers/instance.hpp"
+#include "ezvk/wrappers/memory.hpp"
+#include "ezvk/wrappers/queues.hpp"
+#include "ezvk/wrappers/renderpass.hpp"
+#include "ezvk/wrappers/shaders.hpp"
+#include "ezvk/wrappers/swapchain.hpp"
 
 #include "app/camera.hpp"
-#include "app/gui.hpp"
 #include "app/keyboard_handler.hpp"
+#include "gui.hpp"
 
 #include "unified_includes/glfw_include.hpp"
 #include "unified_includes/glm_inlcude.hpp"
@@ -211,7 +211,7 @@ private:
     // Create command pool and a context for submitting immediate copy operations (graphics queue family implicitly
     // supports copy operations)
     m_command_pool = ezvk::create_command_pool(m_l_device(), m_graphics_present->graphics().family_index(), true);
-    m_oneshot_upload = ezvk::upload_context{&m_l_device(), &m_graphics_present->graphics(), &m_command_pool};
+    m_oneshot_upload = ezvk::upload_context{m_l_device(), *m_graphics_present->graphics().queue(), m_command_pool};
 
     m_swapchain = {m_platform.p_device(), m_l_device(), m_platform.surface(), m_platform.window().extent(),
         m_graphics_present.get()};

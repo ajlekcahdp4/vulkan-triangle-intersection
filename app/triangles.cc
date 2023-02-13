@@ -12,10 +12,9 @@
 #include "unified_includes/vulkan_hpp_include.hpp"
 
 #include "ezvk/debug.hpp"
-#include "ezvk/device.hpp"
 #include "ezvk/error.hpp"
-#include "ezvk/queues.hpp"
 #include "ezvk/window.hpp"
+#include "ezvk/wrappers/device.hpp"
 
 #include "vertex.hpp"
 

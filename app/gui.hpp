@@ -15,17 +15,17 @@
 #include "imgui.h"
 
 #include "ezvk/debug.hpp"
-#include "ezvk/debugged_instance.hpp"
-#include "ezvk/depth_buffer.hpp"
-#include "ezvk/descriptor_set.hpp"
-#include "ezvk/device.hpp"
-#include "ezvk/instance.hpp"
-#include "ezvk/memory.hpp"
-#include "ezvk/queues.hpp"
-#include "ezvk/renderpass.hpp"
-#include "ezvk/shaders.hpp"
-#include "ezvk/swapchain.hpp"
 #include "ezvk/window.hpp"
+#include "ezvk/wrappers/debugged_instance.hpp"
+#include "ezvk/wrappers/depth_buffer.hpp"
+#include "ezvk/wrappers/descriptor_set.hpp"
+#include "ezvk/wrappers/device.hpp"
+#include "ezvk/wrappers/instance.hpp"
+#include "ezvk/wrappers/memory.hpp"
+#include "ezvk/wrappers/queues.hpp"
+#include "ezvk/wrappers/renderpass.hpp"
+#include "ezvk/wrappers/shaders.hpp"
+#include "ezvk/wrappers/swapchain.hpp"
 
 #include <string>
 
@@ -65,6 +65,18 @@ constexpr std::array<vk::SubpassDependency, 1> imgui_subpass_dependency = {
         .srcAccessMask = vk::AccessFlagBits::eNone,
         .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
 
+namespace detail {
+
+class imgui_resources {
+  vk::raii::DescriptorPool m_descriptor_pool = nullptr;
+  ezvk::render_pass m_imgui_render_pass;
+  vk::raii::CommandBuffers m_imgui_command_buffers = nullptr;
+  ezvk::framebuffers m_imgui_framebuffers;
+  bool m_initialized = false;
+};
+
+} // namespace detail
+
 template <typename t_application> class imgui_related_data {
 private:
   bool m_initialized = false;
@@ -84,14 +96,7 @@ public:
   imgui_related_data() = default;
 
   imgui_related_data(t_application &app) {
-    uint32_t max_sets = default_descriptor_count * imgui_pool_sizes.size();
-
-    vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-        .maxSets = max_sets,
-        .poolSizeCount = static_cast<uint32_t>(imgui_pool_sizes.size()),
-        .pPoolSizes = imgui_pool_sizes.data()};
-
-    m_descriptor_pool = vk::raii::DescriptorPool{app.m_l_device(), descriptor_info};
+    m_descriptor_pool = ezvk::create_descriptor_pool(app.m_l_device(), imgui_pool_sizes);
 
     vk::AttachmentReference color_attachment_ref = {
         .attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};

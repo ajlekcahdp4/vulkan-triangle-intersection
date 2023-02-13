@@ -13,10 +13,10 @@
 #include "unified_includes/vulkan_hpp_include.hpp"
 
 #include "ezvk/error.hpp"
-#include "ezvk/memory.hpp"
+#include "memory.hpp"
 
-#include "ezvk/queues.hpp"
-#include "utils/utility.hpp"
+#include "ezvk/utils/utility.hpp"
+#include "queues.hpp"
 
 #include <cstddef>
 #include <cstdlib>
@@ -61,16 +61,11 @@ public:
 
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
       const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) {
-    uint32_t n_framebuffers = image_views.size();
-    vector::reserve(n_framebuffers);
+    vk::FramebufferCreateInfo framebuffer_info = {
+        .renderPass = *render_pass, .attachmentCount = 1, .width = extent.width, .height = extent.height, .layers = 1};
 
     for (const auto &view : image_views) {
-      vk::FramebufferCreateInfo framebuffer_info = {.renderPass = *render_pass,
-          .attachmentCount = 1,
-          .pAttachments = std::addressof(*view),
-          .width = extent.width,
-          .height = extent.height,
-          .layers = 1};
+      framebuffer_info.pAttachments = std::addressof(*view);
       vector::emplace_back(l_device, framebuffer_info);
     }
   }
@@ -78,17 +73,13 @@ public:
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
       const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass,
       const vk::raii::ImageView &depth_image_view) {
-    uint32_t n_framebuffers = image_views.size();
-    vector::reserve(n_framebuffers);
+    vk::FramebufferCreateInfo framebuffer_info = {
+        .renderPass = *render_pass, .width = extent.width, .height = extent.height, .layers = 1};
 
     for (const auto &view : image_views) {
-      std::array<vk::ImageView, 2> attachments{*view, *depth_image_view};
-      vk::FramebufferCreateInfo framebuffer_info = {.renderPass = *render_pass,
-          .attachmentCount = attachments.size(),
-          .pAttachments = attachments.data(),
-          .width = extent.width,
-          .height = extent.height,
-          .layers = 1};
+      std::array<vk::ImageView, 2> attachments = {*view, *depth_image_view};
+      framebuffer_info.attachmentCount = attachments.size();
+      framebuffer_info.pAttachments = attachments.data();
       vector::emplace_back(l_device, framebuffer_info);
     }
   }
@@ -111,9 +102,7 @@ public:
   device_buffer() = default;
 
   // Sure, this is not encapsulation, but rather a consistent interface
-  auto &buffer() & { return m_buffer; }
   const auto &buffer() const & { return m_buffer; }
-  auto &memory() & { return m_memory; }
   const auto &memory() const & { return m_memory; }
 
   static constexpr auto default_property_flags =
@@ -179,8 +168,8 @@ struct device_buffers final : private std::vector<device_buffer> {
 };
 
 class upload_context {
-  const vk::raii::Device *m_device_ptr;
-  const device_queue *m_transfer_queue;
+  vk::Device m_device;
+  vk::Queue m_transfer_queue;
 
   vk::raii::Fence m_upload_fence = nullptr;
   vk::raii::CommandBuffer m_command_buffer = nullptr;
@@ -188,30 +177,25 @@ class upload_context {
 public:
   upload_context() = default;
 
-  upload_context(
-      const vk::raii::Device *l_device, const device_queue *transfer_queue, const vk::raii::CommandPool *pool)
-      : m_device_ptr{l_device}, m_transfer_queue{transfer_queue} {
-    assert(l_device);
-    assert(transfer_queue);
-
+  upload_context(const vk::raii::Device &l_device, vk::Queue transfer_queue, const vk::raii::CommandPool &pool)
+      : m_device{*l_device}, m_transfer_queue{transfer_queue} {
     vk::CommandBufferAllocateInfo alloc_info = {
-        .commandPool = **pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1};
-
-    m_command_buffer = std::move(vk::raii::CommandBuffers{*m_device_ptr, alloc_info}.front());
-    m_upload_fence = l_device->createFence({});
+        .commandPool = *pool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1};
+    m_command_buffer = std::move(vk::raii::CommandBuffers{l_device, alloc_info}.front());
+    m_upload_fence = l_device.createFence({});
   }
 
   void immediate_submit(std::function<void(vk::raii::CommandBuffer &cmd)> cmd_buffer_creation_func) {
+    m_command_buffer.reset();
     m_command_buffer.begin({.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
     cmd_buffer_creation_func(m_command_buffer);
     m_command_buffer.end();
 
     vk::SubmitInfo submit_info = {.commandBufferCount = 1, .pCommandBuffers = &(*m_command_buffer)};
-    m_transfer_queue->queue().submit(submit_info, *m_upload_fence);
+    m_transfer_queue.submit(submit_info, *m_upload_fence);
 
-    static_cast<void>(m_device_ptr->waitForFences(*m_upload_fence, true, UINT64_MAX));
-    m_device_ptr->resetFences(*m_upload_fence);
-    m_command_buffer.reset();
+    static_cast<void>(m_device.waitForFences(*m_upload_fence, true, UINT64_MAX));
+    m_device.resetFences(*m_upload_fence);
   };
 };
 

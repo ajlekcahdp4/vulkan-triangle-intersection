@@ -17,7 +17,7 @@
 #include <tuple>
 #include <vector>
 
-#include "ezvk/memory.hpp"
+#include "memory.hpp"
 
 namespace ezvk {
 

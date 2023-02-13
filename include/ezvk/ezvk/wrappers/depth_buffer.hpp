@@ -12,9 +12,9 @@
 
 #include "unified_includes/vulkan_hpp_include.hpp"
 
+#include "ezvk/utils/algorithm.hpp"
 #include "image.hpp"
 #include "memory.hpp"
-#include "utils/algorithm.hpp"
 
 namespace ezvk {
 
@@ -29,6 +29,18 @@ inline std::vector<vk::Format> find_depth_format(const vk::raii::PhysicalDevice 
       vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint};
 
   return utils::find_all_that_satisfy(candidates.begin(), candidates.end(), predicate);
+}
+
+static inline vk::AttachmentDescription create_depth_attachment(vk::Format depth_format) {
+  return {.flags = vk::AttachmentDescriptionFlags{},
+      .format = depth_format,
+      .samples = vk::SampleCountFlagBits::e1,
+      .loadOp = vk::AttachmentLoadOp::eClear,
+      .storeOp = vk::AttachmentStoreOp::eDontCare,
+      .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+      .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+      .initialLayout = vk::ImageLayout::eUndefined,
+      .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
 }
 
 struct depth_buffer final {
@@ -52,7 +64,7 @@ public:
                vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal};
     // clang-format on
 
-    m_image_view = {l_device, m_image(), depth_format, vk::ImageAspectFlagBits::eDepth};
+    m_image_view = ezvk::image_view{l_device, m_image(), depth_format, vk::ImageAspectFlagBits::eDepth};
   }
 
   auto depth_format() const { return m_depth_format; }

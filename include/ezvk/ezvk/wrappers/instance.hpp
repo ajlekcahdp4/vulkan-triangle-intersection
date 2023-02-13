@@ -12,10 +12,10 @@
 
 #include "unified_includes/vulkan_hpp_include.hpp"
 
-#include "debug.hpp"
-#include "error.hpp"
-#include "utils/algorithm.hpp"
-#include "utils/utility.hpp"
+#include "ezvk/debug.hpp"
+#include "ezvk/error.hpp"
+#include "ezvk/utils/algorithm.hpp"
+#include "ezvk/utils/utility.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -30,17 +30,14 @@ class unsupported_error : public ezvk::error {
 public:
   unsupported_error(std::string msg, auto start, auto finish) : ezvk::error{msg}, m_missing{start, finish} {}
 
-  const auto &missing() const { return m_missing; }
+  auto missing() const { return m_missing; }
 };
 
-// clang-format off
 class i_instance {
 public:
-  virtual vk::raii::Instance       &operator()()       & = 0;
   virtual const vk::raii::Instance &operator()() const & = 0;
   virtual ~i_instance() {}
 };
-// clang-format on
 
 class instance : public i_instance {
   vk::raii::Instance m_instance = nullptr;
@@ -59,8 +56,8 @@ public:
           "Vulkan does not support some required extensions/layers", missing_ext.begin(), missing_ext.end()};
     }
 
-    std::vector<const char *> extensions = utils::to_c_strings(ext_start, ext_finish),
-                              layers = utils::to_c_strings(layers_start, layers_finish);
+    auto extensions = utils::to_c_strings(ext_start, ext_finish),
+         layers = utils::to_c_strings(layers_start, layers_finish);
 
     vk::InstanceCreateInfo create_info = {.pApplicationInfo = &app_info,
         .enabledLayerCount = static_cast<uint32_t>(layers.size()),
@@ -87,7 +84,6 @@ public:
     return std::make_pair(missing_layers.empty(), missing_layers);
   }
 
-  vk::raii::Instance &operator()() & override { return m_instance; }
   const vk::raii::Instance &operator()() const & override { return m_instance; }
 };
 

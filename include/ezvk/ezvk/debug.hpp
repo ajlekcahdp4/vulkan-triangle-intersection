@@ -12,9 +12,9 @@
 
 #include <spdlog/spdlog.h>
 
-#include "instance.hpp"
+#include "ezvk/utils/utility.hpp"
 #include "unified_includes/vulkan_hpp_include.hpp"
-#include "utils/utility.hpp"
+#include "wrappers/instance.hpp"
 
 #include <cstddef>
 
@@ -125,7 +125,6 @@ public:
     m_messenger = instance.createDebugUtilsMessengerEXT(create_info);
   }
 
-  auto &operator()() & { return m_messenger; }
   const auto &operator()() const & { return m_messenger; }
 };
 

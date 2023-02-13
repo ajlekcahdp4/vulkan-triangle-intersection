@@ -13,7 +13,7 @@
 #include "unified_includes/vulkan_hpp_include.hpp"
 
 #include "depth_buffer.hpp"
-#include "error.hpp"
+#include "ezvk/error.hpp"
 #include "queues.hpp"
 
 #include <cstddef>
@@ -26,18 +26,6 @@
 #include <vector>
 
 namespace ezvk {
-
-static inline vk::AttachmentDescription create_depth_attachment(vk::Format depth_format) {
-  return {.flags = vk::AttachmentDescriptionFlags{},
-      .format = depth_format,
-      .samples = vk::SampleCountFlagBits::e1,
-      .loadOp = vk::AttachmentLoadOp::eClear,
-      .storeOp = vk::AttachmentStoreOp::eDontCare,
-      .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-      .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-      .initialLayout = vk::ImageLayout::eUndefined,
-      .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
-}
 
 class render_pass final {
   vk::raii::RenderPass m_render_pass = nullptr;

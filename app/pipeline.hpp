@@ -16,9 +16,9 @@
 #include <tuple>
 #include <vector>
 
-#include "ezvk/descriptor_set.hpp"
-#include "ezvk/memory.hpp"
-#include "ezvk/shaders.hpp"
+#include "ezvk/wrappers/descriptor_set.hpp"
+#include "ezvk/wrappers/memory.hpp"
+#include "ezvk/wrappers/shaders.hpp"
 
 #include "vertex.hpp"
 

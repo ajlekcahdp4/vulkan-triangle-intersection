@@ -47,7 +47,6 @@ public:
     l_device.bindImageMemory2({bind_info});
   }
 
-  auto &operator()() & { return m_image; }
   const auto &operator()() const & { return m_image; }
 };
 
@@ -57,7 +56,7 @@ class image_view final {
 public:
   image_view() = default;
 
-  image_view(const vk::raii::Device &l_device, vk::raii::Image &image, const vk::Format format,
+  image_view(const vk::raii::Device &l_device, const vk::raii::Image &image, const vk::Format format,
       const vk::ImageAspectFlagBits aspect_flags) {
     // clang-format off
     vk::ImageSubresourceRange range = {.aspectMask = aspect_flags, .baseMipLevel = 0,
@@ -71,7 +70,6 @@ public:
     m_image_view = l_device.createImageView(iv_create_info);
   }
 
-  auto &operator()() & { return m_image_view; }
   const auto &operator()() const & { return m_image_view; }
 };
 } // namespace ezvk
