@@ -13,7 +13,7 @@
 #include "glm_inlcude.hpp"
 #include "vulkan_hpp_include.hpp"
 
-namespace triangles {
+namespace utils3d {
 
 struct camera final {
 private:
@@ -53,4 +53,4 @@ public:
   void set_far_z_clip(float far) { z_far_clip = far; }
 };
 
-} // namespace triangles
+} // namespace utils3d

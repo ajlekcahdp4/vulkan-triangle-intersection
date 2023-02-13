@@ -12,8 +12,6 @@
 
 #include "camera.hpp"
 #include "equal.hpp"
-#include "ezvk/depth_buffer.hpp"
-#include "ezvk/descriptor_set.hpp"
 #include "misc.hpp"
 #include "pipeline.hpp"
 #include "ubo.hpp"
@@ -22,6 +20,8 @@
 
 #include "ezvk/debug.hpp"
 #include "ezvk/debugged_instance.hpp"
+#include "ezvk/depth_buffer.hpp"
+#include "ezvk/descriptor_set.hpp"
 #include "ezvk/device.hpp"
 #include "ezvk/instance.hpp"
 #include "ezvk/memory.hpp"
@@ -31,13 +31,13 @@
 #include "ezvk/swapchain.hpp"
 #include "ezvk/window.hpp"
 
+#include "camera.hpp"
+#include "gui.hpp"
+#include "keyboard_handler.hpp"
+
 #include "glfw_include.hpp"
 #include "glm_inlcude.hpp"
 #include "vulkan_hpp_include.hpp"
-
-#include "backends/imgui_impl_glfw.h"
-#include "backends/imgui_impl_vulkan.h"
-#include "imgui.h"
 
 #include <algorithm>
 #include <atomic>
@@ -87,69 +87,6 @@ public:
 
   auto &p_device() & { return m_p_device; }
   const auto &p_device() const & { return m_p_device; }
-};
-
-class input_handler {
-public:
-  enum class button_state : uint32_t { e_idle, e_held_down, e_pressed };
-  using key_index = int;
-
-private:
-  struct tracked_key_info {
-    button_state current_state, look_for;
-  };
-
-  std::unordered_map<key_index, tracked_key_info> m_tracked_keys;
-
-  std::mutex m_mx; // I'm not sure about the efficiency of a mutex in input.
-
-  input_handler() {}
-
-  static void key_callback(GLFWwindow *, int key, int, int action, int) {
-    auto &me = instance();
-
-    std::lock_guard guard{me.m_mx};
-
-    auto found = me.m_tracked_keys.find(key);
-    if (found == me.m_tracked_keys.end()) return;
-
-    auto &btn_info = found->second;
-
-    if (action == GLFW_PRESS) {
-      btn_info.current_state = button_state::e_held_down;
-    } else if (action == GLFW_RELEASE) {
-      btn_info.current_state = button_state::e_pressed;
-    }
-  }
-
-public:
-  static input_handler &instance() {
-    static input_handler handler;
-    return handler;
-  }
-
-public:
-  void monitor(key_index key, button_state state_to_notify) {
-    std::lock_guard guard{m_mx};
-    m_tracked_keys[key] = tracked_key_info{button_state::e_idle, state_to_notify};
-  }
-
-  static void bind(GLFWwindow *window) { glfwSetKeyCallback(window, key_callback); }
-
-  std::unordered_map<key_index, button_state> poll() {
-    std::unordered_map<key_index, button_state> result;
-
-    std::lock_guard guard{m_mx};
-    for (auto &v : m_tracked_keys) {
-      if (v.second.current_state != v.second.look_for) continue;
-
-      result.insert({v.first, v.second.current_state});
-      // After polling the button change pressed to idle flag
-      if (v.second.current_state == button_state::e_pressed) v.second.current_state = button_state::e_idle;
-    }
-
-    return result;
-  }
 };
 
 class application final {
@@ -223,7 +160,7 @@ private:
   std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;
 
   std::size_t m_curr_frame = 0;
-  camera m_camera;
+  utils3d::camera m_camera;
 
   bool m_mod_speed = false;
   bool m_first_frame = true;
@@ -251,164 +188,9 @@ private:
   } m_configurable_parameters;
 
 private:
-  friend class imgui_related_data;
-
-  struct imgui_related_data {
-  private:
-    bool m_initialized = false;
-
-  public:
-    vk::raii::DescriptorPool m_descriptor_pool = nullptr;
-    ezvk::render_pass m_imgui_render_pass;
-    vk::raii::CommandBuffers m_imgui_command_buffers = nullptr;
-    ezvk::framebuffers m_imgui_framebuffers;
-
-    imgui_related_data() = default;
-
-    static void imgui_check_vk_error(VkResult res) {
-      vk::Result hpp_result = vk::Result{res};
-      std::string error_message = vk::to_string(hpp_result);
-      vk::resultCheck(hpp_result, error_message.c_str());
-    }
-
-    static constexpr uint32_t default_descriptor_count = 1000;
-    static constexpr std::array<vk::DescriptorPoolSize, 11> imgui_pool_sizes = {
-        {{vk::DescriptorType::eSampler, default_descriptor_count},
-            {vk::DescriptorType::eCombinedImageSampler, default_descriptor_count},
-            {vk::DescriptorType::eSampledImage, default_descriptor_count},
-            {vk::DescriptorType::eStorageImage, default_descriptor_count},
-            {vk::DescriptorType::eUniformTexelBuffer, default_descriptor_count},
-            {vk::DescriptorType::eStorageTexelBuffer, default_descriptor_count},
-            {vk::DescriptorType::eUniformBuffer, default_descriptor_count},
-            {vk::DescriptorType::eStorageBuffer, default_descriptor_count},
-            {vk::DescriptorType::eUniformBufferDynamic, default_descriptor_count},
-            {vk::DescriptorType::eStorageBufferDynamic, default_descriptor_count},
-            {vk::DescriptorType::eInputAttachment, default_descriptor_count}}};
-
-    static constexpr vk::AttachmentDescription imgui_renderpass_attachment_description = {
-        .flags = vk::AttachmentDescriptionFlags{},
-        .format = vk::Format::eB8G8R8A8Unorm,
-        .samples = vk::SampleCountFlagBits::e1,
-        .loadOp = vk::AttachmentLoadOp::eLoad,
-        .storeOp = vk::AttachmentStoreOp::eStore,
-        .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-        .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-        .initialLayout = vk::ImageLayout::eColorAttachmentOptimal,
-        .finalLayout = vk::ImageLayout::ePresentSrcKHR};
-
-    static constexpr std::array<vk::SubpassDependency, 1> imgui_subpass_dependency = {
-        vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
-            .dstSubpass = 0,
-            .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-            .srcAccessMask = vk::AccessFlagBits::eNone,
-            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
-
-    imgui_related_data(application &app) {
-      uint32_t max_sets = default_descriptor_count * imgui_pool_sizes.size();
-
-      vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-          .maxSets = max_sets,
-          .poolSizeCount = static_cast<uint32_t>(imgui_pool_sizes.size()),
-          .pPoolSizes = imgui_pool_sizes.data()};
-
-      m_descriptor_pool = vk::raii::DescriptorPool{app.m_l_device(), descriptor_info};
-
-      vk::AttachmentReference color_attachment_ref = {
-          .attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
-
-      vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-          .colorAttachmentCount = 1,
-          .pColorAttachments = &color_attachment_ref};
-
-      std::array<vk::AttachmentDescription, 1> attachments{imgui_renderpass_attachment_description};
-      m_imgui_render_pass = ezvk::render_pass(app.m_l_device(), subpass, attachments, imgui_subpass_dependency);
-
-      vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *app.m_command_pool,
-          .level = vk::CommandBufferLevel::ePrimary,
-          .commandBufferCount = c_max_frames_in_flight};
-
-      m_imgui_command_buffers = vk::raii::CommandBuffers{app.m_l_device(), alloc_info};
-      m_imgui_framebuffers = {
-          app.m_l_device(), app.m_swapchain.image_views(), app.m_swapchain.extent(), m_imgui_render_pass()};
-
-      IMGUI_CHECKVERSION(); // Verify that compiled imgui binary matches the header
-      ImGui::CreateContext();
-
-      ImGui_ImplGlfw_InitForVulkan(app.m_platform.window()(), true);
-      ImGui_ImplVulkan_InitInfo info = {.Instance = *app.m_platform.instance(),
-          .PhysicalDevice = *app.m_platform.p_device(),
-          .Device = *app.m_l_device(),
-          .QueueFamily = app.m_graphics_present->graphics().family_index(),
-          .Queue = *app.m_graphics_present->graphics().queue(),
-          .PipelineCache = VK_NULL_HANDLE,
-          .DescriptorPool = *m_descriptor_pool,
-          .Subpass = 0,
-          .MinImageCount = app.m_swapchain.min_image_count(),
-          .ImageCount = static_cast<uint32_t>(app.m_swapchain.images().size()),
-          .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
-          .Allocator = nullptr,
-          .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
-
-      ImGui_ImplVulkan_Init(&info, *m_imgui_render_pass());
-      // Here we should create a render pass specific to Dear ImGui
-
-      // Upload font textures to the GPU via oneshot immediate submit
-      app.m_oneshot_upload.immediate_submit(
-          [](vk::raii::CommandBuffer &cmd) { ImGui_ImplVulkan_CreateFontsTexture(*cmd); });
-
-      m_initialized = true;
-    }
-
-    imgui_related_data(const imgui_related_data &rhs) = delete;
-    imgui_related_data &operator=(const imgui_related_data &rhs) = delete;
-
-    void swap(imgui_related_data &rhs) {
-      std::swap(m_descriptor_pool, rhs.m_descriptor_pool);
-      std::swap(m_imgui_render_pass, rhs.m_imgui_render_pass);
-      std::swap(m_imgui_command_buffers, rhs.m_imgui_command_buffers);
-      std::swap(m_imgui_framebuffers, rhs.m_imgui_framebuffers);
-      std::swap(m_initialized, rhs.m_initialized);
-    }
-
-    imgui_related_data(imgui_related_data &&rhs) { swap(rhs); }
-
-    imgui_related_data &operator=(imgui_related_data &&rhs) {
-      swap(rhs);
-      return *this;
-    }
-
-    ~imgui_related_data() {
-      if (!m_initialized) return;
-      ImGui_ImplVulkan_Shutdown();
-      ImGui_ImplGlfw_Shutdown();
-      ImGui::DestroyContext();
-    }
-
-    void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
-      cmd.reset();
-      cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
-
-      vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_imgui_render_pass(),
-          .framebuffer = *m_imgui_framebuffers[image_index],
-          .renderArea = {vk::Offset2D{0, 0}, extent}};
-
-      cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
-
-      ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd);
-
-      cmd.endRenderPass();
-      cmd.end();
-    }
-
-    static void new_frame() {
-      ImGui_ImplVulkan_NewFrame();
-      ImGui_ImplGlfw_NewFrame();
-      ImGui::NewFrame();
-    }
-
-    static void render_frame() { ImGui::Render(); }
-  } m_imgui_data;
+  using gui_type = gui::imgui_related_data<application>;
+  friend class gui::imgui_related_data<application>;
+  gui_type m_imgui_data;
 
   static constexpr std::array<vk::SubpassDependency, 1> depth_subpass_dependency = {vk::SubpassDependency{
       .srcSubpass = VK_SUBPASS_EXTERNAL,
@@ -475,9 +257,9 @@ public:
 
     m_prev_frame_start = current_time;
 
-    imgui_related_data::new_frame();
+    gui_type::new_frame();
     draw_gui();
-    imgui_related_data::render_frame();
+    gui_type::render_frame();
 
     // Here we update the camera parameters
     m_camera.set_far_z_clip(m_configurable_parameters.render_distance);
@@ -488,6 +270,19 @@ public:
 
   auto *window() const { return m_platform.window()(); }
 
+  void load_input_data(const input_data &data) {
+    if (m_data_loaded.load()) throw std::invalid_argument{"For now you can't load vertex data more than once"};
+
+    if (!data.tr_vert.empty()) load_draw_info(data.tr_vert, m_triangle_draw_info);
+    if (!data.broad_vert.empty()) load_draw_info(data.broad_vert, m_wireframe_broad_draw_info);
+    if (!data.bbox_vert.empty()) load_draw_info(data.bbox_vert, m_wireframe_bbox_draw_info);
+
+    m_data_loaded.store(true);
+  }
+
+  void shutdown() { m_l_device().waitIdle(); }
+
+private:
   ezvk::device_buffer copy_to_staging_memory(const auto &container) {
     assert(!container.empty());
 
@@ -520,19 +315,6 @@ public:
         vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eVertexInput, {}, nullptr, barrier, nullptr);
   }
 
-  void load_input_data(const input_data &data) {
-    if (m_data_loaded.load()) throw std::invalid_argument{"For now you can't load vertex data more than once"};
-
-    if (!data.tr_vert.empty()) load_draw_info(data.tr_vert, m_triangle_draw_info);
-    if (!data.broad_vert.empty()) load_draw_info(data.broad_vert, m_wireframe_broad_draw_info);
-    if (!data.bbox_vert.empty()) load_draw_info(data.bbox_vert, m_wireframe_bbox_draw_info);
-
-    m_data_loaded.store(true);
-  }
-
-  void shutdown() { m_l_device().waitIdle(); }
-
-private:
   void load_draw_info(const auto &vertices, vertex_draw_info &info) {
     assert(!vertices.empty());
     info.count = vertices.size();
@@ -542,7 +324,7 @@ private:
   }
 
   void physics_loop(float delta) {
-    auto &handler = input_handler::instance();
+    auto &handler = ezio::keyboard_handler::instance();
     auto events = handler.poll();
 
     if (ImGui::GetIO().WantCaptureKeyboard) return;
@@ -735,29 +517,26 @@ private:
   }
 
   void initialize_input_hanlder() {
-    auto &handler = input_handler::instance();
+    using ezio::keyboard_handler;
+    using button_state = keyboard_handler::button_state;
 
-    // Movements forward, backward and sideways
-    handler.monitor(GLFW_KEY_W, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_A, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_S, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_D, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_SPACE, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_C, input_handler::button_state::e_held_down);
+    auto &handler = keyboard_handler::instance();
+    const std::array<std::pair<keyboard_handler::key_index, keyboard_handler::button_state>, 13> keys = {
+        {{GLFW_KEY_W, button_state::e_held_down}, {GLFW_KEY_A, button_state::e_held_down},
+            {GLFW_KEY_S, button_state::e_held_down}, {GLFW_KEY_D, button_state::e_held_down},
+            {GLFW_KEY_SPACE, button_state::e_held_down}, {GLFW_KEY_C, button_state::e_held_down},
+            {GLFW_KEY_Q, button_state::e_held_down}, {GLFW_KEY_E, button_state::e_held_down},
+            {GLFW_KEY_RIGHT, button_state::e_held_down}, {GLFW_KEY_LEFT, button_state::e_held_down},
+            {GLFW_KEY_UP, button_state::e_held_down}, {GLFW_KEY_DOWN, button_state::e_held_down},
+            {GLFW_KEY_LEFT_SHIFT, button_state::e_pressed}}};
 
-    // Rotate around the camera direction axis
-    handler.monitor(GLFW_KEY_Q, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_E, input_handler::button_state::e_held_down);
-
-    // Rotate around the yaw and pitch axis
-    handler.monitor(GLFW_KEY_RIGHT, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_LEFT, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_UP, input_handler::button_state::e_held_down);
-    handler.monitor(GLFW_KEY_DOWN, input_handler::button_state::e_held_down);
-
-    handler.monitor(GLFW_KEY_LEFT_SHIFT, input_handler::button_state::e_pressed);
-
+    handler.monitor(keys.begin(), keys.end());
     handler.bind(m_platform.window()());
+  }
+
+  void initialize_imgui() {
+    m_imgui_data = gui_type{*this};
+    ImGui::StyleColorsDark();
   }
 
   void initialize_logical_device_queues() {
@@ -803,11 +582,6 @@ private:
         .commandBufferCount = c_max_frames_in_flight};
 
     m_primitives_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
-  }
-
-  void initialize_imgui() {
-    m_imgui_data = imgui_related_data{*this};
-    ImGui::StyleColorsDark(); // Blessed dark mode
   }
 
   void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
