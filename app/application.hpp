@@ -59,33 +59,33 @@ namespace triangles {
 
 constexpr uint32_t intersect_index = 1u, regular_index = 0u, wiremesh_index = 2u, bbox_index = 3u;
 struct input_data {
-  std::span<const triangles::triangle_vertex_type>  tr_vert;
+  std::span<const triangles::triangle_vertex_type> tr_vert;
   std::span<const triangles::wireframe_vertex_type> broad_vert, bbox_vert;
 };
 
 struct applicaton_platform {
-  ezvk::generic_instance   m_instance;
+  ezvk::generic_instance m_instance;
   ezvk::unique_glfw_window m_window = nullptr;
-  ezvk::surface            m_surface;
+  ezvk::surface m_surface;
 
   vk::raii::PhysicalDevice m_p_device = nullptr;
 
 public:
   applicaton_platform(ezvk::generic_instance instance, ezvk::unique_glfw_window window, ezvk::surface surface,
-                      vk::raii::PhysicalDevice p_device)
+      vk::raii::PhysicalDevice p_device)
       : m_instance{std::move(instance)}, m_window{std::move(window)}, m_surface{std::move(surface)},
         m_p_device{std::move(p_device)} {}
 
-  auto       &instance()       &{ return m_instance(); }
+  auto &instance() & { return m_instance(); }
   const auto &instance() const & { return m_instance(); }
 
-  auto       &window()       &{ return m_window; }
+  auto &window() & { return m_window; }
   const auto &window() const & { return m_window; }
 
-  auto       &surface()       &{ return m_surface(); }
+  auto &surface() & { return m_surface(); }
   const auto &surface() const & { return m_surface(); }
 
-  auto       &p_device()       &{ return m_p_device; }
+  auto &p_device() & { return m_p_device; }
   const auto &p_device() const & { return m_p_device; }
 };
 
@@ -173,34 +173,34 @@ private:
   applicaton_platform m_platform;
 
   // Logical device and queues needed for rendering
-  ezvk::logical_device                             m_l_device;
+  ezvk::logical_device m_l_device;
   std::unique_ptr<ezvk::i_graphics_present_queues> m_graphics_present;
 
   vk::raii::CommandPool m_command_pool = nullptr;
-  ezvk::upload_context  m_oneshot_upload;
-  ezvk::swapchain       m_swapchain;
+  ezvk::upload_context m_oneshot_upload;
+  ezvk::swapchain m_swapchain;
 
   vk::raii::DescriptorPool m_descriptor_pool = nullptr;
 
   ezvk::descriptor_set m_descriptor_set;
   ezvk::device_buffers m_uniform_buffers;
 
-  ezvk::render_pass     m_primitives_render_pass;
+  ezvk::render_pass m_primitives_render_pass;
   ezvk::pipeline_layout m_primitives_pipeline_layout;
 
   ezvk::depth_buffer m_depth_buffer;
 
-  pipeline<triangle_vertex_type>  m_triangle_pipeline;
+  pipeline<triangle_vertex_type> m_triangle_pipeline;
   pipeline<wireframe_vertex_type> m_wireframe_pipeline;
 
   ezvk::framebuffers m_framebuffers;
-  std::atomic_bool   m_data_loaded = false;
+  std::atomic_bool m_data_loaded = false;
 
   struct vertex_draw_info {
     ezvk::device_buffer buf;
 
     std::atomic_bool loaded = false, in_staging = false;
-    uint32_t         count = 0, size = 0;
+    uint32_t count = 0, size = 0;
 
     ezvk::device_buffer staging_buffer;
 
@@ -214,16 +214,16 @@ private:
 
   struct frame_rendering_info {
     vk::raii::Semaphore image_availible_semaphore, render_finished_semaphore;
-    vk::raii::Fence     in_flight_fence;
+    vk::raii::Fence in_flight_fence;
   };
 
   vk::raii::CommandBuffers m_primitives_command_buffers = nullptr;
 
-  std::vector<frame_rendering_info>                  m_rendering_info;
+  std::vector<frame_rendering_info> m_rendering_info;
   std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;
 
   std::size_t m_curr_frame = 0;
-  camera      m_camera;
+  camera m_camera;
 
   bool m_mod_speed = false;
   bool m_first_frame = true;
@@ -244,8 +244,8 @@ private:
     std::array<float, 4> light_color = hex_to_rgba(0xffffffff);
     std::array<float, 4> clear_color = hex_to_rgba(0x181818ff);
 
-    std::array<array_color4, c_color_count> colors = {hex_to_rgba(0x89c4e1ff), hex_to_rgba(0xff4c29ff),
-                                                      hex_to_rgba(0x2f363aff), hex_to_rgba(0x338568ff)};
+    std::array<array_color4, c_color_count> colors = {
+        hex_to_rgba(0x89c4e1ff), hex_to_rgba(0xff4c29ff), hex_to_rgba(0x2f363aff), hex_to_rgba(0x338568ff)};
 
     bool draw_broad_phase = false, draw_bbox = false;
   } m_configurable_parameters;
@@ -259,31 +259,31 @@ private:
 
   public:
     vk::raii::DescriptorPool m_descriptor_pool = nullptr;
-    ezvk::render_pass        m_imgui_render_pass;
+    ezvk::render_pass m_imgui_render_pass;
     vk::raii::CommandBuffers m_imgui_command_buffers = nullptr;
-    ezvk::framebuffers       m_imgui_framebuffers;
+    ezvk::framebuffers m_imgui_framebuffers;
 
     imgui_related_data() = default;
 
     static void imgui_check_vk_error(VkResult res) {
-      vk::Result  hpp_result = vk::Result{res};
+      vk::Result hpp_result = vk::Result{res};
       std::string error_message = vk::to_string(hpp_result);
       vk::resultCheck(hpp_result, error_message.c_str());
     }
 
-    static constexpr uint32_t                               default_descriptor_count = 1000;
+    static constexpr uint32_t default_descriptor_count = 1000;
     static constexpr std::array<vk::DescriptorPoolSize, 11> imgui_pool_sizes = {
         {{vk::DescriptorType::eSampler, default_descriptor_count},
-         {vk::DescriptorType::eCombinedImageSampler, default_descriptor_count},
-         {vk::DescriptorType::eSampledImage, default_descriptor_count},
-         {vk::DescriptorType::eStorageImage, default_descriptor_count},
-         {vk::DescriptorType::eUniformTexelBuffer, default_descriptor_count},
-         {vk::DescriptorType::eStorageTexelBuffer, default_descriptor_count},
-         {vk::DescriptorType::eUniformBuffer, default_descriptor_count},
-         {vk::DescriptorType::eStorageBuffer, default_descriptor_count},
-         {vk::DescriptorType::eUniformBufferDynamic, default_descriptor_count},
-         {vk::DescriptorType::eStorageBufferDynamic, default_descriptor_count},
-         {vk::DescriptorType::eInputAttachment, default_descriptor_count}}};
+            {vk::DescriptorType::eCombinedImageSampler, default_descriptor_count},
+            {vk::DescriptorType::eSampledImage, default_descriptor_count},
+            {vk::DescriptorType::eStorageImage, default_descriptor_count},
+            {vk::DescriptorType::eUniformTexelBuffer, default_descriptor_count},
+            {vk::DescriptorType::eStorageTexelBuffer, default_descriptor_count},
+            {vk::DescriptorType::eUniformBuffer, default_descriptor_count},
+            {vk::DescriptorType::eStorageBuffer, default_descriptor_count},
+            {vk::DescriptorType::eUniformBufferDynamic, default_descriptor_count},
+            {vk::DescriptorType::eStorageBufferDynamic, default_descriptor_count},
+            {vk::DescriptorType::eInputAttachment, default_descriptor_count}}};
 
     static constexpr vk::AttachmentDescription imgui_renderpass_attachment_description = {
         .flags = vk::AttachmentDescriptionFlags{},
@@ -298,57 +298,57 @@ private:
 
     static constexpr std::array<vk::SubpassDependency, 1> imgui_subpass_dependency = {
         vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
-                              .dstSubpass = 0,
-                              .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                              .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                              .srcAccessMask = vk::AccessFlagBits::eNone,
-                              .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
+            .dstSubpass = 0,
+            .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+            .srcAccessMask = vk::AccessFlagBits::eNone,
+            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
 
     imgui_related_data(application &app) {
       uint32_t max_sets = default_descriptor_count * imgui_pool_sizes.size();
 
       vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-                                                      .maxSets = max_sets,
-                                                      .poolSizeCount = static_cast<uint32_t>(imgui_pool_sizes.size()),
-                                                      .pPoolSizes = imgui_pool_sizes.data()};
+          .maxSets = max_sets,
+          .poolSizeCount = static_cast<uint32_t>(imgui_pool_sizes.size()),
+          .pPoolSizes = imgui_pool_sizes.data()};
 
       m_descriptor_pool = vk::raii::DescriptorPool{app.m_l_device(), descriptor_info};
 
-      vk::AttachmentReference color_attachment_ref = {.attachment = 0,
-                                                      .layout = vk::ImageLayout::eColorAttachmentOptimal};
+      vk::AttachmentReference color_attachment_ref = {
+          .attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
 
       vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-                                        .colorAttachmentCount = 1,
-                                        .pColorAttachments = &color_attachment_ref};
+          .colorAttachmentCount = 1,
+          .pColorAttachments = &color_attachment_ref};
 
       std::array<vk::AttachmentDescription, 1> attachments{imgui_renderpass_attachment_description};
       m_imgui_render_pass = ezvk::render_pass(app.m_l_device(), subpass, attachments, imgui_subpass_dependency);
 
       vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *app.m_command_pool,
-                                                  .level = vk::CommandBufferLevel::ePrimary,
-                                                  .commandBufferCount = c_max_frames_in_flight};
+          .level = vk::CommandBufferLevel::ePrimary,
+          .commandBufferCount = c_max_frames_in_flight};
 
       m_imgui_command_buffers = vk::raii::CommandBuffers{app.m_l_device(), alloc_info};
-      m_imgui_framebuffers = {app.m_l_device(), app.m_swapchain.image_views(), app.m_swapchain.extent(),
-                              m_imgui_render_pass()};
+      m_imgui_framebuffers = {
+          app.m_l_device(), app.m_swapchain.image_views(), app.m_swapchain.extent(), m_imgui_render_pass()};
 
       IMGUI_CHECKVERSION(); // Verify that compiled imgui binary matches the header
       ImGui::CreateContext();
 
       ImGui_ImplGlfw_InitForVulkan(app.m_platform.window()(), true);
       ImGui_ImplVulkan_InitInfo info = {.Instance = *app.m_platform.instance(),
-                                        .PhysicalDevice = *app.m_platform.p_device(),
-                                        .Device = *app.m_l_device(),
-                                        .QueueFamily = app.m_graphics_present->graphics().family_index(),
-                                        .Queue = *app.m_graphics_present->graphics().queue(),
-                                        .PipelineCache = VK_NULL_HANDLE,
-                                        .DescriptorPool = *m_descriptor_pool,
-                                        .Subpass = 0,
-                                        .MinImageCount = app.m_swapchain.min_image_count(),
-                                        .ImageCount = static_cast<uint32_t>(app.m_swapchain.images().size()),
-                                        .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
-                                        .Allocator = nullptr,
-                                        .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
+          .PhysicalDevice = *app.m_platform.p_device(),
+          .Device = *app.m_l_device(),
+          .QueueFamily = app.m_graphics_present->graphics().family_index(),
+          .Queue = *app.m_graphics_present->graphics().queue(),
+          .PipelineCache = VK_NULL_HANDLE,
+          .DescriptorPool = *m_descriptor_pool,
+          .Subpass = 0,
+          .MinImageCount = app.m_swapchain.min_image_count(),
+          .ImageCount = static_cast<uint32_t>(app.m_swapchain.images().size()),
+          .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+          .Allocator = nullptr,
+          .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
 
       ImGui_ImplVulkan_Init(&info, *m_imgui_render_pass());
       // Here we should create a render pass specific to Dear ImGui
@@ -390,8 +390,8 @@ private:
       cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
 
       vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_imgui_render_pass(),
-                                                  .framebuffer = *m_imgui_framebuffers[image_index],
-                                                  .renderArea = {vk::Offset2D{0, 0}, extent}};
+          .framebuffer = *m_imgui_framebuffers[image_index],
+          .renderArea = {vk::Offset2D{0, 0}, extent}};
 
       cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
 
@@ -430,7 +430,7 @@ private:
     m_oneshot_upload = ezvk::upload_context{&m_l_device(), &m_graphics_present->graphics(), &m_command_pool};
 
     m_swapchain = {m_platform.p_device(), m_l_device(), m_platform.surface(), m_platform.window().extent(),
-                   m_graphics_present.get()};
+        m_graphics_present.get()};
 
     initialize_primitives_pipeline();
     initialize_input_hanlder(); // Bind key strokes
@@ -491,9 +491,8 @@ public:
   ezvk::device_buffer copy_to_staging_memory(const auto &container) {
     assert(!container.empty());
 
-    ezvk::device_buffer staging_buffer = {
-        m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc, std::span{container},
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
+    ezvk::device_buffer staging_buffer = {m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc,
+        std::span{container}, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
     return staging_buffer;
   }
@@ -502,8 +501,8 @@ public:
     const auto size = info.size;
 
     info.buf = {m_platform.p_device(), m_l_device(), size,
-                vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-                vk::MemoryPropertyFlagBits::eDeviceLocal};
+        vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        vk::MemoryPropertyFlagBits::eDeviceLocal};
 
     auto &src_buffer = info.staging_buffer.buffer();
     auto &dst_buffer = info.buf.buffer();
@@ -512,13 +511,13 @@ public:
     cmd.copyBuffer(*src_buffer, *dst_buffer, copy);
 
     vk::BufferMemoryBarrier barrier = {.srcAccessMask = vk::AccessFlagBits::eTransferWrite,
-                                       .dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead,
-                                       .buffer = *dst_buffer,
-                                       .offset = 0,
-                                       .size = info.size};
+        .dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead,
+        .buffer = *dst_buffer,
+        .offset = 0,
+        .size = info.size};
 
-    cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eVertexInput, {}, nullptr,
-                        barrier, nullptr);
+    cmd.pipelineBarrier(
+        vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eVertexInput, {}, nullptr, barrier, nullptr);
   }
 
   void load_input_data(const input_data &data) {
@@ -544,7 +543,7 @@ private:
 
   void physics_loop(float delta) {
     auto &handler = input_handler::instance();
-    auto  events = handler.poll();
+    auto events = handler.poll();
 
     if (ImGui::GetIO().WantCaptureKeyboard) return;
 
@@ -559,7 +558,7 @@ private:
     auto up_movement = calculate_movement(GLFW_KEY_SPACE, GLFW_KEY_C);
 
     glm::vec3 dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways() +
-                             up_movement * m_camera.get_up();
+        up_movement * m_camera.get_up();
 
     float speed =
         (m_mod_speed ? m_configurable_parameters.linear_velocity_mod : m_configurable_parameters.linear_velocity_reg);
@@ -615,8 +614,8 @@ private:
     if (ImGui::CollapsingHeader("Rendering", ImGuiTreeNodeFlags_DefaultOpen)) {
       ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
       ImGui::DragFloat("Rendering distance", &m_configurable_parameters.render_distance, 50.0f);
-      ImGui::DragFloat("Fov", &m_configurable_parameters.fov, 0.1f, 45.0f, 175.0f, "%.3f",
-                       ImGuiSliderFlags_AlwaysClamp);
+      ImGui::DragFloat(
+          "Fov", &m_configurable_parameters.fov, 0.1f, 45.0f, 175.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
 
       ImGui::Checkbox("Visualize broad phase", &m_configurable_parameters.draw_broad_phase);
       ImGui::Checkbox("Draw bounding boxes", &m_configurable_parameters.draw_bbox);
@@ -640,21 +639,21 @@ private:
       ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.5f);
 
       ImGui::DragFloat("Ambient Strength", &m_configurable_parameters.ambient_strength, 0.001f, 0.0f, 1.0f, "%.3f",
-                       ImGuiSliderFlags_AlwaysClamp);
+          ImGuiSliderFlags_AlwaysClamp);
 
       ImGui::ColorEdit4("Light Color", m_configurable_parameters.light_color.data());
 
       ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.35f);
       ImGui::BulletText("Light direction");
-      ImGui::DragFloat("Yaw", &m_configurable_parameters.light_dir_yaw, 0.1f, 0.0f, 360.0f, "%.3f",
-                       ImGuiSliderFlags_AlwaysClamp);
+      ImGui::DragFloat(
+          "Yaw", &m_configurable_parameters.light_dir_yaw, 0.1f, 0.0f, 360.0f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
       ImGui::SameLine();
       ImGui::DragFloat("Pitch", &m_configurable_parameters.light_dir_pitch, 0.1f, 0.0f, 360.0f, "%.3f",
-                       ImGuiSliderFlags_AlwaysClamp);
+          ImGuiSliderFlags_AlwaysClamp);
 
       m_configurable_parameters.light_dir = glm::eulerAngleYX(glm::radians(m_configurable_parameters.light_dir_yaw),
-                                                              glm::radians(m_configurable_parameters.light_dir_pitch)) *
-                                            glm::vec4{0, 0, 1, 0};
+                                                glm::radians(m_configurable_parameters.light_dir_pitch)) *
+          glm::vec4{0, 0, 1, 0};
 
       auto light_dir = m_configurable_parameters.light_dir;
       ImGui::Text("Light direction: x = %.3f, y = %.3f, z = %.3f", light_dir.x, light_dir.y, light_dir.z);
@@ -673,7 +672,7 @@ private:
   // a uniform buffer.
   static constexpr std::array<ezvk::descriptor_set::binding_description, 2> descriptor_set_bindings = {
       {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics},
-       {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics}}};
+          {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics}}};
 
   static constexpr vk::PipelineRasterizationStateCreateInfo triangle_rasterization_state_create_info = {
       .depthClampEnable = VK_FALSE,
@@ -699,7 +698,7 @@ private:
     m_descriptor_pool = ezvk::create_descriptor_pool(m_l_device(), c_global_descriptor_pool_sizes);
 
     m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::ubo), m_platform.p_device(), m_l_device(),
-                         vk::BufferUsageFlagBits::eUniformBuffer};
+        vk::BufferUsageFlagBits::eUniformBuffer};
 
     m_descriptor_set = {m_l_device(), m_uniform_buffers, m_descriptor_pool, descriptor_set_bindings};
 
@@ -710,37 +709,29 @@ private:
     // clang-format on
 
     vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-                                      .colorAttachmentCount = 1,
-                                      .pColorAttachments = &color_attachment_ref,
-                                      .pDepthStencilAttachment = &depth_attachment_ref};
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &color_attachment_ref,
+        .pDepthStencilAttachment = &depth_attachment_ref};
 
     const vk::Format depth_format = ezvk::find_depth_format(m_platform.p_device()).at(0);
 
-    std::array<vk::AttachmentDescription, 2> attachments = {primitives_renderpass_attachment_description,
-                                                            ezvk::create_depth_attachment(depth_format)};
+    std::array<vk::AttachmentDescription, 2> attachments = {
+        primitives_renderpass_attachment_description, ezvk::create_depth_attachment(depth_format)};
 
     m_primitives_render_pass = ezvk::render_pass{m_l_device(), subpass, attachments, depth_subpass_dependency};
     m_depth_buffer = {m_platform.m_p_device, m_l_device(), depth_format, m_swapchain.extent()};
     m_primitives_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
 
-    m_triangle_pipeline = {m_l_device(),
-                           "shaders/triangles_vert.spv",
-                           "shaders/triangles_frag.spv",
-                           m_primitives_pipeline_layout(),
-                           m_primitives_render_pass(),
-                           triangle_rasterization_state_create_info,
-                           vk::PrimitiveTopology::eTriangleList};
+    m_triangle_pipeline = {m_l_device(), "shaders/triangles_vert.spv", "shaders/triangles_frag.spv",
+        m_primitives_pipeline_layout(), m_primitives_render_pass(), triangle_rasterization_state_create_info,
+        vk::PrimitiveTopology::eTriangleList};
 
-    m_wireframe_pipeline = {m_l_device(),
-                            "shaders/wireframe_vert.spv",
-                            "shaders/wireframe_frag.spv",
-                            m_primitives_pipeline_layout(),
-                            m_primitives_render_pass(),
-                            wireframe_rasterization_state_create_info,
-                            vk::PrimitiveTopology::eLineList};
+    m_wireframe_pipeline = {m_l_device(), "shaders/wireframe_vert.spv", "shaders/wireframe_frag.spv",
+        m_primitives_pipeline_layout(), m_primitives_render_pass(), wireframe_rasterization_state_create_info,
+        vk::PrimitiveTopology::eLineList};
 
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
-                      m_depth_buffer.m_image_view()};
+        m_depth_buffer.m_image_view()};
   }
 
   void initialize_input_hanlder() {
@@ -775,7 +766,7 @@ private:
 
     std::vector<ezvk::queue_family_index_type> intersection;
     std::set_intersection(graphics_queue_indices.begin(), graphics_queue_indices.end(), present_queue_indices.begin(),
-                          present_queue_indices.end(), std::back_inserter(intersection));
+        present_queue_indices.end(), std::back_inserter(intersection));
 
     const float default_priority = 1.0f;
 
@@ -796,20 +787,20 @@ private:
 
     auto extensions = required_physical_device_extensions();
     m_l_device = ezvk::logical_device{m_platform.p_device(), reqs, extensions.begin(), extensions.end()};
-    m_graphics_present = ezvk::make_graphics_present_queues(m_l_device(), chosen_graphics, c_graphics_queue_index,
-                                                            chosen_present, c_present_queue_index);
+    m_graphics_present = ezvk::make_graphics_present_queues(
+        m_l_device(), chosen_graphics, c_graphics_queue_index, chosen_present, c_present_queue_index);
   }
 
   void initialize_frame_rendering_info() {
     for (uint32_t i = 0; i < c_max_frames_in_flight; ++i) {
       frame_rendering_info primitive = {m_l_device().createSemaphore({}), m_l_device().createSemaphore({}),
-                                        m_l_device().createFence({.flags = vk::FenceCreateFlagBits::eSignaled})};
+          m_l_device().createFence({.flags = vk::FenceCreateFlagBits::eSignaled})};
       m_rendering_info.push_back(std::move(primitive));
     }
 
     vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *m_command_pool,
-                                                .level = vk::CommandBufferLevel::ePrimary,
-                                                .commandBufferCount = c_max_frames_in_flight};
+        .level = vk::CommandBufferLevel::ePrimary,
+        .commandBufferCount = c_max_frames_in_flight};
 
     m_primitives_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
   }
@@ -839,25 +830,21 @@ private:
     clear_values[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
 
     vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_primitives_render_pass(),
-                                                .framebuffer = *m_framebuffers[image_index],
-                                                .renderArea = {vk::Offset2D{0, 0}, extent},
-                                                .clearValueCount = static_cast<uint32_t>(clear_values.size()),
-                                                .pClearValues = clear_values.data()};
+        .framebuffer = *m_framebuffers[image_index],
+        .renderArea = {vk::Offset2D{0, 0}, extent},
+        .clearValueCount = static_cast<uint32_t>(clear_values.size()),
+        .pClearValues = clear_values.data()};
 
     cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
 
-    vk::Viewport viewport = {0.0f,
-                             static_cast<float>(extent.height),
-                             static_cast<float>(extent.width),
-                             -static_cast<float>(extent.height),
-                             0.0f,
-                             1.0f};
+    vk::Viewport viewport = {0.0f, static_cast<float>(extent.height), static_cast<float>(extent.width),
+        -static_cast<float>(extent.height), 0.0f, 1.0f};
 
     cmd.setViewport(0, {viewport});
     cmd.setScissor(0, {{vk::Offset2D{0, 0}, extent}});
 
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *m_primitives_pipeline_layout(), 0,
-                           {*m_descriptor_set.m_descriptor_set}, nullptr);
+        {*m_descriptor_set.m_descriptor_set}, nullptr);
 
     cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *m_triangle_pipeline());
 
@@ -892,8 +879,8 @@ private:
 
     const auto &old_swapchain = m_swapchain();
 
-    auto new_swapchain = ezvk::swapchain{m_platform.p_device(),    m_l_device(),  m_platform.surface(), extent,
-                                         m_graphics_present.get(), *old_swapchain};
+    auto new_swapchain = ezvk::swapchain{
+        m_platform.p_device(), m_l_device(), m_platform.surface(), extent, m_graphics_present.get(), *old_swapchain};
 
     m_l_device().waitIdle();
     m_swapchain().clear(); // Destroy the old swapchain
@@ -903,9 +890,9 @@ private:
     ImGui_ImplVulkan_SetMinImageCount(m_swapchain.min_image_count());
     m_depth_buffer = {m_platform.m_p_device, m_l_device(), m_depth_buffer.depth_format(), m_swapchain.extent()};
     m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
-                      m_depth_buffer.m_image_view()};
-    m_imgui_data.m_imgui_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(),
-                                         m_imgui_data.m_imgui_render_pass()};
+        m_depth_buffer.m_image_view()};
+    m_imgui_data.m_imgui_framebuffers = {
+        m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_imgui_data.m_imgui_render_pass()};
   }
 
   // INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
@@ -915,10 +902,10 @@ private:
     // Static cast to silence warning
 
     vk::AcquireNextImageInfoKHR acquire_info = {.swapchain = *m_swapchain(),
-                                                .timeout = UINT64_MAX,
-                                                .semaphore = *current_frame_data.image_availible_semaphore,
-                                                .fence = nullptr,
-                                                .deviceMask = 1};
+        .timeout = UINT64_MAX,
+        .semaphore = *current_frame_data.image_availible_semaphore,
+        .fence = nullptr,
+        .deviceMask = 1};
 
     uint32_t image_index;
     try {
@@ -929,41 +916,39 @@ private:
     }
 
     fill_command_buffer(m_primitives_command_buffers[m_curr_frame], image_index, m_swapchain.extent());
-    m_imgui_data.fill_command_buffer(m_imgui_data.m_imgui_command_buffers[m_curr_frame], image_index,
-                                     m_swapchain.extent());
+    m_imgui_data.fill_command_buffer(
+        m_imgui_data.m_imgui_command_buffers[m_curr_frame], image_index, m_swapchain.extent());
 
-    std::array<vk::CommandBuffer, 2> cmds = {*m_primitives_command_buffers[m_curr_frame],
-                                             *m_imgui_data.m_imgui_command_buffers[m_curr_frame]};
+    std::array<vk::CommandBuffer, 2> cmds = {
+        *m_primitives_command_buffers[m_curr_frame], *m_imgui_data.m_imgui_command_buffers[m_curr_frame]};
 
-    ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height),
-                          {},
-                          glm_vec_from_array(m_configurable_parameters.light_color),
-                          m_configurable_parameters.light_dir,
-                          m_configurable_parameters.ambient_strength};
+    ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height), {},
+        glm_vec_from_array(m_configurable_parameters.light_color), m_configurable_parameters.light_dir,
+        m_configurable_parameters.ambient_strength};
 
     std::transform(m_configurable_parameters.colors.begin(), m_configurable_parameters.colors.end(),
-                   uniform_buffer.colors.begin(), [](auto a) { return glm_vec_from_array(a); });
+        uniform_buffer.colors.begin(), [](auto a) { return glm_vec_from_array(a); });
 
     m_uniform_buffers[m_curr_frame].copy_to_device(uniform_buffer);
 
     vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
     vk::SubmitInfo submit_info = {.waitSemaphoreCount = 1,
-                                  .pWaitSemaphores = std::addressof(*current_frame_data.image_availible_semaphore),
-                                  .pWaitDstStageMask = std::addressof(wait_stages),
-                                  .commandBufferCount = cmds.size(),
-                                  .pCommandBuffers = cmds.data(),
-                                  .signalSemaphoreCount = 1,
-                                  .pSignalSemaphores = std::addressof(*current_frame_data.render_finished_semaphore)};
+        .pWaitSemaphores = std::addressof(*current_frame_data.image_availible_semaphore),
+        .pWaitDstStageMask = std::addressof(wait_stages),
+        .commandBufferCount = cmds.size(),
+        .pCommandBuffers = cmds.data(),
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = std::addressof(*current_frame_data.render_finished_semaphore)};
 
     m_l_device().resetFences(*current_frame_data.in_flight_fence);
     m_graphics_present->graphics().queue().submit(submit_info, *current_frame_data.in_flight_fence);
 
     vk::PresentInfoKHR present_info = {.waitSemaphoreCount = 1,
-                                       .pWaitSemaphores = std::addressof(*current_frame_data.render_finished_semaphore),
-                                       .swapchainCount = 1,
-                                       .pSwapchains = std::addressof(*m_swapchain()),
-                                       .pImageIndices = &image_index};
+        .pWaitSemaphores = std::addressof(*current_frame_data.render_finished_semaphore),
+        .swapchainCount = 1,
+        .pSwapchains = std::addressof(*m_swapchain()),
+        .pImageIndices = &image_index};
 
     vk::Result result_present;
     try {

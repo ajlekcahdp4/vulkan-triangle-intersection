@@ -27,9 +27,9 @@ struct queue_family_indices {
   queue_family_index_type graphics, present;
 };
 
-inline std::vector<queue_family_index_type>
-find_family_indices_with_queue_type(const vk::raii::PhysicalDevice &p_device, vk::QueueFlagBits queue_bits) {
-  auto                                 properties = p_device.getQueueFamilyProperties();
+inline std::vector<queue_family_index_type> find_family_indices_with_queue_type(
+    const vk::raii::PhysicalDevice &p_device, vk::QueueFlagBits queue_bits) {
+  auto properties = p_device.getQueueFamilyProperties();
   std::vector<queue_family_index_type> graphics_indices;
 
   for (queue_family_index_type i = 0; const auto &qfp : properties) {
@@ -44,9 +44,9 @@ inline std::vector<queue_family_index_type> find_graphics_family_indices(const v
   return find_family_indices_with_queue_type(p_device, vk::QueueFlagBits::eGraphics);
 }
 
-inline std::vector<queue_family_index_type> find_present_family_indices(const vk::raii::PhysicalDevice &p_device,
-                                                                        const vk::raii::SurfaceKHR     &surface) {
-  auto                                 size = p_device.getQueueFamilyProperties().size();
+inline std::vector<queue_family_index_type> find_present_family_indices(
+    const vk::raii::PhysicalDevice &p_device, const vk::raii::SurfaceKHR &surface) {
+  auto size = p_device.getQueueFamilyProperties().size();
   std::vector<queue_family_index_type> present_indices;
 
   for (queue_family_index_type i = 0; i < size; ++i) {
@@ -59,8 +59,8 @@ inline std::vector<queue_family_index_type> find_present_family_indices(const vk
 using queue_index_type = uint32_t;
 
 class device_queue {
-  vk::raii::Queue         m_queue = nullptr;
-  queue_index_type        m_queue_index;
+  vk::raii::Queue m_queue = nullptr;
+  queue_index_type m_queue_index;
   queue_family_index_type m_queue_family_index;
 
 public:
@@ -75,7 +75,7 @@ public:
   auto family_index() const { return m_queue_family_index; }
   auto queue_index() const { return m_queue_index; }
 
-  auto       &queue() { return m_queue; }
+  auto &queue() { return m_queue; }
   const auto &queue() const { return m_queue; }
 };
 
@@ -93,8 +93,7 @@ class separate_graphics_present_queues : public i_graphics_present_queues {
 
 public:
   separate_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index_type graphics_family,
-                                   queue_index_type graphics, queue_family_index_type present_family,
-                                   queue_index_type present) {
+      queue_index_type graphics, queue_family_index_type present_family, queue_index_type present) {
     m_graphics = {l_device, graphics_family, graphics};
     m_present = {l_device, present_family, present};
   }
@@ -107,8 +106,8 @@ class single_graphics_present_queues : public i_graphics_present_queues {
   device_queue m_queue;
 
 public:
-  single_graphics_present_queues(const vk::raii::Device &l_device, queue_family_index_type family,
-                                 queue_index_type index) {
+  single_graphics_present_queues(
+      const vk::raii::Device &l_device, queue_family_index_type family, queue_index_type index) {
     m_queue = {l_device, family, index};
   }
 
@@ -119,20 +118,18 @@ public:
 } // namespace detail
 
 inline std::unique_ptr<i_graphics_present_queues> make_graphics_present_queues(const vk::raii::Device &l_device,
-                                                                               queue_family_index_type graphics_family,
-                                                                               queue_index_type        graphics,
-                                                                               queue_family_index_type present_family,
-                                                                               queue_index_type        present) {
+    queue_family_index_type graphics_family, queue_index_type graphics, queue_family_index_type present_family,
+    queue_index_type present) {
   if (graphics_family == present_family) {
     return std::make_unique<detail::single_graphics_present_queues>(l_device, graphics_family, graphics);
   }
 
-  return std::make_unique<detail::separate_graphics_present_queues>(l_device, graphics_family, graphics, present_family,
-                                                                    present);
+  return std::make_unique<detail::separate_graphics_present_queues>(
+      l_device, graphics_family, graphics, present_family, present);
 }
 
-inline vk::raii::CommandPool create_command_pool(const vk::raii::Device &device, queue_family_index_type queue,
-                                                 bool enable_reset = false) {
+inline vk::raii::CommandPool create_command_pool(
+    const vk::raii::Device &device, queue_family_index_type queue, bool enable_reset = false) {
   vk::CommandPoolCreateFlags flags;
   if (enable_reset) flags |= vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 

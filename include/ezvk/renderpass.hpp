@@ -30,14 +30,14 @@ namespace ezvk {
 
 static inline vk::AttachmentDescription create_depth_attachment(vk::Format depth_format) {
   return {.flags = vk::AttachmentDescriptionFlags{},
-          .format = depth_format,
-          .samples = vk::SampleCountFlagBits::e1,
-          .loadOp = vk::AttachmentLoadOp::eClear,
-          .storeOp = vk::AttachmentStoreOp::eDontCare,
-          .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-          .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-          .initialLayout = vk::ImageLayout::eUndefined,
-          .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
+      .format = depth_format,
+      .samples = vk::SampleCountFlagBits::e1,
+      .loadOp = vk::AttachmentLoadOp::eClear,
+      .storeOp = vk::AttachmentStoreOp::eDontCare,
+      .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+      .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+      .initialLayout = vk::ImageLayout::eUndefined,
+      .finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
 }
 
 class render_pass final {
@@ -47,19 +47,19 @@ public:
   render_pass() = default;
 
   render_pass(const vk::raii::Device &device, const vk::SubpassDescription &subpass,
-              std::span<vk::AttachmentDescription> attachments = {}, std::span<const vk::SubpassDependency> deps = {}) {
+      std::span<vk::AttachmentDescription> attachments = {}, std::span<const vk::SubpassDependency> deps = {}) {
 
     vk::RenderPassCreateInfo renderpass_info = {.attachmentCount = static_cast<uint32_t>(attachments.size()),
-                                                .pAttachments = attachments.data(),
-                                                .subpassCount = 1,
-                                                .pSubpasses = &subpass,
-                                                .dependencyCount = static_cast<uint32_t>(deps.size()),
-                                                .pDependencies = deps.data()};
+        .pAttachments = attachments.data(),
+        .subpassCount = 1,
+        .pSubpasses = &subpass,
+        .dependencyCount = static_cast<uint32_t>(deps.size()),
+        .pDependencies = deps.data()};
 
     m_render_pass = device.createRenderPass(renderpass_info);
   }
 
-  auto       &operator()()       &{ return m_render_pass; }
+  auto &operator()() & { return m_render_pass; }
   const auto &operator()() const & { return m_render_pass; }
 };
 
@@ -71,13 +71,13 @@ public:
 
   pipeline_layout(const vk::raii::Device &device, const vk::raii::DescriptorSetLayout &descriptor_set_layout) {
     vk::PipelineLayoutCreateInfo layout_info = {.flags = vk::PipelineLayoutCreateFlags{},
-                                                .setLayoutCount = 1,
-                                                .pSetLayouts = std::addressof(*descriptor_set_layout),
-                                                .pushConstantRangeCount = 0};
+        .setLayoutCount = 1,
+        .pSetLayouts = std::addressof(*descriptor_set_layout),
+        .pushConstantRangeCount = 0};
     m_layout = vk::raii::PipelineLayout{device, layout_info};
   }
 
-  auto       &operator()()       &{ return m_layout; }
+  auto &operator()() & { return m_layout; }
   const auto &operator()() const & { return m_layout; }
 };
 

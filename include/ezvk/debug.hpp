@@ -25,8 +25,8 @@
 
 namespace ezvk {
 
-inline std::string assemble_debug_message(vk::DebugUtilsMessageTypeFlagsEXT             message_types,
-                                          const vk::DebugUtilsMessengerCallbackDataEXT &data) {
+inline std::string assemble_debug_message(
+    vk::DebugUtilsMessageTypeFlagsEXT message_types, const vk::DebugUtilsMessengerCallbackDataEXT &data) {
   std::stringstream ss;
 
   std::span<const vk::DebugUtilsLabelEXT> queues = {data.pQueueLabels, data.queueLabelCount},
@@ -57,9 +57,8 @@ inline std::string assemble_debug_message(vk::DebugUtilsMessageTypeFlagsEXT     
   return ss.str();
 };
 
-inline bool default_debug_callback(vk::DebugUtilsMessageSeverityFlagBitsEXT      message_severity,
-                                   vk::DebugUtilsMessageTypeFlagsEXT             message_types,
-                                   const vk::DebugUtilsMessengerCallbackDataEXT &callback_data) {
+inline bool default_debug_callback(vk::DebugUtilsMessageSeverityFlagBitsEXT message_severity,
+    vk::DebugUtilsMessageTypeFlagsEXT message_types, const vk::DebugUtilsMessengerCallbackDataEXT &callback_data) {
   using msg_sev = vk::DebugUtilsMessageSeverityFlagBitsEXT;
 
   auto msg_str = assemble_debug_message(message_types, callback_data);
@@ -87,18 +86,17 @@ static constexpr auto default_type_flags = msg_type::eGeneral | msg_type::eValid
 class debug_messenger {
 public:
   using callback_type = bool(vk::DebugUtilsMessageSeverityFlagBitsEXT, vk::DebugUtilsMessageTypeFlagsEXT,
-                             const vk::DebugUtilsMessengerCallbackDataEXT &);
+      const vk::DebugUtilsMessengerCallbackDataEXT &);
 
 private:
-  vk::raii::DebugUtilsMessengerEXT              m_messenger = nullptr;
+  vk::raii::DebugUtilsMessengerEXT m_messenger = nullptr;
   std::unique_ptr<std::function<callback_type>> m_callback; // Here unqiue ptr is needed so that if the object is moved
                                                             // from, then user_data pointer does not change.
 
 private:
-  static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT      message_severity,
-                                                       VkDebugUtilsMessageTypeFlagsEXT             message_types,
-                                                       const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
-                                                       void                                       *user_data) {
+  static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
+      VkDebugUtilsMessageTypeFlagsEXT message_types, const VkDebugUtilsMessengerCallbackDataEXT *callback_data,
+      void *user_data) {
     auto *ptr = static_cast<std::function<callback_type> *>(user_data);
 
     // NOTE[Sergei]: I'm not sure if callback_data ptr can be nullptr. Look here
@@ -116,18 +114,18 @@ public:
   debug_messenger() = default;
 
   debug_messenger(const vk::raii::Instance &instance, std::function<callback_type> callback = default_debug_callback,
-                  vk::DebugUtilsMessageSeverityFlagsEXT severity_flags = default_severity_flags,
-                  vk::DebugUtilsMessageTypeFlagsEXT     type_flags = default_type_flags)
+      vk::DebugUtilsMessageSeverityFlagsEXT severity_flags = default_severity_flags,
+      vk::DebugUtilsMessageTypeFlagsEXT type_flags = default_type_flags)
       : m_callback{std::make_unique<std::function<callback_type>>(callback)} {
     vk::DebugUtilsMessengerCreateInfoEXT create_info = {.messageSeverity = severity_flags,
-                                                        .messageType = type_flags,
-                                                        .pfnUserCallback = debug_callback,
-                                                        .pUserData = m_callback.get()};
+        .messageType = type_flags,
+        .pfnUserCallback = debug_callback,
+        .pUserData = m_callback.get()};
 
     m_messenger = instance.createDebugUtilsMessengerEXT(create_info);
   }
 
-  auto       &operator()()       &{ return m_messenger; }
+  auto &operator()() & { return m_messenger; }
   const auto &operator()() const & { return m_messenger; }
 };
 

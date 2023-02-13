@@ -17,15 +17,15 @@
 namespace ezvk {
 
 class image final {
-  vk::raii::Image        m_image = nullptr;
+  vk::raii::Image m_image = nullptr;
   vk::raii::DeviceMemory m_image_memory = nullptr;
 
 public:
   image() = default;
 
   image(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device, const vk::Extent3D &extent,
-        const vk::Format format, const vk::ImageTiling tiling, const vk::ImageUsageFlags usage,
-        const vk::MemoryPropertyFlags properties) {
+      const vk::Format format, const vk::ImageTiling tiling, const vk::ImageUsageFlags usage,
+      const vk::MemoryPropertyFlags properties) {
     // clang-format off
     vk::ImageCreateInfo image_info = {
         .imageType = vk::ImageType::e2D, .format = format, .extent = extent, .mipLevels = 1,
@@ -39,8 +39,7 @@ public:
 
     auto phys_device_memory_props = p_device.getMemoryProperties();
 
-    vk::MemoryAllocateInfo alloc_info = {
-        .allocationSize = memory_requirements.size,
+    vk::MemoryAllocateInfo alloc_info = {.allocationSize = memory_requirements.size,
         .memoryTypeIndex = find_memory_type(phys_device_memory_props, memory_requirements.memoryTypeBits, properties)};
 
     m_image_memory = l_device.allocateMemory(alloc_info);
@@ -48,7 +47,7 @@ public:
     l_device.bindImageMemory2({bind_info});
   }
 
-  auto       &operator()()       &{ return m_image; }
+  auto &operator()() & { return m_image; }
   const auto &operator()() const & { return m_image; }
 };
 
@@ -59,7 +58,7 @@ public:
   image_view() = default;
 
   image_view(const vk::raii::Device &l_device, vk::raii::Image &image, const vk::Format format,
-             const vk::ImageAspectFlagBits aspect_flags) {
+      const vk::ImageAspectFlagBits aspect_flags) {
     // clang-format off
     vk::ImageSubresourceRange range = {.aspectMask = aspect_flags, .baseMipLevel = 0,
                                        .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
@@ -72,7 +71,7 @@ public:
     m_image_view = l_device.createImageView(iv_create_info);
   }
 
-  auto       &operator()()       &{ return m_image_view; }
+  auto &operator()() & { return m_image_view; }
   const auto &operator()() const & { return m_image_view; }
 };
 } // namespace ezvk

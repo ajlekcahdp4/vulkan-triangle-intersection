@@ -34,10 +34,10 @@ public:
   vk_memory_error(std::string msg) : ezvk::vk_error{msg} {}
 };
 
-inline uint32_t find_memory_type(vk::PhysicalDeviceMemoryProperties mem_properties, uint32_t &type_filter,
-                                 vk::MemoryPropertyFlags property_flags) {
+inline uint32_t find_memory_type(
+    vk::PhysicalDeviceMemoryProperties mem_properties, uint32_t &type_filter, vk::MemoryPropertyFlags property_flags) {
   uint32_t i = 0;
-  auto     found = std::find_if(
+  auto found = std::find_if(
       mem_properties.memoryTypes.begin(), mem_properties.memoryTypes.end(), [&i, property_flags, type_filter](auto a) {
         return (type_filter & (1 << i++)) && ((a.propertyFlags & property_flags) == property_flags);
       });
@@ -46,11 +46,10 @@ inline uint32_t find_memory_type(vk::PhysicalDeviceMemoryProperties mem_properti
   return i - 1;
 }
 
-inline vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device            &l_device,
-                                                     vk::PhysicalDeviceMemoryProperties properties,
-                                                     vk::MemoryRequirements             requirements,
-                                                     vk::MemoryPropertyFlags            property_flags) {
-  uint32_t               mem_type_index = find_memory_type(properties, requirements.memoryTypeBits, property_flags);
+inline vk::raii::DeviceMemory allocate_device_memory(const vk::raii::Device &l_device,
+    vk::PhysicalDeviceMemoryProperties properties, vk::MemoryRequirements requirements,
+    vk::MemoryPropertyFlags property_flags) {
+  uint32_t mem_type_index = find_memory_type(properties, requirements.memoryTypeBits, property_flags);
   vk::MemoryAllocateInfo mem_allocate_info{.allocationSize = requirements.size, .memoryTypeIndex = mem_type_index};
 
   return {l_device, mem_allocate_info};
@@ -64,45 +63,45 @@ public:
   framebuffers() = default;
 
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
-               const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) {
+      const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) {
     uint32_t n_framebuffers = image_views.size();
     m_vector.reserve(n_framebuffers);
 
     for (const auto &view : image_views) {
       vk::FramebufferCreateInfo framebuffer_info = {.renderPass = *render_pass,
-                                                    .attachmentCount = 1,
-                                                    .pAttachments = std::addressof(*view),
-                                                    .width = extent.width,
-                                                    .height = extent.height,
-                                                    .layers = 1};
+          .attachmentCount = 1,
+          .pAttachments = std::addressof(*view),
+          .width = extent.width,
+          .height = extent.height,
+          .layers = 1};
       m_vector.emplace_back(l_device, framebuffer_info);
     }
   }
 
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
-               const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass,
-               const vk::raii::ImageView &depth_image_view) {
+      const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass,
+      const vk::raii::ImageView &depth_image_view) {
     uint32_t n_framebuffers = image_views.size();
     m_vector.reserve(n_framebuffers);
 
     for (const auto &view : image_views) {
       std::array<vk::ImageView, 2> attachments{*view, *depth_image_view};
-      vk::FramebufferCreateInfo    framebuffer_info = {.renderPass = *render_pass,
-                                                       .attachmentCount = attachments.size(),
-                                                       .pAttachments = attachments.data(),
-                                                       .width = extent.width,
-                                                       .height = extent.height,
-                                                       .layers = 1};
+      vk::FramebufferCreateInfo framebuffer_info = {.renderPass = *render_pass,
+          .attachmentCount = attachments.size(),
+          .pAttachments = attachments.data(),
+          .width = extent.width,
+          .height = extent.height,
+          .layers = 1};
       m_vector.emplace_back(l_device, framebuffer_info);
     }
   }
 
-  auto       &operator[](std::size_t pos)       &{ return m_vector.at(pos); }
+  auto &operator[](std::size_t pos) & { return m_vector.at(pos); }
   const auto &operator[](std::size_t pos) const & { return m_vector.at(pos); }
 
-  auto       &front()       &{ return m_vector.front(); }
+  auto &front() & { return m_vector.front(); }
   const auto &front() const & { return m_vector.front(); }
-  auto       &back()       &{ return m_vector.back(); }
+  auto &back() & { return m_vector.back(); }
   const auto &back() const & { return m_vector.back(); }
 
   auto size() const { return m_vector.size(); }
@@ -115,33 +114,33 @@ public:
 };
 
 class device_buffer final {
-  vk::raii::Buffer       m_buffer = nullptr;
+  vk::raii::Buffer m_buffer = nullptr;
   vk::raii::DeviceMemory m_memory = nullptr;
 
 public:
   device_buffer() = default;
 
   // Sure, this is not encapsulation, but rather a consistent interface
-  auto       &buffer() { return m_buffer; }
+  auto &buffer() { return m_buffer; }
   const auto &buffer() const { return m_buffer; }
-  auto       &memory() { return m_memory; }
+  auto &memory() { return m_memory; }
   const auto &memory() const { return m_memory; }
 
   static constexpr auto default_property_flags =
       vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent;
 
   device_buffer(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device, vk::DeviceSize size,
-                vk::BufferUsageFlags usage, vk::MemoryPropertyFlags property_flags = default_property_flags) {
+      vk::BufferUsageFlags usage, vk::MemoryPropertyFlags property_flags = default_property_flags) {
     m_buffer = l_device.createBuffer(vk::BufferCreateInfo{.size = size, .usage = usage});
-    m_memory = {allocate_device_memory(l_device, p_device.getMemoryProperties(), m_buffer.getMemoryRequirements(),
-                                       property_flags)};
+    m_memory = {allocate_device_memory(
+        l_device, p_device.getMemoryProperties(), m_buffer.getMemoryRequirements(), property_flags)};
     m_buffer.bindMemory(*m_memory, 0);
   }
 
   template <typename T>
   device_buffer(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device,
-                const vk::BufferUsageFlags usage, std::span<const T> data,
-                vk::MemoryPropertyFlags property_flags = default_property_flags)
+      const vk::BufferUsageFlags usage, std::span<const T> data,
+      vk::MemoryPropertyFlags property_flags = default_property_flags)
       : device_buffer{p_device, l_device, utils::sizeof_container(data), usage, property_flags} {
     copy_to_device(data);
   }
@@ -174,20 +173,20 @@ public:
   device_buffers() = default;
 
   device_buffers(std::size_t count, std::size_t max_size, const vk::raii::PhysicalDevice &p_device,
-                 const vk::raii::Device &l_device, vk::BufferUsageFlags usage,
-                 vk::MemoryPropertyFlags property_flags = device_buffer::default_property_flags) {
+      const vk::raii::Device &l_device, vk::BufferUsageFlags usage,
+      vk::MemoryPropertyFlags property_flags = device_buffer::default_property_flags) {
     m_vector.reserve(count);
     for (unsigned i = 0; i < count; i++) {
       m_vector.emplace_back(p_device, l_device, max_size, usage, property_flags);
     }
   }
 
-  auto       &operator[](std::size_t pos)       &{ return m_vector.at(pos); }
+  auto &operator[](std::size_t pos) & { return m_vector.at(pos); }
   const auto &operator[](std::size_t pos) const & { return m_vector.at(pos); }
 
-  auto       &front()       &{ return m_vector.front(); }
+  auto &front() & { return m_vector.front(); }
   const auto &front() const & { return m_vector.front(); }
-  auto       &back()       &{ return m_vector.back(); }
+  auto &back() & { return m_vector.back(); }
   const auto &back() const & { return m_vector.back(); }
 
   auto size() const { return m_vector.size(); }
@@ -201,16 +200,16 @@ public:
 
 class upload_context {
   const vk::raii::Device *m_device_ptr;
-  const device_queue     *m_transfer_queue;
+  const device_queue *m_transfer_queue;
 
-  vk::raii::Fence         m_upload_fence = nullptr;
+  vk::raii::Fence m_upload_fence = nullptr;
   vk::raii::CommandBuffer m_command_buffer = nullptr;
 
 public:
   upload_context() = default;
 
-  upload_context(const vk::raii::Device *l_device, const device_queue *transfer_queue,
-                 const vk::raii::CommandPool *pool)
+  upload_context(
+      const vk::raii::Device *l_device, const device_queue *transfer_queue, const vk::raii::CommandPool *pool)
       : m_device_ptr{l_device}, m_transfer_queue{transfer_queue} {
     assert(l_device);
     assert(transfer_queue);

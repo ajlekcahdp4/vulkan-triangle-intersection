@@ -22,8 +22,8 @@ namespace ezvk {
 inline vk::raii::ShaderModule create_module(const std::string &filename, const vk::raii::Device &device) {
   auto sprv = utils::read_file(filename);
 
-  vk::ShaderModuleCreateInfo module_info = {.codeSize = sprv.size(),
-                                            .pCode = reinterpret_cast<const uint32_t *>(sprv.data())};
+  vk::ShaderModuleCreateInfo module_info = {
+      .codeSize = sprv.size(), .pCode = reinterpret_cast<const uint32_t *>(sprv.data())};
 
   return vk::raii::ShaderModule{device, module_info};
 }

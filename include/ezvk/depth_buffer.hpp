@@ -22,18 +22,18 @@ inline std::vector<vk::Format> find_depth_format(const vk::raii::PhysicalDevice 
   auto predicate = [&p_device](const auto &candidate) -> bool {
     auto props = p_device.getFormatProperties(candidate);
     return (props.optimalTilingFeatures & vk::FormatFeatureFlagBits::eDepthStencilAttachment) ==
-           vk::FormatFeatureFlagBits::eDepthStencilAttachment;
+        vk::FormatFeatureFlagBits::eDepthStencilAttachment;
   };
 
-  std::array<vk::Format, 3> candidates = {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint,
-                                          vk::Format::eD24UnormS8Uint};
+  std::array<vk::Format, 3> candidates = {
+      vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint};
 
   return utils::find_all_that_satisfy(candidates.begin(), candidates.end(), predicate);
 }
 
 struct depth_buffer final {
 public:
-  ezvk::image      m_image;
+  ezvk::image m_image;
   ezvk::image_view m_image_view;
 
 private:
@@ -43,7 +43,7 @@ public:
   depth_buffer() = default;
 
   depth_buffer(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device, vk::Format depth_format,
-               const vk::Extent2D &extent2d)
+      const vk::Extent2D &extent2d)
       : m_depth_format{depth_format} {
     auto extent3d = vk::Extent3D{.width = extent2d.width, .height = extent2d.height, .depth = 1};
 

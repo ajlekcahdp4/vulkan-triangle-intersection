@@ -32,7 +32,7 @@ public:
 
 inline void check_glfw_error() {
   const char *description = nullptr;
-  const auto  ec = glfwGetError(&description);
+  const auto ec = glfwGetError(&description);
   if (ec != GLFW_NO_ERROR) throw ezvk::glfw_error{ec, description};
 }
 
@@ -70,7 +70,7 @@ public:
 
 inline std::vector<std::string> glfw_required_vk_extensions() {
   uint32_t size;
-  auto     arr = glfwGetRequiredInstanceExtensions(&size);
+  auto arr = glfwGetRequiredInstanceExtensions(&size);
   if (!arr) check_glfw_error();
 
   assert(arr);
@@ -87,7 +87,7 @@ public:
   surface() = default;
   surface(const vk::raii::Instance &instance, const unique_glfw_window &window);
 
-  auto       &operator()()       &{ return m_surface; }
+  auto &operator()() & { return m_surface; }
   const auto &operator()() const & { return m_surface; }
 };
 

@@ -32,7 +32,7 @@ inline std::vector<std::string> required_physical_device_extensions() { return {
 
 inline constexpr std::array<float, 4> hex_to_rgba(uint32_t hex) {
   return {((hex >> 24) & 0xff) / 255.0f, ((hex >> 16) & 0xff) / 255.0f, ((hex >> 8) & 0xff) / 255.0f,
-          ((hex >> 0) & 0xff) / 255.0f};
+      ((hex >> 0) & 0xff) / 255.0f};
 }
 
 template <typename T> inline constexpr glm::vec4 glm_vec_from_array(std::array<T, 4> arr) {

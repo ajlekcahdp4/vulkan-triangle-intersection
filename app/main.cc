@@ -70,8 +70,8 @@ using point_type = typename throttle::geometry::point3<float>;
 using triangle_type = typename throttle::geometry::triangle3<float>;
 
 template <typename T>
-throttle::geometry::collision_shape<T> shape_from_three_points(const point3<T> &a, const point3<T> &b,
-                                                               const point3<T> &c) {
+throttle::geometry::collision_shape<T> shape_from_three_points(
+    const point3<T> &a, const point3<T> &b, const point3<T> &c) {
   auto ab = b - a, ac = c - a;
 
   if (throttle::geometry::colinear(ab, ac)) { // Either a segment or a point
@@ -81,10 +81,10 @@ throttle::geometry::collision_shape<T> shape_from_three_points(const point3<T> &
     // This is a segment. Project the the points onto the most closely alligned axis.
     auto max_index = ab.max_component().first;
 
-    std::array<std::pair<point3<T>, T>, 3> arr = {std::make_pair(a, a[max_index]), std::make_pair(b, b[max_index]),
-                                                  std::make_pair(c, c[max_index])};
-    std::sort(arr.begin(), arr.end(),
-              [](const auto &left, const auto &right) -> bool { return left.second < right.second; });
+    std::array<std::pair<point3<T>, T>, 3> arr = {
+        std::make_pair(a, a[max_index]), std::make_pair(b, b[max_index]), std::make_pair(c, c[max_index])};
+    std::sort(
+        arr.begin(), arr.end(), [](const auto &left, const auto &right) -> bool { return left.second < right.second; });
     return segment3<T>{arr[0].first, arr[2].first};
   }
 
@@ -93,7 +93,7 @@ throttle::geometry::collision_shape<T> shape_from_three_points(const point3<T> &
 
 static unsigned apporoximate_optimal_depth(unsigned number) {
   constexpr unsigned max_depth = 6;
-  unsigned           log_num = std::log10(float(number));
+  unsigned log_num = std::log10(float(number));
   return std::min(max_depth, log_num);
 }
 
@@ -116,9 +116,9 @@ template <typename T> auto convert_to_cube_edges(const glm::vec3 &min_corner, T 
 
   return std::array<triangles::wireframe_vertex_type, 24>{
       {{a, color_index}, {b, color_index}, {a, color_index}, {d, color_index}, {b, color_index}, {c, color_index},
-       {d, color_index}, {c, color_index}, {e, color_index}, {f, color_index}, {e, color_index}, {h, color_index},
-       {f, color_index}, {g, color_index}, {g, color_index}, {h, color_index}, {a, color_index}, {e, color_index},
-       {b, color_index}, {f, color_index}, {c, color_index}, {g, color_index}, {d, color_index}, {h, color_index}}};
+          {d, color_index}, {c, color_index}, {e, color_index}, {f, color_index}, {e, color_index}, {h, color_index},
+          {f, color_index}, {g, color_index}, {g, color_index}, {h, color_index}, {a, color_index}, {e, color_index},
+          {b, color_index}, {f, color_index}, {c, color_index}, {g, color_index}, {d, color_index}, {h, color_index}}};
 }
 
 template <typename T>
@@ -138,9 +138,9 @@ auto convert_to_cube_edges(const glm::vec3 &min_corner, T width_x, T width_y, T 
 
   return std::array<triangles::wireframe_vertex_type, 24>{
       {{a, color_index}, {b, color_index}, {a, color_index}, {d, color_index}, {b, color_index}, {c, color_index},
-       {d, color_index}, {c, color_index}, {e, color_index}, {f, color_index}, {e, color_index}, {h, color_index},
-       {f, color_index}, {g, color_index}, {g, color_index}, {h, color_index}, {a, color_index}, {e, color_index},
-       {b, color_index}, {f, color_index}, {c, color_index}, {g, color_index}, {d, color_index}, {h, color_index}}};
+          {d, color_index}, {c, color_index}, {e, color_index}, {f, color_index}, {e, color_index}, {h, color_index},
+          {f, color_index}, {g, color_index}, {g, color_index}, {h, color_index}, {a, color_index}, {e, color_index},
+          {b, color_index}, {f, color_index}, {c, color_index}, {g, color_index}, {d, color_index}, {h, color_index}}};
 }
 
 template <typename T>
@@ -155,9 +155,9 @@ wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::octree<T, in
 
   for (const auto &elem : octree) {
     if (elem.m_contained_shape_indexes.empty()) continue;
-    glm::vec3 min_corner = {elem.m_center[0] - elem.m_halfwidth, elem.m_center[1] - elem.m_halfwidth,
-                            elem.m_center[2] - elem.m_halfwidth};
-    auto      vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2, triangles::wiremesh_index);
+    glm::vec3 min_corner = {
+        elem.m_center[0] - elem.m_halfwidth, elem.m_center[1] - elem.m_halfwidth, elem.m_center[2] - elem.m_halfwidth};
+    auto vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2, triangles::wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 
@@ -167,11 +167,11 @@ wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::octree<T, in
 template <typename T>
 wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::uniform_grid<T, indexed_geom> &uniform) {
   wireframe_vertices_type vertices;
-  auto                    cell_size = uniform.cell_size();
+  auto cell_size = uniform.cell_size();
 
   for (const auto &elem : uniform) {
     glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
-    auto      vertices_arr = convert_to_cube_edges(cell, cell_size, triangles::wiremesh_index);
+    auto vertices_arr = convert_to_cube_edges(cell, cell_size, triangles::wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 
@@ -186,8 +186,8 @@ wireframe_vertices_type fill_bounding_box_vertices(std::span<const triangle_type
     auto min_corner = box.minimum_corner();
 
     glm::vec3 cell = {min_corner[0], min_corner[1], min_corner[2]};
-    auto vertices_arr = convert_to_cube_edges(cell, 2 * box.m_halfwidth_x, 2 * box.m_halfwidth_y, 2 * box.m_halfwidth_z,
-                                              triangles::bbox_index);
+    auto vertices_arr = convert_to_cube_edges(
+        cell, 2 * box.m_halfwidth_x, 2 * box.m_halfwidth_y, 2 * box.m_halfwidth_z, triangles::bbox_index);
 
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
@@ -196,15 +196,15 @@ wireframe_vertices_type fill_bounding_box_vertices(std::span<const triangle_type
 }
 
 struct input_result {
-  bool                                          success = false;
-  std::vector<triangles::triangle_vertex_type>  tr_vert;
+  bool success = false;
+  std::vector<triangles::triangle_vertex_type> tr_vert;
   std::vector<triangles::wireframe_vertex_type> broad_vert, bbox_vert;
 };
 
 template <typename broad>
-input_result application_loop(std::istream &is, throttle::geometry::broadphase_structure<broad, indexed_geom> &cont,
-                              unsigned n) {
-  triangles_vertices_type    vertices;
+input_result application_loop(
+    std::istream &is, throttle::geometry::broadphase_structure<broad, indexed_geom> &cont, unsigned n) {
+  triangles_vertices_type vertices;
   std::vector<triangle_type> triangles;
 
   triangles.reserve(n);
@@ -271,12 +271,12 @@ int main(int argc, char *argv[]) try {
   // Intersection
   std::istream *isp = &std::cin;
 
-  std::string             opt, input;
+  std::string opt, input;
   po::options_description desc("Available options");
-  desc.add_options()("help,h", "Print this help message")(
-      "broad", po::value<std::string>(&opt)->default_value("octree"),
-      "Algorithm for broad phase (bruteforce, octree, uniform-grid)")("input,i", po::value<std::string>(&input),
-                                                                      "Optional input file to use instead of stdin");
+  desc.add_options()("help,h", "Print this help message")("broad",
+      po::value<std::string>(&opt)->default_value("octree"),
+      "Algorithm for broad phase (bruteforce, octree, uniform-grid)")(
+      "input,i", po::value<std::string>(&input), "Optional input file to use instead of stdin");
 
   po::variables_map vm;
   po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -299,10 +299,10 @@ int main(int argc, char *argv[]) try {
   constexpr float glfw_timeout = 0.25f;
   glfwWaitEventsTimeout(glfw_timeout);
   static constexpr auto app_info = vk::ApplicationInfo{.pApplicationName = "Hello, World!",
-                                                       .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-                                                       .pEngineName = "Junk Inc.",
-                                                       .engineVersion = VK_MAKE_VERSION(1, 0, 0),
-                                                       .apiVersion = VK_MAKE_VERSION(1, 1, 0)};
+      .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+      .pEngineName = "Junk Inc.",
+      .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+      .apiVersion = VK_MAKE_VERSION(1, 1, 0)};
 
   vk::raii::Context ctx;
 
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]) try {
 #ifdef USE_DEBUG_EXTENSION
   auto layers = triangles::required_vk_layers(true);
 #else
-  auto                   layers = triangles::required_vk_layers();
+  auto layers = triangles::required_vk_layers();
 #endif
 
   ezvk::instance raw_instance = {ctx, app_info, extensions.begin(), extensions.end(), layers.begin(), layers.end()};
@@ -333,10 +333,10 @@ int main(int argc, char *argv[]) try {
   auto p_device = std::move(suitable_physical_devices.front());
   auto window = ezvk::unique_glfw_window{"Triangles intersection", vk::Extent2D{800, 600}, true};
   auto surface = ezvk::surface{instance(), window};
-  triangles::applicaton_platform platform = {std::move(instance), std::move(window), std::move(surface),
-                                             std::move(p_device)};
+  triangles::applicaton_platform platform = {
+      std::move(instance), std::move(window), std::move(surface), std::move(p_device)};
 
-  auto            &app = triangles::application::instance().get(&platform);
+  auto &app = triangles::application::instance().get(&platform);
   std::atomic_bool should_close = false;
   std::atomic_bool should_kill = false;
 
