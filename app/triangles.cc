@@ -26,15 +26,15 @@
 #include <mutex>
 #include <thread>
 
-#include "broadphase/broadphase_structure.hpp"
-#include "broadphase/bruteforce.hpp"
-#include "broadphase/octree.hpp"
-#include "broadphase/uniform_grid.hpp"
+#include "geometry/broadphase/broadphase_structure.hpp"
+#include "geometry/broadphase/bruteforce.hpp"
+#include "geometry/broadphase/octree.hpp"
+#include "geometry/broadphase/uniform_grid.hpp"
 
-#include "narrowphase/collision_shape.hpp"
-#include "primitives/plane.hpp"
-#include "primitives/triangle3.hpp"
-#include "vec3.hpp"
+#include "geometry/narrowphase/collision_shape.hpp"
+#include "geometry/primitives/plane.hpp"
+#include "geometry/primitives/triangle3.hpp"
+#include "geometry/vec3.hpp"
 
 #include <chrono>
 #include <cmath>

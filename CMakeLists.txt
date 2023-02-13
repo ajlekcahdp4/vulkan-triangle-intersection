@@ -76,6 +76,8 @@ endif()
 
 add_subdirectory(spdlog EXCLUDE_FROM_ALL)
 add_subdirectory(glm EXCLUDE_FROM_ALL)
+
+set(HW3D_DISABLE_TESTS__ ON CACHE BOOL "Disable hw3d tests" FORCE)
 add_subdirectory(hw3d EXCLUDE_FROM_ALL)
 
 find_package(glfw3 REQUIRED)

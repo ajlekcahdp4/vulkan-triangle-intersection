@@ -11,7 +11,7 @@
 #pragma once
 
 #include "app/camera.hpp"
-#include "equal.hpp"
+#include "geometry/equal.hpp"
 
 #include "ezvk/utils/algorithm.hpp"
 #include "ezvk/utils/utility.hpp"
