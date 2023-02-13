@@ -88,7 +88,6 @@ public:
   surface() = default;
   surface(const vk::raii::Instance &instance, const unique_glfw_window &window);
 
-  auto &operator()() & { return m_surface; }
   const auto &operator()() const & { return m_surface; }
 };
 

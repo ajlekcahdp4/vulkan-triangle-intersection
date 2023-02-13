@@ -46,7 +46,6 @@ public:
     m_render_pass = device.createRenderPass(renderpass_info);
   }
 
-  auto &operator()() & { return m_render_pass; }
   const auto &operator()() const & { return m_render_pass; }
 };
 
@@ -64,7 +63,6 @@ public:
     m_layout = vk::raii::PipelineLayout{device, layout_info};
   }
 
-  auto &operator()() & { return m_layout; }
   const auto &operator()() const & { return m_layout; }
 };
 

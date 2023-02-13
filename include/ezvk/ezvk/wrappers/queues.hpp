@@ -74,8 +74,6 @@ public:
 
   auto family_index() const { return m_queue_family_index; }
   auto queue_index() const { return m_queue_index; }
-
-  auto &queue() { return m_queue; }
   const auto &queue() const { return m_queue; }
 };
 

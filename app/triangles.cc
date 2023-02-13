@@ -16,15 +16,8 @@
 #include "ezvk/window.hpp"
 #include "ezvk/wrappers/device.hpp"
 
+#include "application.hpp"
 #include "vertex.hpp"
-
-#include <algorithm>
-#include <atomic>
-#include <exception>
-#include <fstream>
-#include <iterator>
-#include <mutex>
-#include <thread>
 
 #include "geometry/broadphase/broadphase_structure.hpp"
 #include "geometry/broadphase/bruteforce.hpp"
@@ -36,16 +29,21 @@
 #include "geometry/primitives/triangle3.hpp"
 #include "geometry/vec3.hpp"
 
+#include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <concepts>
+#include <exception>
+#include <fstream>
 #include <iostream>
+#include <iterator>
+#include <mutex>
 #include <set>
 #include <string>
+#include <thread>
 #include <unordered_set>
 #include <vector>
-
-#include "application.hpp"
 
 #include <boost/program_options.hpp>
 #include <boost/program_options/option.hpp>

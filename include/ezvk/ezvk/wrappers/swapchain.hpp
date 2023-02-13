@@ -117,8 +117,8 @@ public:
   auto &operator()() & { return m_handle; }
   const auto &operator()() const & { return m_handle; }
 
-  auto &images() { return m_images; }
-  auto &image_views() { return m_image_views; }
+  auto &images() const & { return m_images; }
+  auto &image_views() const & { return m_image_views; }
 
   vk::SurfaceFormatKHR format() const { return m_format; }
   vk::Extent2D extent() const { return m_extent; }
