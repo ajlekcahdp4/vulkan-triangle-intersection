@@ -190,13 +190,16 @@ void application::initialize_logical_device_queues() {
   const auto graphics_queue_indices = ezvk::find_graphics_family_indices(m_platform.p_device());
   const auto present_queue_indices = ezvk::find_present_family_indices(m_platform.p_device(), m_platform.surface());
 
+  if (graphics_queue_indices.empty() || present_queue_indices.empty())
+    throw ezvk::vk_error{"Platform does not support graphics"};
+
   std::vector<ezvk::queue_family_index_type> intersection;
   std::set_intersection(graphics_queue_indices.begin(), graphics_queue_indices.end(), present_queue_indices.begin(),
       present_queue_indices.end(), std::back_inserter(intersection));
 
   const auto default_priority = 1.0f;
   std::vector<vk::DeviceQueueCreateInfo> reqs;
-  ezvk::queue_family_index_type chosen_graphics, chosen_present;
+  ezvk::queue_family_index_type chosen_graphics = 0, chosen_present = 0;
 
   if (intersection.empty()) {
     chosen_graphics = graphics_queue_indices.front(); // Maybe find a queue family with maximum number of queues

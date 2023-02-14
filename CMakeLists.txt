@@ -14,7 +14,7 @@ include(FetchContent)
 if(MSVC)
   add_compile_options(/W3)
 else()
-  add_compile_options(-Wall -Wextra)
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 find_package(Boost REQUIRED COMPONENTS program_options)
