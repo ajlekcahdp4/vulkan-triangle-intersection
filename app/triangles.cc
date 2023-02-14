@@ -3,7 +3,7 @@
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <tsimmerman.ss@phystech.edu>, <alex.rom23@mail.ru> wrote this file.  As long as you
  * retain this notice you can do whatever you want with this stuff. If we meet
- * some day, and you think this stuff is worth it, you can buy me a beer in
+ * some day, and you think this stuff is worth it, you can buy us a beer in
  * return.
  * ----------------------------------------------------------------------------
  */
@@ -17,7 +17,8 @@
 #include "ezvk/wrappers/device.hpp"
 
 #include "application.hpp"
-#include "vertex.hpp"
+#include "config.hpp"
+#include "misc/vertex.hpp"
 
 #include "geometry/broadphase/broadphase_structure.hpp"
 #include "geometry/broadphase/bruteforce.hpp"
@@ -52,6 +53,8 @@ namespace po = boost::program_options;
 #include <spdlog/cfg/env.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
+
+namespace {
 
 struct indexed_geom : public throttle::geometry::collision_shape<float> {
   unsigned index;
@@ -156,7 +159,7 @@ wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::octree<T, in
     if (elem.m_contained_shape_indexes.empty()) continue;
     glm::vec3 min_corner = {
         elem.m_center[0] - elem.m_halfwidth, elem.m_center[1] - elem.m_halfwidth, elem.m_center[2] - elem.m_halfwidth};
-    auto vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2, triangles::wiremesh_index);
+    auto vertices_arr = convert_to_cube_edges(min_corner, elem.m_halfwidth * 2, triangles::config::wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 
@@ -170,7 +173,7 @@ wireframe_vertices_type fill_wireframe_vertices(throttle::geometry::uniform_grid
 
   for (const auto &elem : uniform) {
     glm::vec3 cell = {elem.second[0] * cell_size, elem.second[1] * cell_size, elem.second[2] * cell_size};
-    auto vertices_arr = convert_to_cube_edges(cell, cell_size, triangles::wiremesh_index);
+    auto vertices_arr = convert_to_cube_edges(cell, cell_size, triangles::config::wiremesh_index);
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
 
@@ -186,7 +189,7 @@ wireframe_vertices_type fill_bounding_box_vertices(std::span<const triangle_type
 
     glm::vec3 cell = {min_corner[0], min_corner[1], min_corner[2]};
     auto vertices_arr = convert_to_cube_edges(
-        cell, 2 * box.m_halfwidth_x, 2 * box.m_halfwidth_y, 2 * box.m_halfwidth_z, triangles::bbox_index);
+        cell, 2 * box.m_halfwidth_x, 2 * box.m_halfwidth_y, 2 * box.m_halfwidth_z, triangles::config::bbox_index);
 
     std::copy(vertices_arr.begin(), vertices_arr.end(), std::back_inserter(vertices));
   }
@@ -229,7 +232,8 @@ input_result application_loop(
     triangles::triangle_vertex_type vertex;
 
     auto norm = triangle.norm();
-    vertex.color_index = (intersecting.contains(i) ? triangles::intersect_index : triangles::regular_index);
+    vertex.color_index =
+        (intersecting.contains(i) ? triangles::config::intersect_index : triangles::config::regular_index);
     vertex.norm = {norm[0], norm[1], norm[2]};
 
     vertex.pos = {triangle.a[0], triangle.a[1], triangle.a[2]};
@@ -258,6 +262,8 @@ input_result application_loop(
 
   return {true, vertices, mesh_vertices, bboxes_vertices};
 }
+
+} // namespace
 
 int main(int argc, char *argv[]) try {
   auto err_logger = spdlog::stderr_color_mt("stderr");
@@ -305,12 +311,12 @@ int main(int argc, char *argv[]) try {
 
   vk::raii::Context ctx;
 
-  auto extensions = triangles::required_vk_extensions();
+  auto extensions = triangles::config::required_vk_extensions();
 
 #ifdef USE_DEBUG_EXTENSION
-  auto layers = triangles::required_vk_layers(true);
+  auto layers = triangles::config::required_vk_layers(true);
 #else
-  auto layers = triangles::required_vk_layers();
+  auto layers = triangles::config::required_vk_layers();
 #endif
 
   ezvk::instance raw_instance = {ctx, app_info, extensions.begin(), extensions.end(), layers.begin(), layers.end()};
@@ -321,7 +327,7 @@ int main(int argc, char *argv[]) try {
   ezvk::generic_instance instance = std::move(raw_instance);
 #endif
 
-  auto physical_device_extensions = triangles::required_physical_device_extensions();
+  auto physical_device_extensions = triangles::config::required_physical_device_extensions();
   auto suitable_physical_devices = ezvk::physical_device_selector::enumerate_suitable_physical_devices(
       instance(), physical_device_extensions.begin(), physical_device_extensions.end());
 

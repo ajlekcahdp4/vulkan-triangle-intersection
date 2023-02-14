@@ -122,6 +122,8 @@ set(APPLICATION_SOURCES
   imgui/imgui_widgets.cpp
   imgui/backends/imgui_impl_glfw.cpp
   imgui/backends/imgui_impl_vulkan.cpp
+  app/gui.cc
+  app/application.cc
 )
 
 add_spirv_shader(triangles_vert shaders/triangles.vert)
@@ -131,7 +133,7 @@ add_spirv_shader(wireframe_frag shaders/wireframe.frag)
 add_custom_target(shaders ALL DEPENDS triangles_vert triangles_frag wireframe_vert wireframe_frag)
 
 add_executable(triangles ${APPLICATION_SOURCES})
-target_include_directories(triangles PUBLIC imgui imgui/backends include/unified_includes include/app)
+target_include_directories(triangles PUBLIC imgui imgui/backends include/unified_includes include/app app/)
 
 add_custom_command(TARGET triangles POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:triangles>/shaders

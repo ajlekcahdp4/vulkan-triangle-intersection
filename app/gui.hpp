@@ -8,11 +8,19 @@
  * ----------------------------------------------------------------------------
  */
 
+#pragma once
+
+#include "unified_includes/glm_inlcude.hpp"
 #include "unified_includes/vulkan_hpp_include.hpp"
 
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_vulkan.h"
 #include "imgui.h"
+
+#include "config.hpp"
+#include "misc/ubo.hpp"
+#include "misc/utility.hpp"
+#include "platform.hpp"
 
 #include "ezvk/debug.hpp"
 #include "ezvk/window.hpp"
@@ -31,53 +39,11 @@
 
 namespace triangles::gui {
 
-constexpr uint32_t default_descriptor_count = 1000;
-
-constexpr std::array<vk::DescriptorPoolSize, 11> imgui_pool_sizes = {
-    {{vk::DescriptorType::eSampler, default_descriptor_count},
-        {vk::DescriptorType::eCombinedImageSampler, default_descriptor_count},
-        {vk::DescriptorType::eSampledImage, default_descriptor_count},
-        {vk::DescriptorType::eStorageImage, default_descriptor_count},
-        {vk::DescriptorType::eUniformTexelBuffer, default_descriptor_count},
-        {vk::DescriptorType::eStorageTexelBuffer, default_descriptor_count},
-        {vk::DescriptorType::eUniformBuffer, default_descriptor_count},
-        {vk::DescriptorType::eStorageBuffer, default_descriptor_count},
-        {vk::DescriptorType::eUniformBufferDynamic, default_descriptor_count},
-        {vk::DescriptorType::eStorageBufferDynamic, default_descriptor_count},
-        {vk::DescriptorType::eInputAttachment, default_descriptor_count}}};
-
-constexpr vk::AttachmentDescription imgui_renderpass_attachment_description = {
-    .flags = vk::AttachmentDescriptionFlags{},
-    .format = vk::Format::eB8G8R8A8Unorm,
-    .samples = vk::SampleCountFlagBits::e1,
-    .loadOp = vk::AttachmentLoadOp::eLoad,
-    .storeOp = vk::AttachmentStoreOp::eStore,
-    .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-    .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-    .initialLayout = vk::ImageLayout::eColorAttachmentOptimal,
-    .finalLayout = vk::ImageLayout::ePresentSrcKHR};
-
-constexpr std::array<vk::SubpassDependency, 1> imgui_subpass_dependency = {
-    vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
-        .dstSubpass = 0,
-        .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        .srcAccessMask = vk::AccessFlagBits::eNone,
-        .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
-
-namespace detail {
-
 class imgui_resources {
   vk::raii::DescriptorPool m_descriptor_pool = nullptr;
   ezvk::render_pass m_imgui_render_pass;
-  vk::raii::CommandBuffers m_imgui_command_buffers = nullptr;
   ezvk::framebuffers m_imgui_framebuffers;
-  bool m_initialized = false;
-};
 
-} // namespace detail
-
-template <typename t_application> class imgui_related_data {
 private:
   bool m_initialized = false;
 
@@ -88,87 +54,36 @@ private:
   }
 
 public:
-  vk::raii::DescriptorPool m_descriptor_pool = nullptr;
-  ezvk::render_pass m_imgui_render_pass;
-  vk::raii::CommandBuffers m_imgui_command_buffers = nullptr;
-  ezvk::framebuffers m_imgui_framebuffers;
+  imgui_resources() = default;
 
-  imgui_related_data() = default;
+  imgui_resources(const applicaton_platform &plat, const vk::raii::Device &l_device, const ezvk::device_queue &graphics,
+      const ezvk::swapchain &swapchain, ezvk::upload_context &ctx);
 
-  imgui_related_data(t_application &app) {
-    m_descriptor_pool = ezvk::create_descriptor_pool(app.m_l_device(), imgui_pool_sizes);
+  imgui_resources(const imgui_resources &rhs) = delete;
+  imgui_resources &operator=(const imgui_resources &rhs) = delete;
 
-    vk::AttachmentReference color_attachment_ref = {
-        .attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
-
-    vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-        .colorAttachmentCount = 1,
-        .pColorAttachments = &color_attachment_ref};
-
-    std::array<vk::AttachmentDescription, 1> attachments{imgui_renderpass_attachment_description};
-    m_imgui_render_pass = ezvk::render_pass(app.m_l_device(), subpass, attachments, imgui_subpass_dependency);
-
-    vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *app.m_command_pool,
-        .level = vk::CommandBufferLevel::ePrimary,
-        .commandBufferCount = t_application::c_max_frames_in_flight};
-
-    m_imgui_command_buffers = vk::raii::CommandBuffers{app.m_l_device(), alloc_info};
-    m_imgui_framebuffers = {
-        app.m_l_device(), app.m_swapchain.image_views(), app.m_swapchain.extent(), m_imgui_render_pass()};
-
-    IMGUI_CHECKVERSION(); // Verify that compiled imgui binary matches the header
-    ImGui::CreateContext();
-
-    ImGui_ImplGlfw_InitForVulkan(app.m_platform.window()(), true);
-    ImGui_ImplVulkan_InitInfo info = {.Instance = *app.m_platform.instance(),
-        .PhysicalDevice = *app.m_platform.p_device(),
-        .Device = *app.m_l_device(),
-        .QueueFamily = app.m_graphics_present->graphics().family_index(),
-        .Queue = *app.m_graphics_present->graphics().queue(),
-        .PipelineCache = VK_NULL_HANDLE,
-        .DescriptorPool = *m_descriptor_pool,
-        .Subpass = 0,
-        .MinImageCount = app.m_swapchain.min_image_count(),
-        .ImageCount = static_cast<uint32_t>(app.m_swapchain.images().size()),
-        .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
-        .Allocator = nullptr,
-        .CheckVkResultFn = imgui_related_data::imgui_check_vk_error};
-
-    ImGui_ImplVulkan_Init(&info, *m_imgui_render_pass());
-    // Here we should create a render pass specific to Dear ImGui
-
-    // Upload font textures to the GPU via oneshot immediate submit
-    app.m_oneshot_upload.immediate_submit(
-        [](vk::raii::CommandBuffer &cmd) { ImGui_ImplVulkan_CreateFontsTexture(*cmd); });
-
-    m_initialized = true;
-  }
-
-  imgui_related_data(const imgui_related_data &rhs) = delete;
-  imgui_related_data &operator=(const imgui_related_data &rhs) = delete;
-
-  void swap(imgui_related_data &rhs) {
+  void swap(imgui_resources &rhs) {
     std::swap(m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(m_imgui_render_pass, rhs.m_imgui_render_pass);
-    std::swap(m_imgui_command_buffers, rhs.m_imgui_command_buffers);
     std::swap(m_imgui_framebuffers, rhs.m_imgui_framebuffers);
     std::swap(m_initialized, rhs.m_initialized);
   }
 
-  imgui_related_data(imgui_related_data &&rhs) { swap(rhs); }
+  imgui_resources(imgui_resources &&rhs) { swap(rhs); }
 
-  imgui_related_data &operator=(imgui_related_data &&rhs) {
+  imgui_resources &operator=(imgui_resources &&rhs) {
     swap(rhs);
     return *this;
   }
 
-  ~imgui_related_data() {
+  ~imgui_resources() {
     if (!m_initialized) return;
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
   }
 
+public:
   void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
     cmd.reset();
     cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
@@ -185,6 +100,11 @@ public:
     cmd.end();
   }
 
+  void update_after_resize(const vk::raii::Device &l_device, const ezvk::swapchain &swapchain) {
+    ImGui_ImplVulkan_SetMinImageCount(swapchain.min_image_count());
+    m_imgui_framebuffers = {l_device, swapchain.image_views(), swapchain.extent(), m_imgui_render_pass()};
+  }
+
   static void new_frame() {
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -192,6 +112,33 @@ public:
   }
 
   static void render_frame() { ImGui::Render(); }
+};
+
+struct app_gui {
+  using array_color4 = std::array<float, 4>;
+  struct parameters_type {
+    float linear_velocity_reg = 500.0f;
+    float angular_velocity_reg = 30.0f;
+    float linear_velocity_mod = 5000.0f;
+    float render_distance = 30000.0f;
+    float fov = 90.0f;
+
+    float light_dir_yaw = 0.0f, light_dir_pitch = 0.0f;
+    float ambient_strength = 0.1f;
+
+    glm::vec4 light_dir;
+
+    std::array<float, 4> light_color = hex_to_rgba(0xffffffff);
+    std::array<float, 4> clear_color = hex_to_rgba(0x181818ff);
+
+    std::array<array_color4, c_color_count> colors = {
+        hex_to_rgba(0x89c4e1ff), hex_to_rgba(0xff4c29ff), hex_to_rgba(0x2f363aff), hex_to_rgba(0x338568ff)};
+
+    bool draw_broad_phase = false, draw_bbox = false;
+  };
+
+  static parameters_type params;
+  static void draw();
 };
 
 } // namespace triangles::gui
