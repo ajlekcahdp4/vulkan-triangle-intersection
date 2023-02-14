@@ -24,12 +24,13 @@ namespace ezvk {
 inline vk::raii::DescriptorPool create_descriptor_pool(
     const vk::raii::Device &l_device, std::span<const vk::DescriptorPoolSize> pool_sizes) {
   const auto accum_func = [](uint32_t sum, vk::DescriptorPoolSize const &dps) { return sum + dps.descriptorCount; };
-  uint32_t max_sets = std::accumulate(pool_sizes.begin(), pool_sizes.end(), 0, accum_func);
+  const uint32_t max_sets = std::accumulate(pool_sizes.begin(), pool_sizes.end(), 0, accum_func);
 
-  vk::DescriptorPoolCreateInfo descriptor_info = {.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-      .maxSets = max_sets,
-      .poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
-      .pPoolSizes = pool_sizes.data()};
+  const auto descriptor_info =
+      vk::DescriptorPoolCreateInfo{.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
+          .maxSets = max_sets,
+          .poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
+          .pPoolSizes = pool_sizes.data()};
 
   return vk::raii::DescriptorPool(l_device, descriptor_info);
 }
@@ -60,7 +61,7 @@ public:
       const vk::raii::DescriptorPool &pool, std::span<const binding_description> bindings) {
     m_layout = create_decriptor_set_layout(l_device, bindings);
 
-    auto set_alloc_info =
+    const auto set_alloc_info =
         vk::DescriptorSetAllocateInfo{.descriptorPool = *pool, .descriptorSetCount = 1, .pSetLayouts = &(*m_layout)};
 
     m_descriptor_set = std::move((vk::raii::DescriptorSets{l_device, set_alloc_info}).front());
@@ -69,7 +70,8 @@ public:
     buffer_data.reserve(uniform_buffers.size());
 
     for (unsigned i = 0; i < uniform_buffers.size(); ++i) {
-      buffer_description temp = {vk::DescriptorType::eUniformBuffer, VK_WHOLE_SIZE, uniform_buffers[i].buffer()};
+      const auto temp =
+          buffer_description{vk::DescriptorType::eUniformBuffer, VK_WHOLE_SIZE, uniform_buffers[i].buffer()};
       buffer_data.push_back(temp);
     }
 
@@ -91,13 +93,13 @@ public:
       vk::BufferView buffer_view;
       if (bd.buf_view) buffer_view = **bd.buf_view;
 
-      vk::WriteDescriptorSet set = {.dstSet = *m_descriptor_set,
-          .dstBinding = dst_binding++,
-          .dstArrayElement = 0,
-          .descriptorCount = 1,
-          .descriptorType = bd.type,
+      // clang-format off
+      const auto set = vk::WriteDescriptorSet{.dstSet = *m_descriptor_set,
+          .dstBinding = dst_binding++, .dstArrayElement = 0,
+          .descriptorCount = 1, .descriptorType = bd.type,
           .pBufferInfo = &buffer_infos.back(),
           .pTexelBufferView = (bd.buf_view ? &buffer_view : nullptr)};
+      // clang-format on
 
       write_descriptor_sets.push_back(set);
     }
@@ -116,7 +118,7 @@ private:
           return vk::DescriptorSetLayoutBinding{i++, elem.type, elem.count, elem.flags};
         });
 
-    vk::DescriptorSetLayoutCreateInfo descriptor_set_info = {
+    const auto descriptor_set_info = vk::DescriptorSetLayoutCreateInfo{
         .bindingCount = static_cast<uint32_t>(bindings.size()), .pBindings = bindings.data()};
 
     return vk::raii::DescriptorSetLayout{l_device, descriptor_set_info};

@@ -31,8 +31,8 @@ inline std::vector<vk::Format> find_depth_format(const vk::raii::PhysicalDevice 
   return utils::find_all_that_satisfy(candidates.begin(), candidates.end(), predicate);
 }
 
-static inline vk::AttachmentDescription create_depth_attachment(vk::Format depth_format) {
-  return {.flags = vk::AttachmentDescriptionFlags{},
+inline auto create_depth_attachment(vk::Format depth_format) {
+  return vk::AttachmentDescription{.flags = {},
       .format = depth_format,
       .samples = vk::SampleCountFlagBits::e1,
       .loadOp = vk::AttachmentLoadOp::eClear,
@@ -57,7 +57,7 @@ public:
   depth_buffer(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device, vk::Format depth_format,
       const vk::Extent2D &extent2d)
       : m_depth_format{depth_format} {
-    auto extent3d = vk::Extent3D{.width = extent2d.width, .height = extent2d.height, .depth = 1};
+    const auto extent3d = vk::Extent3D{.width = extent2d.width, .height = extent2d.height, .depth = 1};
 
     // clang-format off
     m_image = {p_device, l_device, extent3d, depth_format, vk::ImageTiling::eOptimal,

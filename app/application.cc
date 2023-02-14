@@ -63,8 +63,7 @@ static constexpr vk::AttachmentDescription primitives_renderpass_attachment_desc
     .initialLayout = vk::ImageLayout::eUndefined,
     .finalLayout = vk::ImageLayout::eColorAttachmentOptimal};
 
-static constexpr std::array<vk::SubpassDependency, 1> depth_subpass_dependency = {vk::SubpassDependency{
-    .srcSubpass = VK_SUBPASS_EXTERNAL,
+static constexpr auto depth_subpass_dependency = std::array{vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
     .dstSubpass = 0,
     .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
     .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
@@ -89,14 +88,14 @@ application::application(applicaton_platform platform) : m_platform{std::move(pl
   initialize_imgui();                // Initialize GUI specific objects
 }
 
-static constexpr std::array<vk::DescriptorPoolSize, 1> c_global_descriptor_pool_sizes = {
-    {{vk::DescriptorType::eUniformBuffer, 16}}};
+static constexpr auto c_global_descriptor_pool_sizes =
+    std::to_array<vk::DescriptorPoolSize>({{vk::DescriptorType::eUniformBuffer, 16}});
 
 // We use two pipelines with the same descriptor set, so we should allocate a descriptor set with 2 binding points for
 // a uniform buffer.
-static constexpr std::array<ezvk::descriptor_set::binding_description, 2> descriptor_set_bindings = {
+static constexpr auto c_descriptor_set_bindings = std::to_array<ezvk::descriptor_set::binding_description>(
     {{vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics},
-        {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics}}};
+        {vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eAllGraphics}});
 
 static constexpr vk::PipelineRasterizationStateCreateInfo triangle_rasterization_state_create_info = {
     .depthClampEnable = VK_FALSE,
@@ -124,23 +123,23 @@ void application::initialize_primitives_pipeline() {
   m_uniform_buffers = {c_max_frames_in_flight, sizeof(triangles::ubo), m_platform.p_device(), m_l_device(),
       vk::BufferUsageFlagBits::eUniformBuffer};
 
-  m_descriptor_set = {m_l_device(), m_uniform_buffers, m_descriptor_pool, descriptor_set_bindings};
+  m_descriptor_set = {m_l_device(), m_uniform_buffers, m_descriptor_pool, c_descriptor_set_bindings};
 
   // clang-format off
-    constexpr vk::AttachmentReference 
-      color_attachment_ref = {.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal}, 
-      depth_attachment_ref = {.attachment = 1, .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
+  constexpr vk::AttachmentReference 
+    color_attachment_ref = {.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal}, 
+    depth_attachment_ref = {.attachment = 1, .layout = vk::ImageLayout::eDepthStencilAttachmentOptimal};
   // clang-format on
 
-  vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+  const auto subpass = vk::SubpassDescription{.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
       .colorAttachmentCount = 1,
       .pColorAttachments = &color_attachment_ref,
       .pDepthStencilAttachment = &depth_attachment_ref};
 
-  const vk::Format depth_format = ezvk::find_depth_format(m_platform.p_device()).at(0);
+  const auto depth_format = ezvk::find_depth_format(m_platform.p_device()).at(0);
 
-  std::array<vk::AttachmentDescription, 2> attachments = {
-      primitives_renderpass_attachment_description, ezvk::create_depth_attachment(depth_format)};
+  const auto attachments =
+      std::array{primitives_renderpass_attachment_description, ezvk::create_depth_attachment(depth_format)};
 
   m_primitives_render_pass = ezvk::render_pass{m_l_device(), subpass, attachments, depth_subpass_dependency};
   m_depth_buffer = {m_platform.m_p_device, m_l_device(), depth_format, m_swapchain.extent()};
@@ -163,45 +162,42 @@ void application::initialize_input_hanlder() {
   using button_state = keyboard_handler::button_state;
 
   auto &handler = keyboard_handler::instance();
-  const std::array<std::pair<keyboard_handler::key_index, keyboard_handler::button_state>, 13> keys = {
+  const auto keys = std::to_array<std::pair<keyboard_handler::key_index, keyboard_handler::button_state>>(
       {{GLFW_KEY_W, button_state::e_held_down}, {GLFW_KEY_A, button_state::e_held_down},
           {GLFW_KEY_S, button_state::e_held_down}, {GLFW_KEY_D, button_state::e_held_down},
           {GLFW_KEY_SPACE, button_state::e_held_down}, {GLFW_KEY_C, button_state::e_held_down},
           {GLFW_KEY_Q, button_state::e_held_down}, {GLFW_KEY_E, button_state::e_held_down},
           {GLFW_KEY_RIGHT, button_state::e_held_down}, {GLFW_KEY_LEFT, button_state::e_held_down},
           {GLFW_KEY_UP, button_state::e_held_down}, {GLFW_KEY_DOWN, button_state::e_held_down},
-          {GLFW_KEY_LEFT_SHIFT, button_state::e_pressed}}};
+          {GLFW_KEY_LEFT_SHIFT, button_state::e_pressed}});
 
   handler.monitor(keys.begin(), keys.end());
   handler.bind(m_platform.window()());
 }
 
 void application::initialize_imgui() {
-  m_imgui_data =
-      gui::imgui_resources{m_platform, m_l_device(), m_graphics_present->graphics(), m_swapchain, m_oneshot_upload};
+  m_imgui_data = {m_platform, m_l_device(), m_graphics_present->graphics(), m_swapchain, m_oneshot_upload};
 
-  vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *m_command_pool,
+  const auto alloc_info = vk::CommandBufferAllocateInfo{.commandPool = *m_command_pool,
       .level = vk::CommandBufferLevel::ePrimary,
       .commandBufferCount = c_max_frames_in_flight};
 
   m_imgui_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
-
   ImGui::StyleColorsDark();
 }
 
 void application::initialize_logical_device_queues() {
-  auto graphics_queue_indices = ezvk::find_graphics_family_indices(m_platform.p_device());
-  auto present_queue_indices = ezvk::find_present_family_indices(m_platform.p_device(), m_platform.surface());
+  const auto graphics_queue_indices = ezvk::find_graphics_family_indices(m_platform.p_device());
+  const auto present_queue_indices = ezvk::find_present_family_indices(m_platform.p_device(), m_platform.surface());
 
   std::vector<ezvk::queue_family_index_type> intersection;
   std::set_intersection(graphics_queue_indices.begin(), graphics_queue_indices.end(), present_queue_indices.begin(),
       present_queue_indices.end(), std::back_inserter(intersection));
 
-  const float default_priority = 1.0f;
-
+  const auto default_priority = 1.0f;
   std::vector<vk::DeviceQueueCreateInfo> reqs;
-
   ezvk::queue_family_index_type chosen_graphics, chosen_present;
+
   if (intersection.empty()) {
     chosen_graphics = graphics_queue_indices.front(); // Maybe find a queue family with maximum number of queues
     chosen_present = present_queue_indices.front();
@@ -214,20 +210,21 @@ void application::initialize_logical_device_queues() {
     reqs.push_back({.queueFamilyIndex = chosen_graphics, .queueCount = 1, .pQueuePriorities = &default_priority});
   }
 
-  auto extensions = config::required_physical_device_extensions();
-  m_l_device = ezvk::logical_device{m_platform.p_device(), reqs, extensions.begin(), extensions.end()};
+  const auto extensions = config::required_physical_device_extensions();
+  m_l_device = {m_platform.p_device(), reqs, extensions.begin(), extensions.end()};
+
   m_graphics_present = ezvk::make_graphics_present_queues(
       m_l_device(), chosen_graphics, c_graphics_queue_index, chosen_present, c_present_queue_index);
 }
 
 void application::initialize_frame_rendering_info() {
   for (uint32_t i = 0; i < c_max_frames_in_flight; ++i) {
-    frame_rendering_info primitive = {m_l_device().createSemaphore({}), m_l_device().createSemaphore({}),
+    auto primitive = frame_rendering_info{m_l_device().createSemaphore({}), m_l_device().createSemaphore({}),
         m_l_device().createFence({.flags = vk::FenceCreateFlagBits::eSignaled})};
     m_rendering_info.push_back(std::move(primitive));
   }
 
-  vk::CommandBufferAllocateInfo alloc_info = {.commandPool = *m_command_pool,
+  const auto alloc_info = vk::CommandBufferAllocateInfo{.commandPool = *m_command_pool,
       .level = vk::CommandBufferLevel::ePrimary,
       .commandBufferCount = c_max_frames_in_flight};
 
@@ -242,13 +239,13 @@ void application::recreate_swap_chain() {
     glfwWaitEvents();
   }
 
-  const auto &old_swapchain = m_swapchain();
+  auto &old_swapchain = m_swapchain();
 
   auto new_swapchain = ezvk::swapchain{
       m_platform.p_device(), m_l_device(), m_platform.surface(), extent, m_graphics_present.get(), *old_swapchain};
 
   m_l_device().waitIdle();
-  m_swapchain().clear(); // Destroy the old swapchain
+  old_swapchain.clear(); // Destroy the old swapchain
   m_swapchain = std::move(new_swapchain);
 
   // Minimum number of images may have changed during swapchain recreation
@@ -261,39 +258,38 @@ void application::recreate_swap_chain() {
 
 void application::physics_loop(float delta) {
   auto &handler = ezio::keyboard_handler::instance();
-  auto events = handler.poll();
+  const auto events = handler.poll();
 
   if (ImGui::GetIO().WantCaptureKeyboard) return;
-
   if (events.contains(GLFW_KEY_LEFT_SHIFT)) m_mod_speed = !m_mod_speed;
 
   const auto calculate_movement = [events](int plus, int minus) {
     return (1.0f * events.count(plus)) - (1.0f * events.count(minus));
   };
 
-  auto fwd_movement = calculate_movement(GLFW_KEY_W, GLFW_KEY_S);
-  auto side_movement = calculate_movement(GLFW_KEY_D, GLFW_KEY_A);
-  auto up_movement = calculate_movement(GLFW_KEY_SPACE, GLFW_KEY_C);
+  const auto fwd_movement = calculate_movement(GLFW_KEY_W, GLFW_KEY_S);
+  const auto side_movement = calculate_movement(GLFW_KEY_D, GLFW_KEY_A);
+  const auto up_movement = calculate_movement(GLFW_KEY_SPACE, GLFW_KEY_C);
 
-  glm::vec3 dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways() +
+  const auto dir_movement = fwd_movement * m_camera.get_direction() + side_movement * m_camera.get_sideways() +
       up_movement * m_camera.get_up();
+  const auto speed = (m_mod_speed ? gui_type::params.linear_velocity_mod : gui_type::params.linear_velocity_reg);
 
-  float speed = (m_mod_speed ? gui_type::params.linear_velocity_mod : gui_type::params.linear_velocity_reg);
   if (throttle::geometry::is_definitely_greater(glm::length(dir_movement), 0.0f)) {
     m_camera.translate(glm::normalize(dir_movement) * speed * delta);
   }
 
-  auto yaw_movement = calculate_movement(GLFW_KEY_RIGHT, GLFW_KEY_LEFT);
-  auto pitch_movement = calculate_movement(GLFW_KEY_DOWN, GLFW_KEY_UP);
-  auto roll_movement = calculate_movement(GLFW_KEY_Q, GLFW_KEY_E);
+  const auto yaw_movement = calculate_movement(GLFW_KEY_RIGHT, GLFW_KEY_LEFT);
+  const auto pitch_movement = calculate_movement(GLFW_KEY_DOWN, GLFW_KEY_UP);
+  const auto roll_movement = calculate_movement(GLFW_KEY_Q, GLFW_KEY_E);
 
-  auto angular_per_delta_t = glm::radians(gui_type::params.angular_velocity_reg) * delta;
+  const auto angular_per_delta_t = glm::radians(gui_type::params.angular_velocity_reg) * delta;
 
-  glm::quat yaw_rotation = glm::angleAxis(yaw_movement * angular_per_delta_t, m_camera.get_up());
-  glm::quat pitch_rotation = glm::angleAxis(pitch_movement * angular_per_delta_t, m_camera.get_sideways());
-  glm::quat roll_rotation = glm::angleAxis(roll_movement * angular_per_delta_t, m_camera.get_direction());
+  const auto yaw_rotation = glm::angleAxis(yaw_movement * angular_per_delta_t, m_camera.get_up());
+  const auto pitch_rotation = glm::angleAxis(pitch_movement * angular_per_delta_t, m_camera.get_sideways());
+  const auto roll_rotation = glm::angleAxis(roll_movement * angular_per_delta_t, m_camera.get_direction());
 
-  glm::quat resulting_rotation = yaw_rotation * pitch_rotation * roll_rotation;
+  const auto resulting_rotation = yaw_rotation * pitch_rotation * roll_rotation;
   m_camera.rotate(resulting_rotation);
 }
 
@@ -316,7 +312,7 @@ void application::fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t ima
   clear_values[0].color = gui_type::params.clear_color;
   clear_values[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
 
-  vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_primitives_render_pass(),
+  const auto render_pass_info = vk::RenderPassBeginInfo{.renderPass = *m_primitives_render_pass(),
       .framebuffer = *m_framebuffers[image_index],
       .renderArea = {vk::Offset2D{0, 0}, extent},
       .clearValueCount = static_cast<uint32_t>(clear_values.size()),
@@ -324,7 +320,7 @@ void application::fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t ima
 
   cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
 
-  vk::Viewport viewport = {0.0f, static_cast<float>(extent.height), static_cast<float>(extent.width),
+  const auto viewport = vk::Viewport{0.0f, static_cast<float>(extent.height), static_cast<float>(extent.width),
       -static_cast<float>(extent.height), 0.0f, 1.0f};
 
   cmd.setViewport(0, {viewport});
@@ -362,7 +358,7 @@ void application::render_frame() {
   static_cast<void>(m_l_device().waitForFences({*current_frame_data.in_flight_fence}, VK_TRUE, UINT64_MAX));
   // Static cast to silence warning
 
-  vk::AcquireNextImageInfoKHR acquire_info = {.swapchain = *m_swapchain(),
+  const auto acquire_info = vk::AcquireNextImageInfoKHR{.swapchain = *m_swapchain(),
       .timeout = UINT64_MAX,
       .semaphore = *current_frame_data.image_availible_semaphore,
       .fence = nullptr,
@@ -379,9 +375,7 @@ void application::render_frame() {
   fill_command_buffer(m_primitives_command_buffers[m_curr_frame], image_index, m_swapchain.extent());
   m_imgui_data.fill_command_buffer(m_imgui_command_buffers[m_curr_frame], image_index, m_swapchain.extent());
 
-  std::array<vk::CommandBuffer, 2> cmds = {
-      *m_primitives_command_buffers[m_curr_frame], *m_imgui_command_buffers[m_curr_frame]};
-
+  const auto cmds = std::array{*m_primitives_command_buffers[m_curr_frame], *m_imgui_command_buffers[m_curr_frame]};
   ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height), {},
       glm_vec_from_array(gui_type::params.light_color), gui_type::params.light_dir, gui_type::params.ambient_strength};
 
@@ -392,7 +386,7 @@ void application::render_frame() {
 
   vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
-  vk::SubmitInfo submit_info = {.waitSemaphoreCount = 1,
+  const auto submit_info = vk::SubmitInfo{.waitSemaphoreCount = 1,
       .pWaitSemaphores = std::addressof(*current_frame_data.image_availible_semaphore),
       .pWaitDstStageMask = std::addressof(wait_stages),
       .commandBufferCount = cmds.size(),

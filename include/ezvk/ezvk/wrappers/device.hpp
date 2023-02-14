@@ -59,16 +59,14 @@ public:
   using device_queue_create_infos = std::vector<vk::DeviceQueueCreateInfo>;
   logical_device(const vk::raii::PhysicalDevice &p_device, device_queue_create_infos requested_queues, auto ext_start,
       auto ext_finish, vk::PhysicalDeviceFeatures features = {.fillModeNonSolid = VK_TRUE}) {
+    const auto extensions = utils::to_c_strings(ext_start, ext_finish);
 
-    std::vector<const char *> extensions = utils::to_c_strings(ext_start, ext_finish), layers;
-
-    vk::DeviceCreateInfo device_create_info = {.queueCreateInfoCount = static_cast<uint32_t>(requested_queues.size()),
-        .pQueueCreateInfos = requested_queues.data(),
-        .enabledLayerCount = static_cast<uint32_t>(layers.size()),
-        .ppEnabledLayerNames = layers.data(),
-        .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
-        .ppEnabledExtensionNames = extensions.data(),
-        .pEnabledFeatures = &features};
+    const auto device_create_info =
+        vk::DeviceCreateInfo{.queueCreateInfoCount = static_cast<uint32_t>(requested_queues.size()),
+            .pQueueCreateInfos = requested_queues.data(),
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data(),
+            .pEnabledFeatures = &features};
 
     m_device = p_device.createDevice(device_create_info);
   }

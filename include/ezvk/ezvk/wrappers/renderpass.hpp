@@ -34,9 +34,9 @@ public:
   render_pass() = default;
 
   render_pass(const vk::raii::Device &device, const vk::SubpassDescription &subpass,
-      std::span<vk::AttachmentDescription> attachments = {}, std::span<const vk::SubpassDependency> deps = {}) {
+      std::span<const vk::AttachmentDescription> attachments = {}, std::span<const vk::SubpassDependency> deps = {}) {
 
-    vk::RenderPassCreateInfo renderpass_info = {.attachmentCount = static_cast<uint32_t>(attachments.size()),
+    const auto renderpass_info = vk::RenderPassCreateInfo{.attachmentCount = static_cast<uint32_t>(attachments.size()),
         .pAttachments = attachments.data(),
         .subpassCount = 1,
         .pSubpasses = &subpass,
@@ -56,7 +56,7 @@ public:
   pipeline_layout() = default;
 
   pipeline_layout(const vk::raii::Device &device, const vk::raii::DescriptorSetLayout &descriptor_set_layout) {
-    vk::PipelineLayoutCreateInfo layout_info = {.flags = vk::PipelineLayoutCreateFlags{},
+    const auto layout_info = vk::PipelineLayoutCreateInfo{.flags = vk::PipelineLayoutCreateFlags{},
         .setLayoutCount = 1,
         .pSetLayouts = std::addressof(*descriptor_set_layout),
         .pushConstantRangeCount = 0};

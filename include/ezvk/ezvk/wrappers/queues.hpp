@@ -29,7 +29,7 @@ struct queue_family_indices {
 
 inline std::vector<queue_family_index_type> find_family_indices_with_queue_type(
     const vk::raii::PhysicalDevice &p_device, vk::QueueFlagBits queue_bits) {
-  auto properties = p_device.getQueueFamilyProperties();
+  const auto properties = p_device.getQueueFamilyProperties();
   std::vector<queue_family_index_type> graphics_indices;
 
   for (queue_family_index_type i = 0; const auto &qfp : properties) {
@@ -46,7 +46,7 @@ inline std::vector<queue_family_index_type> find_graphics_family_indices(const v
 
 inline std::vector<queue_family_index_type> find_present_family_indices(
     const vk::raii::PhysicalDevice &p_device, const vk::raii::SurfaceKHR &surface) {
-  auto size = p_device.getQueueFamilyProperties().size();
+  const auto size = p_device.getQueueFamilyProperties().size();
   std::vector<queue_family_index_type> present_indices;
 
   for (queue_family_index_type i = 0; i < size; ++i) {

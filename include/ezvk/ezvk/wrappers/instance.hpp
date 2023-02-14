@@ -59,7 +59,7 @@ public:
     auto extensions = utils::to_c_strings(ext_start, ext_finish),
          layers = utils::to_c_strings(layers_start, layers_finish);
 
-    vk::InstanceCreateInfo create_info = {.pApplicationInfo = &app_info,
+    const auto create_info = vk::InstanceCreateInfo{.pApplicationInfo = &app_info,
         .enabledLayerCount = static_cast<uint32_t>(layers.size()),
         .ppEnabledLayerNames = layers.data(),
         .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
@@ -72,14 +72,14 @@ public:
 
   [[nodiscard]] static supports_result supports_extensions(auto start, auto finish, const vk::raii::Context &ctx) {
     const auto supported_extensions = ctx.enumerateInstanceExtensionProperties();
-    auto missing_extensions = utils::find_all_missing(supported_extensions.begin(), supported_extensions.end(), start,
-        finish, [](auto a) { return a.extensionName; });
+    const auto missing_extensions = utils::find_all_missing(supported_extensions.begin(), supported_extensions.end(),
+        start, finish, [](auto a) { return a.extensionName; });
     return std::make_pair(missing_extensions.empty(), missing_extensions);
   }
 
   [[nodiscard]] static supports_result supports_layers(auto start, auto finish, const vk::raii::Context &ctx) {
     const auto supported_layers = ctx.enumerateInstanceLayerProperties();
-    auto missing_layers = utils::find_all_missing(
+    const auto missing_layers = utils::find_all_missing(
         supported_layers.begin(), supported_layers.end(), start, finish, [](auto a) { return a.layerName; });
     return std::make_pair(missing_layers.empty(), missing_layers);
   }

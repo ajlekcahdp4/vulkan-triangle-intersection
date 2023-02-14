@@ -49,7 +49,7 @@ private:
 
   static void imgui_check_vk_error(VkResult res) {
     vk::Result hpp_result = vk::Result{res};
-    std::string error_message = vk::to_string(hpp_result);
+    const auto error_message = vk::to_string(hpp_result);
     vk::resultCheck(hpp_result, error_message.c_str());
   }
 
@@ -88,7 +88,7 @@ public:
     cmd.reset();
     cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
 
-    vk::RenderPassBeginInfo render_pass_info = {.renderPass = *m_imgui_render_pass(),
+    const auto render_pass_info = vk::RenderPassBeginInfo{.renderPass = *m_imgui_render_pass(),
         .framebuffer = *m_imgui_framebuffers[image_index],
         .renderArea = {vk::Offset2D{0, 0}, extent}};
 
@@ -120,6 +120,7 @@ struct app_gui {
     float linear_velocity_reg = 500.0f;
     float angular_velocity_reg = 30.0f;
     float linear_velocity_mod = 5000.0f;
+
     float render_distance = 30000.0f;
     float fov = 90.0f;
 
@@ -128,8 +129,8 @@ struct app_gui {
 
     glm::vec4 light_dir;
 
-    std::array<float, 4> light_color = hex_to_rgba(0xffffffff);
-    std::array<float, 4> clear_color = hex_to_rgba(0x181818ff);
+    array_color4 light_color = hex_to_rgba(0xffffffff);
+    array_color4 clear_color = hex_to_rgba(0x181818ff);
 
     std::array<array_color4, c_color_count> colors = {
         hex_to_rgba(0x89c4e1ff), hex_to_rgba(0xff4c29ff), hex_to_rgba(0x2f363aff), hex_to_rgba(0x338568ff)};

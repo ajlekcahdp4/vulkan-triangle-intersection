@@ -37,8 +37,8 @@ namespace triangles::gui {
 
 constexpr uint32_t default_descriptor_count = 1000;
 
-constexpr std::array<vk::DescriptorPoolSize, 11> imgui_pool_sizes = {
-    {{vk::DescriptorType::eSampler, default_descriptor_count},
+constexpr auto imgui_pool_sizes =
+    std::to_array<vk::DescriptorPoolSize>({{vk::DescriptorType::eSampler, default_descriptor_count},
         {vk::DescriptorType::eCombinedImageSampler, default_descriptor_count},
         {vk::DescriptorType::eSampledImage, default_descriptor_count},
         {vk::DescriptorType::eStorageImage, default_descriptor_count},
@@ -48,10 +48,9 @@ constexpr std::array<vk::DescriptorPoolSize, 11> imgui_pool_sizes = {
         {vk::DescriptorType::eStorageBuffer, default_descriptor_count},
         {vk::DescriptorType::eUniformBufferDynamic, default_descriptor_count},
         {vk::DescriptorType::eStorageBufferDynamic, default_descriptor_count},
-        {vk::DescriptorType::eInputAttachment, default_descriptor_count}}};
+        {vk::DescriptorType::eInputAttachment, default_descriptor_count}});
 
-constexpr vk::AttachmentDescription imgui_renderpass_attachment_description = {
-    .flags = vk::AttachmentDescriptionFlags{},
+constexpr auto imgui_renderpass_attachment_description = vk::AttachmentDescription{.flags = {},
     .format = vk::Format::eB8G8R8A8Unorm,
     .samples = vk::SampleCountFlagBits::e1,
     .loadOp = vk::AttachmentLoadOp::eLoad,
@@ -61,55 +60,55 @@ constexpr vk::AttachmentDescription imgui_renderpass_attachment_description = {
     .initialLayout = vk::ImageLayout::eColorAttachmentOptimal,
     .finalLayout = vk::ImageLayout::ePresentSrcKHR};
 
-constexpr std::array<vk::SubpassDependency, 1> imgui_subpass_dependency = {
-    vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
-        .dstSubpass = 0,
-        .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-        .srcAccessMask = vk::AccessFlagBits::eNone,
-        .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
+constexpr auto imgui_subpass_dependency = std::array{vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
+    .dstSubpass = 0,
+    .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+    .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+    .srcAccessMask = vk::AccessFlagBits::eNone,
+    .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
 
 imgui_resources::imgui_resources(const applicaton_platform &plat, const vk::raii::Device &l_device,
     const ezvk::device_queue &graphics, const ezvk::swapchain &swapchain, ezvk::upload_context &ctx) {
   m_descriptor_pool = ezvk::create_descriptor_pool(l_device, imgui_pool_sizes);
 
-  vk::AttachmentReference color_attachment_ref = {.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
+  const auto color_attachment_ref =
+      vk::AttachmentReference{.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
 
-  vk::SubpassDescription subpass = {.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+  const auto subpass = vk::SubpassDescription{.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
       .colorAttachmentCount = 1,
       .pColorAttachments = &color_attachment_ref};
 
-  std::array<vk::AttachmentDescription, 1> attachments{imgui_renderpass_attachment_description};
-  m_imgui_render_pass = ezvk::render_pass(l_device, subpass, attachments, imgui_subpass_dependency);
+  const auto attachments = std::array{imgui_renderpass_attachment_description};
+
+  m_imgui_render_pass = {l_device, subpass, attachments, imgui_subpass_dependency};
   m_imgui_framebuffers = {l_device, swapchain.image_views(), swapchain.extent(), m_imgui_render_pass()};
 
   IMGUI_CHECKVERSION(); // Verify that compiled imgui binary matches the header
   ImGui::CreateContext();
 
   ImGui_ImplGlfw_InitForVulkan(plat.window()(), true);
-  ImGui_ImplVulkan_InitInfo info = {.Instance = *plat.instance(),
-      .PhysicalDevice = *plat.p_device(),
-      .Device = *l_device,
-      .QueueFamily = graphics.family_index(),
-      .Queue = *graphics.queue(),
-      .PipelineCache = VK_NULL_HANDLE,
-      .DescriptorPool = *m_descriptor_pool,
-      .Subpass = 0,
-      .MinImageCount = swapchain.min_image_count(),
+
+  // clang-format off
+  auto info = ImGui_ImplVulkan_InitInfo{
+      .Instance = *plat.instance(), .PhysicalDevice = *plat.p_device(), .Device = *l_device,
+      .QueueFamily = graphics.family_index(), .Queue = *graphics.queue(),
+      .PipelineCache = VK_NULL_HANDLE, .DescriptorPool = *m_descriptor_pool, 
+      .Subpass = 0, .MinImageCount = swapchain.min_image_count(), 
       .ImageCount = static_cast<uint32_t>(swapchain.images().size()),
-      .MSAASamples = VK_SAMPLE_COUNT_1_BIT,
-      .Allocator = nullptr,
+      .MSAASamples = VK_SAMPLE_COUNT_1_BIT, .Allocator = nullptr,
       .CheckVkResultFn = imgui_resources::imgui_check_vk_error};
+  // clang-format on
 
   ImGui_ImplVulkan_Init(&info, *m_imgui_render_pass()); // Here we should create a render pass specific to Dear ImGui
   ctx.immediate_submit([](vk::raii::CommandBuffer &cmd) {
     ImGui_ImplVulkan_CreateFontsTexture(*cmd);
   }); // Upload font textures to the GPU via oneshot immediate submit
+
   m_initialized = true;
 }
 
 void app_gui::draw() {
-  static bool metrics_window_open = false;
+  static auto metrics_window_open = false;
 
   if (metrics_window_open) ImGui::ShowMetricsWindow(&metrics_window_open);
 
@@ -177,7 +176,8 @@ void app_gui::draw() {
     params.light_dir = glm::eulerAngleYX(glm::radians(params.light_dir_yaw), glm::radians(params.light_dir_pitch)) *
         glm::vec4{0, 0, 1, 0};
 
-    auto light_dir = params.light_dir;
+    const auto light_dir = params.light_dir;
+
     ImGui::Text("Light direction: x = %.3f, y = %.3f, z = %.3f", light_dir.x, light_dir.y, light_dir.z);
 
     ImGui::PopItemWidth();

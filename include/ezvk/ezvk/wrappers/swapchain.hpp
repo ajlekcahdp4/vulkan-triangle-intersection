@@ -31,7 +31,7 @@ class swapchain {
 
 private:
   static vk::SurfaceFormatKHR choose_swapchain_surface_format(const std::vector<vk::SurfaceFormatKHR> &formats) {
-    auto format_it = std::find_if(formats.begin(), formats.end(), [](auto &format) {
+    const auto format_it = std::find_if(formats.begin(), formats.end(), [](auto &format) {
       return (format.format == vk::Format::eB8G8R8A8Unorm && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear);
     });
     if (format_it != formats.end()) return *format_it;
@@ -39,7 +39,7 @@ private:
   }
 
   static vk::PresentModeKHR choose_swapchain_present_mode(const std::vector<vk::PresentModeKHR> &present_modes) {
-    auto present_mode_it = std::find_if(
+    const auto present_mode_it = std::find_if(
         present_modes.begin(), present_modes.end(), [](auto &mode) { return mode == vk::PresentModeKHR::eMailbox; });
     if (present_mode_it != present_modes.end()) return *present_mode_it;
     return vk::PresentModeKHR::eFifo;
@@ -48,10 +48,17 @@ private:
   static vk::Extent2D choose_swapchain_extent(const vk::Extent2D &p_extent, const vk::SurfaceCapabilitiesKHR &p_cap) {
     // In some systems UINT32_MAX is a flag to say that the size has not been specified
     if (p_cap.currentExtent.width != UINT32_MAX) return p_cap.currentExtent;
-    vk::Extent2D extent = {std::min(p_cap.maxImageExtent.width, std::max(p_cap.minImageExtent.width, p_extent.width)),
-        std::min(p_cap.maxImageExtent.height, std::max(p_cap.minImageExtent.height, p_extent.height))};
+    const auto extent =
+        vk::Extent2D{std::min(p_cap.maxImageExtent.width, std::max(p_cap.minImageExtent.width, p_extent.width)),
+            std::min(p_cap.maxImageExtent.height, std::max(p_cap.minImageExtent.height, p_extent.height))};
     return extent;
   }
+
+  static constexpr auto c_subrange_info = vk::ImageSubresourceRange{.aspectMask = vk::ImageAspectFlagBits::eColor,
+      .baseMipLevel = 0,
+      .levelCount = 1,
+      .baseArrayLayer = 0,
+      .layerCount = 1};
 
 public:
   swapchain() = default;
@@ -59,15 +66,15 @@ public:
   swapchain(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device,
       const vk::raii::SurfaceKHR &surface, const vk::Extent2D &extent, i_graphics_present_queues *queues,
       const vk::SwapchainKHR &old_swapchain = {}) {
-    auto capabilities = p_device.getSurfaceCapabilitiesKHR(*surface);
-    auto present_mode = choose_swapchain_present_mode(p_device.getSurfacePresentModesKHR(*surface));
+    const auto capabilities = p_device.getSurfaceCapabilitiesKHR(*surface);
+    const auto present_mode = choose_swapchain_present_mode(p_device.getSurfacePresentModesKHR(*surface));
 
     m_extent = choose_swapchain_extent(extent, capabilities);
     m_format = choose_swapchain_surface_format(p_device.getSurfaceFormatsKHR(*surface));
 
     m_min_image_count = std::max(capabilities.maxImageCount, capabilities.minImageCount + 1);
 
-    vk::SwapchainCreateInfoKHR create_info = {.surface = *surface,
+    auto create_info = vk::SwapchainCreateInfoKHR{.surface = *surface,
         .minImageCount = m_min_image_count,
         .imageFormat = m_format.format,
         .imageColorSpace = m_format.colorSpace,
@@ -80,33 +87,25 @@ public:
         .clipped = VK_TRUE,
         .oldSwapchain = old_swapchain};
 
-    std::array<ezvk::queue_family_index_type, 2> qfis = {
-        queues->present().family_index(), queues->graphics().family_index()};
+    const auto qfis = std::array{queues->present().family_index(), queues->graphics().family_index()};
 
     if (queues->graphics().family_index() != queues->present().family_index()) {
       create_info.imageSharingMode = vk::SharingMode::eConcurrent;
       create_info.queueFamilyIndexCount = qfis.size();
       create_info.pQueueFamilyIndices = qfis.data();
-    } else {
+    }
+
+    else {
       create_info.imageSharingMode = vk::SharingMode::eExclusive;
     }
 
     m_handle = l_device.createSwapchainKHR(create_info);
     m_images = (*l_device).getSwapchainImagesKHR(*m_handle);
-    m_image_views.reserve(m_images.size());
 
-    vk::ImageSubresourceRange subrange_info = {.aspectMask = vk::ImageAspectFlagBits::eColor,
-        .baseMipLevel = 0,
-        .levelCount = 1,
-        .baseArrayLayer = 0,
-        .layerCount = 1};
-
-    vk::ComponentMapping component_mapping = {};
-
-    vk::ImageViewCreateInfo image_view_create_info = {.viewType = vk::ImageViewType::e2D,
+    auto image_view_create_info = vk::ImageViewCreateInfo{.viewType = vk::ImageViewType::e2D,
         .format = create_info.imageFormat,
-        .components = component_mapping,
-        .subresourceRange = subrange_info};
+        .components = {},
+        .subresourceRange = c_subrange_info};
 
     for (auto &image : m_images) {
       image_view_create_info.image = image;

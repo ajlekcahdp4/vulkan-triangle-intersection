@@ -24,10 +24,9 @@ public:
   image() = default;
 
   image(const vk::raii::PhysicalDevice &p_device, const vk::raii::Device &l_device, const vk::Extent3D &extent,
-      const vk::Format format, const vk::ImageTiling tiling, const vk::ImageUsageFlags usage,
-      const vk::MemoryPropertyFlags properties) {
+      vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties) {
     // clang-format off
-    vk::ImageCreateInfo image_info = {
+    const auto image_info = vk::ImageCreateInfo{
         .imageType = vk::ImageType::e2D, .format = format, .extent = extent, .mipLevels = 1,
         .arrayLayers = 1, .samples = vk::SampleCountFlagBits::e1, .tiling = tiling,
         .usage = usage, .sharingMode = vk::SharingMode::eExclusive, .initialLayout = vk::ImageLayout::eUndefined,
@@ -35,16 +34,15 @@ public:
     // clang-format on
 
     m_image = l_device.createImage(image_info);
-    auto memory_requirements = (*l_device).getImageMemoryRequirements(*m_image);
+    const auto memory_requirements = (*l_device).getImageMemoryRequirements(*m_image);
+    const auto phys_device_memory_props = p_device.getMemoryProperties();
 
-    auto phys_device_memory_props = p_device.getMemoryProperties();
-
-    vk::MemoryAllocateInfo alloc_info = {.allocationSize = memory_requirements.size,
+    const auto alloc_info = vk::MemoryAllocateInfo{.allocationSize = memory_requirements.size,
         .memoryTypeIndex = find_memory_type(phys_device_memory_props, memory_requirements.memoryTypeBits, properties)};
 
     m_image_memory = l_device.allocateMemory(alloc_info);
-    vk::BindImageMemoryInfo bind_info = {.image = *m_image, .memory = *m_image_memory};
-    l_device.bindImageMemory2({bind_info});
+    const auto bind_info = vk::BindImageMemoryInfo{.image = *m_image, .memory = *m_image_memory};
+    l_device.bindImageMemory2(bind_info);
   }
 
   const auto &operator()() const & { return m_image; }
@@ -59,10 +57,10 @@ public:
   image_view(const vk::raii::Device &l_device, const vk::raii::Image &image, const vk::Format format,
       const vk::ImageAspectFlagBits aspect_flags) {
     // clang-format off
-    vk::ImageSubresourceRange range = {.aspectMask = aspect_flags, .baseMipLevel = 0,
+    const auto range = vk::ImageSubresourceRange{.aspectMask = aspect_flags, .baseMipLevel = 0,
                                        .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1};
 
-    vk::ImageViewCreateInfo iv_create_info = {
+    const auto iv_create_info = vk::ImageViewCreateInfo{
         .image = *image, .viewType = vk::ImageViewType::e2D,
         .format = format, .subresourceRange = range,
     };

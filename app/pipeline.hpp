@@ -26,97 +26,92 @@ namespace triangles {
 
 template <typename t_vertex_type> class pipeline final {
   vk::raii::Pipeline m_pipeline = nullptr;
+  vk::raii::ShaderModule m_vertex_shader = nullptr, m_fragment_shader = nullptr;
 
-public:
-  pipeline() = default;
-
-  pipeline(const vk::raii::Device &p_device, const std::string &p_vertex_file_path,
-      const std::string &p_fragment_file_path, const vk::raii::PipelineLayout &p_pipeline_layout,
-      const vk::raii::RenderPass &p_render_pass,
-      const vk::PipelineRasterizationStateCreateInfo &rasterization_state_info,
-      const vk::PrimitiveTopology primitive_topology) {
-    auto binding_description = t_vertex_type::get_binding_description();
-    auto attribute_description = t_vertex_type::get_attribute_description();
-
-    auto vertex_input_info = vertex_input_state_create_info(binding_description, attribute_description);
-    vk::PipelineColorBlendAttachmentState color_attachments = {.blendEnable = VK_FALSE,
-        .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
-
-    const auto color_blend_info = color_blend_state_create_info(color_attachments);
-
-    vk::PipelineInputAssemblyStateCreateInfo input_asm_info = {
-        .flags = vk::PipelineInputAssemblyStateCreateFlags(), .topology = primitive_topology};
-
-    std::array<vk::DynamicState, 2> dynamic_states = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
-
-    vk::PipelineViewportStateCreateInfo viewport_info = {
-        .viewportCount = 1, .pViewports = nullptr, .scissorCount = 1, .pScissors = nullptr};
-
-    vk::PipelineDynamicStateCreateInfo dynamic_state_info = {
-        .dynamicStateCount = static_cast<uint32_t>(dynamic_states.size()), .pDynamicStates = dynamic_states.data()};
-
-    vk::PipelineMultisampleStateCreateInfo multisampling = {
-        .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = VK_FALSE};
-
-    std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
-
-    // vertex shader
-    auto vertex_shader = ezvk::create_module(p_vertex_file_path, p_device);
-    vk::PipelineShaderStageCreateInfo vertex_shader_info = {
-        .stage = vk::ShaderStageFlagBits::eVertex, .module = *vertex_shader, .pName = "main"};
-    shader_stages.push_back(vertex_shader_info);
-
-    // fragment shader
-    auto fragment_shader = ezvk::create_module(p_fragment_file_path, p_device);
-    vk::PipelineShaderStageCreateInfo fragment_shader_info = {
-        .stage = vk::ShaderStageFlagBits::eFragment, .module = *fragment_shader, .pName = "main"};
-    shader_stages.push_back(fragment_shader_info);
-
-    vk::PipelineDepthStencilStateCreateInfo depth_stencil = {.depthTestEnable = VK_TRUE,
-        .depthWriteEnable = VK_TRUE,
-        .depthCompareOp = vk::CompareOp::eLess,
-        .depthBoundsTestEnable = VK_FALSE,
-        .stencilTestEnable = VK_FALSE,
-        .minDepthBounds = 0.0f,
-        .maxDepthBounds = 1.0f};
-
-    vk::GraphicsPipelineCreateInfo pipeline_info = {.stageCount = static_cast<uint32_t>(shader_stages.size()),
-        .pStages = shader_stages.data(),
-        .pVertexInputState = &vertex_input_info,
-        .pInputAssemblyState = &input_asm_info,
-        .pViewportState = &viewport_info,
-        .pRasterizationState = &rasterization_state_info,
-        .pMultisampleState = &multisampling,
-        .pDepthStencilState = &depth_stencil,
-        .pColorBlendState = &color_blend_info,
-        .pDynamicState = &dynamic_state_info,
-        .layout = *p_pipeline_layout,
-        .renderPass = *p_render_pass,
-        .subpass = 0,
-        .basePipelineHandle = nullptr};
-
-    m_pipeline = p_device.createGraphicsPipeline(nullptr, pipeline_info);
-  }
-
-  static vk::PipelineVertexInputStateCreateInfo vertex_input_state_create_info(
-      vk::VertexInputBindingDescription &binding_description, const auto &attribute_description) {
+private:
+  static auto vertex_input_state_create_info(const vk::VertexInputBindingDescription &binding, const auto &attr) {
     return vk::PipelineVertexInputStateCreateInfo{.flags = vk::PipelineVertexInputStateCreateFlags(),
         .vertexBindingDescriptionCount = 1,
-        .pVertexBindingDescriptions = &binding_description,
-        .vertexAttributeDescriptionCount = static_cast<uint32_t>(attribute_description.size()),
-        .pVertexAttributeDescriptions = attribute_description.data()};
+        .pVertexBindingDescriptions = &binding,
+        .vertexAttributeDescriptionCount = static_cast<uint32_t>(attr.size()),
+        .pVertexAttributeDescriptions = attr.data()};
   }
 
-  static vk::PipelineColorBlendStateCreateInfo color_blend_state_create_info(
-      vk::PipelineColorBlendAttachmentState &color_attachments) {
+  static auto color_blend_state_create_info(const vk::PipelineColorBlendAttachmentState &attach) {
     return vk::PipelineColorBlendStateCreateInfo{
         .logicOpEnable = VK_FALSE,
         .logicOp = vk::LogicOp::eCopy,
         .attachmentCount = 1,
-        .pAttachments = &color_attachments,
+        .pAttachments = &attach,
         .blendConstants = {},
     };
+  }
+
+  auto add_shader_stages(const vk::raii::Device &l_device, std::string vertex, std::string frag) {
+    std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
+
+    const auto add_stage = [&shader_stages, &l_device](auto path, auto stage, auto &shader_module) {
+      shader_module = ezvk::create_module(path, l_device);
+      vk::PipelineShaderStageCreateInfo info = {.stage = stage, .module = *shader_module, .pName = "main"};
+      shader_stages.push_back(info);
+    };
+
+    add_stage(vertex, vk::ShaderStageFlagBits::eVertex, m_vertex_shader);
+    add_stage(frag, vk::ShaderStageFlagBits::eFragment, m_fragment_shader);
+
+    return shader_stages;
+  }
+
+  static constexpr auto c_color_attachments = vk::PipelineColorBlendAttachmentState{.blendEnable = VK_FALSE,
+      .colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+          vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA};
+
+  static constexpr auto c_dynamic_states = std::array{vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+  static constexpr auto c_viewport_info = vk::PipelineViewportStateCreateInfo{
+      .viewportCount = 1, .pViewports = nullptr, .scissorCount = 1, .pScissors = nullptr};
+
+  static constexpr auto c_depth_stencil_info = vk::PipelineDepthStencilStateCreateInfo{.depthTestEnable = VK_TRUE,
+      .depthWriteEnable = VK_TRUE,
+      .depthCompareOp = vk::CompareOp::eLess,
+      .depthBoundsTestEnable = VK_FALSE,
+      .stencilTestEnable = VK_FALSE,
+      .minDepthBounds = 0.0f,
+      .maxDepthBounds = 1.0f};
+
+  static constexpr auto c_multisampling_info = vk::PipelineMultisampleStateCreateInfo{
+      .rasterizationSamples = vk::SampleCountFlagBits::e1, .sampleShadingEnable = VK_FALSE};
+
+public:
+  pipeline() = default;
+
+  pipeline(const vk::raii::Device &l_device, std::string vertex, std::string frag,
+      const vk::raii::PipelineLayout &layout, const vk::raii::RenderPass &pass,
+      vk::PipelineRasterizationStateCreateInfo rast_info, vk::PrimitiveTopology primitive_topology) {
+    const auto binding_description = t_vertex_type::get_binding_description();
+    const auto attribute_description = t_vertex_type::get_attribute_description();
+
+    const auto vertex_input_info = vertex_input_state_create_info(binding_description, attribute_description);
+    const auto color_blend_info = color_blend_state_create_info(c_color_attachments);
+
+    const auto input_asm_info = vk::PipelineInputAssemblyStateCreateInfo{
+        .flags = vk::PipelineInputAssemblyStateCreateFlags(), .topology = primitive_topology};
+
+    const auto dynamic_state_info = vk::PipelineDynamicStateCreateInfo{
+        .dynamicStateCount = static_cast<uint32_t>(c_dynamic_states.size()), .pDynamicStates = c_dynamic_states.data()};
+
+    auto shader_stages = add_shader_stages(l_device, vertex, frag);
+
+    // clang-format off
+    const auto pipeline_info = vk::GraphicsPipelineCreateInfo{
+        .stageCount = static_cast<uint32_t>(shader_stages.size()), .pStages = shader_stages.data(),
+        .pVertexInputState = &vertex_input_info, .pInputAssemblyState = &input_asm_info,
+        .pViewportState = &c_viewport_info, .pRasterizationState = &rast_info,
+        .pMultisampleState = &c_multisampling_info, .pDepthStencilState = &c_depth_stencil_info,
+        .pColorBlendState = &color_blend_info, .pDynamicState = &dynamic_state_info,
+        .layout = *layout, .renderPass = *pass, .subpass = 0, .basePipelineHandle = nullptr};
+    // clang-format on
+
+    m_pipeline = l_device.createGraphicsPipeline(nullptr, pipeline_info);
   }
 
   const auto &operator()() const & { return m_pipeline; }

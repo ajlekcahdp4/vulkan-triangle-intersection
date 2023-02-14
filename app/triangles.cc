@@ -249,7 +249,7 @@ input_result application_loop(
   // Here we add triangles oriented in the opposite direction to light them differently
   auto sz = vertices.size();
   for (unsigned i = 0; i < sz; i += 3) {
-    const std::array<unsigned, 3> offsets = {0, 2, 1};
+    const auto offsets = std::array{0, 2, 1};
     for (const auto &o : offsets) {
       auto new_vertex = vertices[i + o];
       new_vertex.norm *= -1;
@@ -257,8 +257,8 @@ input_result application_loop(
     }
   }
 
-  wireframe_vertices_type mesh_vertices = fill_wireframe_vertices(cont.impl());
-  wireframe_vertices_type bboxes_vertices = fill_bounding_box_vertices(triangles);
+  const auto mesh_vertices = fill_wireframe_vertices(cont.impl());
+  const auto bboxes_vertices = fill_bounding_box_vertices(triangles);
 
   return {true, vertices, mesh_vertices, bboxes_vertices};
 }
@@ -310,13 +310,12 @@ int main(int argc, char *argv[]) try {
       .apiVersion = VK_MAKE_VERSION(1, 1, 0)};
 
   vk::raii::Context ctx;
-
-  auto extensions = triangles::config::required_vk_extensions();
+  const auto extensions = triangles::config::required_vk_extensions();
 
 #ifdef USE_DEBUG_EXTENSION
-  auto layers = triangles::config::required_vk_layers(true);
+  const auto layers = triangles::config::required_vk_layers(true);
 #else
-  auto layers = triangles::config::required_vk_layers();
+  const auto layers = triangles::config::required_vk_layers();
 #endif
 
   ezvk::instance raw_instance = {ctx, app_info, extensions.begin(), extensions.end(), layers.begin(), layers.end()};
@@ -326,8 +325,7 @@ int main(int argc, char *argv[]) try {
 #else
   ezvk::generic_instance instance = std::move(raw_instance);
 #endif
-
-  auto physical_device_extensions = triangles::config::required_physical_device_extensions();
+  const auto physical_device_extensions = triangles::config::required_physical_device_extensions();
   auto suitable_physical_devices = ezvk::physical_device_selector::enumerate_suitable_physical_devices(
       instance(), physical_device_extensions.begin(), physical_device_extensions.end());
 
@@ -338,12 +336,12 @@ int main(int argc, char *argv[]) try {
   auto p_device = std::move(suitable_physical_devices.front());
   auto window = ezvk::unique_glfw_window{"Triangles intersection", vk::Extent2D{800, 600}, true};
   auto surface = ezvk::surface{instance(), window};
-  triangles::applicaton_platform platform = {
-      std::move(instance), std::move(window), std::move(surface), std::move(p_device)};
+
+  auto platform =
+      triangles::applicaton_platform{std::move(instance), std::move(window), std::move(surface), std::move(p_device)};
 
   auto &app = triangles::application::instance().get(&platform);
-  std::atomic_bool should_close = false;
-  std::atomic_bool should_kill = false;
+  std::atomic_bool should_close = false, should_kill = false;
 
   auto rendering_thread = std::thread{[&app, &should_close, &should_kill]() {
     try {

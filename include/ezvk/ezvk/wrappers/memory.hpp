@@ -35,7 +35,7 @@ public:
 };
 
 inline uint32_t find_memory_type(
-    vk::PhysicalDeviceMemoryProperties mem_properties, uint32_t &type_filter, vk::MemoryPropertyFlags property_flags) {
+    vk::PhysicalDeviceMemoryProperties mem_properties, uint32_t type_filter, vk::MemoryPropertyFlags property_flags) {
   uint32_t i = 0;
 
   auto found = std::find_if(
@@ -61,7 +61,7 @@ public:
 
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
       const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass) {
-    vk::FramebufferCreateInfo framebuffer_info = {
+    auto framebuffer_info = vk::FramebufferCreateInfo{
         .renderPass = *render_pass, .attachmentCount = 1, .width = extent.width, .height = extent.height, .layers = 1};
 
     for (const auto &view : image_views) {
@@ -73,7 +73,7 @@ public:
   framebuffers(const vk::raii::Device &l_device, const std::vector<vk::raii::ImageView> &image_views,
       const vk::Extent2D &extent, const vk::raii::RenderPass &render_pass,
       const vk::raii::ImageView &depth_image_view) {
-    vk::FramebufferCreateInfo framebuffer_info = {
+    auto framebuffer_info = vk::FramebufferCreateInfo{
         .renderPass = *render_pass, .width = extent.width, .height = extent.height, .layers = 1};
 
     for (const auto &view : image_views) {

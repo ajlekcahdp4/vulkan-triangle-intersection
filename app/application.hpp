@@ -198,8 +198,9 @@ private:
   ezvk::device_buffer copy_to_staging_memory(const auto &container) {
     assert(!container.empty());
 
-    ezvk::device_buffer staging_buffer = {m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc,
-        std::span{container}, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
+    auto staging_buffer =
+        ezvk::device_buffer{m_platform.p_device(), m_l_device(), vk::BufferUsageFlagBits::eTransferSrc,
+            std::span{container}, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
     return staging_buffer;
   }
@@ -217,7 +218,7 @@ private:
     vk::BufferCopy copy = {0, 0, size};
     cmd.copyBuffer(*src_buffer, *dst_buffer, copy);
 
-    vk::BufferMemoryBarrier barrier = {.srcAccessMask = vk::AccessFlagBits::eTransferWrite,
+    const auto barrier = vk::BufferMemoryBarrier{.srcAccessMask = vk::AccessFlagBits::eTransferWrite,
         .dstAccessMask = vk::AccessFlagBits::eVertexAttributeRead,
         .buffer = *dst_buffer,
         .offset = 0,
