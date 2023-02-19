@@ -80,7 +80,9 @@ public:
   }
 
 public:
-  void draw(vk::raii::CommandBuffer &cmd) { ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd); }
+  void fill_command_buffer(vk::raii::CommandBuffer &cmd) {
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd);
+  }
 
   void update_after_resize(const ezvk::swapchain &swapchain) {
     ImGui_ImplVulkan_SetMinImageCount(swapchain.min_image_count());

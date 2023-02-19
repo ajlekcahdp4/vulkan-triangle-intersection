@@ -340,7 +340,7 @@ void application::fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t ima
     submit_draw_info(m_wireframe_bbox_draw_info);
   }
 
-  m_imgui_data.draw(cmd);
+  m_imgui_data.fill_command_buffer(cmd);
 
   cmd.endRenderPass();
   cmd.end();

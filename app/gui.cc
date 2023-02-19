@@ -71,7 +71,7 @@ imgui_resources::imgui_resources(const applicaton_platform &plat, const vk::raii
       .CheckVkResultFn = imgui_resources::imgui_check_vk_error};
   // clang-format on
 
-  ImGui_ImplVulkan_Init(&info, *rpass()); // Here we should create a render pass specific to Dear ImGui
+  ImGui_ImplVulkan_Init(&info, *rpass());
   ctx.immediate_submit([](vk::raii::CommandBuffer &cmd) {
     ImGui_ImplVulkan_CreateFontsTexture(*cmd);
   }); // Upload font textures to the GPU via oneshot immediate submit
