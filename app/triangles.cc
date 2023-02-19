@@ -384,7 +384,8 @@ int main(int argc, char *argv[]) try {
       } else if (opt == "uniform-grid") {
         throttle::geometry::uniform_grid<float, indexed_geom> uniform{n};
         if (!(res = application_loop(*isp, uniform, n)).success) return false;
-      }
+      } else
+        throw std::runtime_error{"Unknown broad option"};
 
       triangles::input_data data = {res.tr_vert, res.broad_vert, res.bbox_vert};
       app.load_input_data(data);
