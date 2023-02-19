@@ -115,7 +115,7 @@ private:
     vk::raii::Fence in_flight_fence;
   };
 
-  vk::raii::CommandBuffers m_primitives_command_buffers = nullptr, m_imgui_command_buffers = nullptr;
+  vk::raii::CommandBuffers m_primitives_command_buffers = nullptr;
 
   std::vector<frame_rendering_info> m_rendering_info;
   std::chrono::time_point<std::chrono::system_clock> m_prev_frame_start;

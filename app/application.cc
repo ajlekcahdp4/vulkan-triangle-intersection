@@ -61,14 +61,7 @@ static constexpr vk::AttachmentDescription primitives_renderpass_attachment_desc
     .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
     .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
     .initialLayout = vk::ImageLayout::eUndefined,
-    .finalLayout = vk::ImageLayout::eColorAttachmentOptimal};
-
-static constexpr auto depth_subpass_dependency = std::array{vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
-    .dstSubpass = 0,
-    .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
-    .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
-    .srcAccessMask = vk::AccessFlagBits::eNone,
-    .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite}};
+    .finalLayout = vk::ImageLayout::ePresentSrcKHR};
 
 application::application(applicaton_platform platform) : m_platform{std::move(platform)} {
   initialize_logical_device_queues();
@@ -141,7 +134,7 @@ void application::initialize_primitives_pipeline() {
   const auto attachments =
       std::array{primitives_renderpass_attachment_description, ezvk::create_depth_attachment(depth_format)};
 
-  m_primitives_render_pass = ezvk::render_pass{m_l_device(), subpass, attachments, depth_subpass_dependency};
+  m_primitives_render_pass = ezvk::render_pass{m_l_device(), subpass, attachments};
   m_depth_buffer = {m_platform.m_p_device, m_l_device(), depth_format, m_swapchain.extent()};
   m_primitives_pipeline_layout = {m_l_device(), m_descriptor_set.m_layout};
 
@@ -176,13 +169,9 @@ void application::initialize_input_hanlder() {
 }
 
 void application::initialize_imgui() {
-  m_imgui_data = {m_platform, m_l_device(), m_graphics_present->graphics(), m_swapchain, m_oneshot_upload};
+  m_imgui_data = {m_platform, m_l_device(), m_graphics_present->graphics(), m_swapchain, m_oneshot_upload,
+      m_primitives_render_pass};
 
-  const auto alloc_info = vk::CommandBufferAllocateInfo{.commandPool = *m_command_pool,
-      .level = vk::CommandBufferLevel::ePrimary,
-      .commandBufferCount = c_max_frames_in_flight};
-
-  m_imgui_command_buffers = vk::raii::CommandBuffers{m_l_device(), alloc_info};
   ImGui::StyleColorsDark();
 }
 
@@ -256,7 +245,7 @@ void application::recreate_swap_chain() {
   m_framebuffers = {m_l_device(), m_swapchain.image_views(), m_swapchain.extent(), m_primitives_render_pass(),
       m_depth_buffer.m_image_view()};
 
-  m_imgui_data.update_after_resize(m_l_device(), m_swapchain);
+  m_imgui_data.update_after_resize(m_swapchain);
 }
 
 void application::physics_loop(float delta) {
@@ -351,11 +340,12 @@ void application::fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t ima
     submit_draw_info(m_wireframe_bbox_draw_info);
   }
 
+  m_imgui_data.draw(cmd);
+
   cmd.endRenderPass();
   cmd.end();
 }
 
-// INSPIRATION: https://github.com/tilir/cpp-graduate/blob/master/10-3d/vk-simplest.cc
 void application::render_frame() {
   auto &current_frame_data = m_rendering_info.at(m_curr_frame);
   static_cast<void>(m_l_device().waitForFences({*current_frame_data.in_flight_fence}, VK_TRUE, UINT64_MAX));
@@ -376,9 +366,8 @@ void application::render_frame() {
   }
 
   fill_command_buffer(m_primitives_command_buffers[m_curr_frame], image_index, m_swapchain.extent());
-  m_imgui_data.fill_command_buffer(m_imgui_command_buffers[m_curr_frame], image_index, m_swapchain.extent());
 
-  const auto cmds = std::array{*m_primitives_command_buffers[m_curr_frame], *m_imgui_command_buffers[m_curr_frame]};
+  const auto cmds = std::array{*m_primitives_command_buffers[m_curr_frame]};
   ubo uniform_buffer = {m_camera.get_vp_matrix(m_swapchain.extent().width, m_swapchain.extent().height), {},
       glm_vec_from_array(gui_type::params.light_color), gui_type::params.light_dir, gui_type::params.ambient_strength};
 

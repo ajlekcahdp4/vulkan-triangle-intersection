@@ -50,38 +50,10 @@ constexpr auto imgui_pool_sizes =
         {vk::DescriptorType::eStorageBufferDynamic, default_descriptor_count},
         {vk::DescriptorType::eInputAttachment, default_descriptor_count}});
 
-constexpr auto imgui_renderpass_attachment_description = vk::AttachmentDescription{.flags = {},
-    .format = vk::Format::eB8G8R8A8Unorm,
-    .samples = vk::SampleCountFlagBits::e1,
-    .loadOp = vk::AttachmentLoadOp::eLoad,
-    .storeOp = vk::AttachmentStoreOp::eStore,
-    .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
-    .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
-    .initialLayout = vk::ImageLayout::eColorAttachmentOptimal,
-    .finalLayout = vk::ImageLayout::ePresentSrcKHR};
-
-constexpr auto imgui_subpass_dependency = std::array{vk::SubpassDependency{.srcSubpass = VK_SUBPASS_EXTERNAL,
-    .dstSubpass = 0,
-    .srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-    .dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-    .srcAccessMask = vk::AccessFlagBits::eNone,
-    .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite}};
-
 imgui_resources::imgui_resources(const applicaton_platform &plat, const vk::raii::Device &l_device,
-    const ezvk::device_queue &graphics, const ezvk::swapchain &swapchain, ezvk::upload_context &ctx) {
+    const ezvk::device_queue &graphics, const ezvk::swapchain &swapchain, ezvk::upload_context &ctx,
+    ezvk::render_pass &rpass) {
   m_descriptor_pool = ezvk::create_descriptor_pool(l_device, imgui_pool_sizes);
-
-  const auto color_attachment_ref =
-      vk::AttachmentReference{.attachment = 0, .layout = vk::ImageLayout::eColorAttachmentOptimal};
-
-  const auto subpass = vk::SubpassDescription{.pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
-      .colorAttachmentCount = 1,
-      .pColorAttachments = &color_attachment_ref};
-
-  const auto attachments = std::array{imgui_renderpass_attachment_description};
-
-  m_imgui_render_pass = {l_device, subpass, attachments, imgui_subpass_dependency};
-  m_imgui_framebuffers = {l_device, swapchain.image_views(), swapchain.extent(), m_imgui_render_pass()};
 
   IMGUI_CHECKVERSION(); // Verify that compiled imgui binary matches the header
   ImGui::CreateContext();
@@ -99,7 +71,7 @@ imgui_resources::imgui_resources(const applicaton_platform &plat, const vk::raii
       .CheckVkResultFn = imgui_resources::imgui_check_vk_error};
   // clang-format on
 
-  ImGui_ImplVulkan_Init(&info, *m_imgui_render_pass()); // Here we should create a render pass specific to Dear ImGui
+  ImGui_ImplVulkan_Init(&info, *rpass()); // Here we should create a render pass specific to Dear ImGui
   ctx.immediate_submit([](vk::raii::CommandBuffer &cmd) {
     ImGui_ImplVulkan_CreateFontsTexture(*cmd);
   }); // Upload font textures to the GPU via oneshot immediate submit

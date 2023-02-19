@@ -41,8 +41,6 @@ namespace triangles::gui {
 
 class imgui_resources {
   vk::raii::DescriptorPool m_descriptor_pool = nullptr;
-  ezvk::render_pass m_imgui_render_pass;
-  ezvk::framebuffers m_imgui_framebuffers;
 
 private:
   bool m_initialized = false;
@@ -57,15 +55,13 @@ public:
   imgui_resources() = default;
 
   imgui_resources(const applicaton_platform &plat, const vk::raii::Device &l_device, const ezvk::device_queue &graphics,
-      const ezvk::swapchain &swapchain, ezvk::upload_context &ctx);
+      const ezvk::swapchain &swapchain, ezvk::upload_context &ctx, ezvk::render_pass &rpass);
 
   imgui_resources(const imgui_resources &rhs) = delete;
   imgui_resources &operator=(const imgui_resources &rhs) = delete;
 
   void swap(imgui_resources &rhs) {
     std::swap(m_descriptor_pool, rhs.m_descriptor_pool);
-    std::swap(m_imgui_render_pass, rhs.m_imgui_render_pass);
-    std::swap(m_imgui_framebuffers, rhs.m_imgui_framebuffers);
     std::swap(m_initialized, rhs.m_initialized);
   }
 
@@ -84,25 +80,10 @@ public:
   }
 
 public:
-  void fill_command_buffer(vk::raii::CommandBuffer &cmd, uint32_t image_index, vk::Extent2D extent) {
-    cmd.reset();
-    cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse});
+  void draw(vk::raii::CommandBuffer &cmd) { ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd); }
 
-    const auto render_pass_info = vk::RenderPassBeginInfo{.renderPass = *m_imgui_render_pass(),
-        .framebuffer = *m_imgui_framebuffers[image_index],
-        .renderArea = {vk::Offset2D{0, 0}, extent}};
-
-    cmd.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
-
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd);
-
-    cmd.endRenderPass();
-    cmd.end();
-  }
-
-  void update_after_resize(const vk::raii::Device &l_device, const ezvk::swapchain &swapchain) {
+  void update_after_resize(const ezvk::swapchain &swapchain) {
     ImGui_ImplVulkan_SetMinImageCount(swapchain.min_image_count());
-    m_imgui_framebuffers = {l_device, swapchain.image_views(), swapchain.extent(), m_imgui_render_pass()};
   }
 
   static void new_frame() {
